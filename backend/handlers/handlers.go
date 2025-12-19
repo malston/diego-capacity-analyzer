@@ -86,6 +86,49 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	// Authenticate with CF API
+	if err := h.cfClient.Authenticate(); err != nil {
+		log.Printf("CF API authentication error: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(models.ErrorResponse{
+			Error:   "CF API authentication failed",
+			Details: err.Error(),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// Fetch apps from CF API
+	apps, err := h.cfClient.GetApps()
+	if err != nil {
+		log.Printf("CF API GetApps error: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(models.ErrorResponse{
+			Error:   "Failed to fetch apps from CF API",
+			Details: err.Error(),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+	resp.Apps = apps
+
+	// Fetch isolation segments from CF API
+	segments, err := h.cfClient.GetIsolationSegments()
+	if err != nil {
+		log.Printf("CF API GetIsolationSegments error: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(models.ErrorResponse{
+			Error:   "Failed to fetch isolation segments from CF API",
+			Details: err.Error(),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+	resp.Segments = segments
+
 	// Fetch BOSH cells (optional, degraded mode if fails)
 	if h.boshClient != nil {
 		cells, err := h.boshClient.GetDiegoCells()

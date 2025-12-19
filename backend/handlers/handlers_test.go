@@ -4,12 +4,91 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/cache"
 	"github.com/markalston/diego-capacity-analyzer/backend/config"
 )
+
+// setupMockCFServer creates a mock CF API server with UAA authentication
+func setupMockCFServer() (*httptest.Server, *httptest.Server) {
+	// Mock UAA server
+	uaaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/token" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"access_token":"test-token","token_type":"bearer"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	// Mock CF API server
+	var cfServerURL string
+	cfServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch {
+		case r.URL.Path == "/v3/info":
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"links":{"self":{"href":"` + cfServerURL + `"},"login":{"href":"` + uaaServer.URL + `"}}}`))
+
+		case r.URL.Path == "/v3/apps":
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{
+				"resources": [
+					{
+						"guid": "app-1",
+						"name": "test-app",
+						"state": "STARTED",
+						"relationships": {
+							"space": {
+								"data": {"guid": "space-1"}
+							}
+						}
+					}
+				],
+				"pagination": {"next": null}
+			}`))
+
+		case strings.HasPrefix(r.URL.Path, "/v3/apps/") && strings.HasSuffix(r.URL.Path, "/processes"):
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{
+				"resources": [
+					{
+						"type": "web",
+						"instances": 2,
+						"memory_in_mb": 512
+					}
+				]
+			}`))
+
+		case strings.HasPrefix(r.URL.Path, "/v3/spaces/") && strings.HasSuffix(r.URL.Path, "/relationships/isolation_segment"):
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"data": null}`))
+
+		case r.URL.Path == "/v3/isolation_segments":
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{
+				"resources": [
+					{
+						"guid": "iso-seg-1",
+						"name": "production"
+					}
+				],
+				"pagination": {"next": null}
+			}`))
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	cfServerURL = cfServer.URL
+
+	return cfServer, uaaServer
+}
 
 func TestHealthHandler(t *testing.T) {
 	cfg := &config.Config{
@@ -72,8 +151,12 @@ func TestHealthHandler_WithBOSH(t *testing.T) {
 }
 
 func TestDashboardHandler_NoBOSH(t *testing.T) {
+	cfServer, uaaServer := setupMockCFServer()
+	defer cfServer.Close()
+	defer uaaServer.Close()
+
 	cfg := &config.Config{
-		CFAPIUrl:   "https://api.test.com",
+		CFAPIUrl:   cfServer.URL,
 		CFUsername: "admin",
 		CFPassword: "secret",
 	}
@@ -102,11 +185,27 @@ func TestDashboardHandler_NoBOSH(t *testing.T) {
 	if metadata["cached"] != false {
 		t.Errorf("Expected cached false on first request, got %v", metadata["cached"])
 	}
+
+	// Verify apps are present
+	apps := resp["apps"].([]interface{})
+	if len(apps) != 1 {
+		t.Errorf("Expected 1 app, got %d", len(apps))
+	}
+
+	// Verify isolation segments are present
+	segments := resp["segments"].([]interface{})
+	if len(segments) != 1 {
+		t.Errorf("Expected 1 isolation segment, got %d", len(segments))
+	}
 }
 
 func TestDashboardHandler_Cache(t *testing.T) {
+	cfServer, uaaServer := setupMockCFServer()
+	defer cfServer.Close()
+	defer uaaServer.Close()
+
 	cfg := &config.Config{
-		CFAPIUrl:   "https://api.test.com",
+		CFAPIUrl:   cfServer.URL,
 		CFUsername: "admin",
 		CFPassword: "secret",
 	}
