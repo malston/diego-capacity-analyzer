@@ -140,6 +140,31 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Calculate cell used_mb from app metrics in same isolation segment
+	if len(resp.Cells) > 0 && len(resp.Apps) > 0 {
+		// Sum actual memory per isolation segment
+		segmentMemory := make(map[string]int)
+		for _, app := range resp.Apps {
+			segmentMemory[app.IsolationSegment] += app.ActualMB
+		}
+
+		// Count cells per segment for distribution
+		segmentCellCount := make(map[string]int)
+		for _, cell := range resp.Cells {
+			segmentCellCount[cell.IsolationSegment]++
+		}
+
+		// Distribute app memory across cells in segment
+		for i := range resp.Cells {
+			segment := resp.Cells[i].IsolationSegment
+			cellCount := segmentCellCount[segment]
+			if cellCount > 0 && segmentMemory[segment] > 0 {
+				// Evenly distribute segment memory across cells
+				resp.Cells[i].UsedMB = segmentMemory[segment] / cellCount
+			}
+		}
+	}
+
 	// Cache result
 	h.cache.Set("dashboard:all", resp)
 
