@@ -10,6 +10,7 @@ import (
 
 	"github.com/markalston/diego-capacity-analyzer/backend/cache"
 	"github.com/markalston/diego-capacity-analyzer/backend/config"
+	"github.com/markalston/diego-capacity-analyzer/backend/models"
 )
 
 // setupMockCFServer creates a mock CF API server with UAA authentication
@@ -262,7 +263,7 @@ func TestEnableCORS(t *testing.T) {
 		t.Errorf("Expected CORS header, got %s", w.Header().Get("Access-Control-Allow-Origin"))
 	}
 
-	if w.Header().Get("Access-Control-Allow-Methods") != "GET, OPTIONS" {
+	if w.Header().Get("Access-Control-Allow-Methods") != "GET, POST, OPTIONS" {
 		t.Errorf("Expected CORS methods, got %s", w.Header().Get("Access-Control-Allow-Methods"))
 	}
 }
@@ -292,5 +293,109 @@ func TestEnableCORS_OPTIONS(t *testing.T) {
 
 	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
 		t.Errorf("Expected CORS header for OPTIONS, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestHandleManualInfrastructure(t *testing.T) {
+	body := `{
+		"name": "Test Env",
+		"clusters": [{
+			"name": "cluster-01",
+			"host_count": 8,
+			"memory_gb_per_host": 2048,
+			"cpu_cores_per_host": 64,
+			"diego_cell_count": 250,
+			"diego_cell_memory_gb": 32,
+			"diego_cell_cpu": 4
+		}],
+		"platform_vms_gb": 4800,
+		"total_app_memory_gb": 10500,
+		"total_app_instances": 7500
+	}`
+
+	req := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+	handler.HandleManualInfrastructure(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response models.InfrastructureState
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response.Source != "manual" {
+		t.Errorf("Expected source 'manual', got '%s'", response.Source)
+	}
+	if response.TotalHostCount != 8 {
+		t.Errorf("Expected TotalHostCount 8, got %d", response.TotalHostCount)
+	}
+}
+
+func TestHandleScenarioCompare(t *testing.T) {
+	// First, set up manual infrastructure
+	manualBody := `{
+		"name": "Test Env",
+		"clusters": [{
+			"name": "cluster-01",
+			"host_count": 15,
+			"memory_gb_per_host": 2048,
+			"cpu_cores_per_host": 64,
+			"diego_cell_count": 470,
+			"diego_cell_memory_gb": 32,
+			"diego_cell_cpu": 4
+		}],
+		"platform_vms_gb": 4800,
+		"total_app_memory_gb": 10500,
+		"total_app_instances": 7500
+	}`
+
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// Set manual infrastructure
+	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	handler.HandleManualInfrastructure(w1, req1)
+
+	if w1.Code != http.StatusOK {
+		t.Fatalf("Failed to set manual infrastructure: %s", w1.Body.String())
+	}
+
+	// Now compare scenario
+	compareBody := `{
+		"proposed_cell_memory_gb": 64,
+		"proposed_cell_cpu": 4,
+		"proposed_cell_count": 235
+	}`
+
+	req2 := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader(compareBody))
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	handler.HandleScenarioCompare(w2, req2)
+
+	if w2.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())
+	}
+
+	var comparison models.ScenarioComparison
+	if err := json.NewDecoder(w2.Body).Decode(&comparison); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if comparison.Current.CellCount != 470 {
+		t.Errorf("Expected Current.CellCount 470, got %d", comparison.Current.CellCount)
+	}
+	if comparison.Proposed.CellCount != 235 {
+		t.Errorf("Expected Proposed.CellCount 235, got %d", comparison.Proposed.CellCount)
 	}
 }

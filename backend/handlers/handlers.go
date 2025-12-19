@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/cache"
@@ -16,28 +17,36 @@ import (
 )
 
 type Handler struct {
-	cfg        *config.Config
-	cache      *cache.Cache
-	cfClient   *services.CFClient
-	boshClient *services.BOSHClient
+	cfg                 *config.Config
+	cache               *cache.Cache
+	cfClient            *services.CFClient
+	boshClient          *services.BOSHClient
+	infrastructureState *models.InfrastructureState
+	scenarioCalc        *services.ScenarioCalculator
+	infraMutex          sync.RWMutex
 }
 
 func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 	h := &Handler{
-		cfg:      cfg,
-		cache:    cache,
-		cfClient: services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword),
+		cfg:          cfg,
+		cache:        cache,
+		scenarioCalc: services.NewScenarioCalculator(),
 	}
 
-	// BOSH client is optional
-	if cfg.BOSHEnvironment != "" {
-		h.boshClient = services.NewBOSHClient(
-			cfg.BOSHEnvironment,
-			cfg.BOSHClient,
-			cfg.BOSHSecret,
-			cfg.BOSHCACert,
-			cfg.BOSHDeployment,
-		)
+	// CF client is optional (for testing)
+	if cfg != nil {
+		h.cfClient = services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword)
+
+		// BOSH client is optional
+		if cfg.BOSHEnvironment != "" {
+			h.boshClient = services.NewBOSHClient(
+				cfg.BOSHEnvironment,
+				cfg.BOSHClient,
+				cfg.BOSHSecret,
+				cfg.BOSHCACert,
+				cfg.BOSHDeployment,
+			)
+		}
 	}
 
 	return h
@@ -185,7 +194,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) EnableCORS(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 		if r.Method == "OPTIONS" {
@@ -195,4 +204,64 @@ func (h *Handler) EnableCORS(next http.HandlerFunc) http.HandlerFunc {
 
 		next(w, r)
 	}
+}
+
+func (h *Handler) HandleManualInfrastructure(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var input models.ManualInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	state := input.ToInfrastructureState()
+
+	h.infraMutex.Lock()
+	h.infrastructureState = &state
+	h.infraMutex.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(state)
+}
+
+func (h *Handler) HandleScenarioCompare(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	h.infraMutex.RLock()
+	state := h.infrastructureState
+	h.infraMutex.RUnlock()
+
+	if state == nil {
+		writeError(w, "No infrastructure data. Set via /api/infrastructure/manual first.", http.StatusBadRequest)
+		return
+	}
+
+	var input models.ScenarioInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	comparison := h.scenarioCalc.Compare(*state, input)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(comparison)
+}
+
+func writeError(w http.ResponseWriter, message string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(models.ErrorResponse{
+		Error: message,
+		Code:  code,
+	})
 }
