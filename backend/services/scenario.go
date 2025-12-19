@@ -160,7 +160,7 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 	// Redundancy reduction warning
 	if current.CellCount > 0 {
 		reduction := float64(current.CellCount-proposed.CellCount) / float64(current.CellCount) * 100
-		if reduction > 50 {
+		if reduction >= 50 {
 			warnings = append(warnings, models.ScenarioWarning{
 				Severity: "warning",
 				Message:  "Significant redundancy reduction",

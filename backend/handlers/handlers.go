@@ -30,19 +30,23 @@ func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 	h := &Handler{
 		cfg:          cfg,
 		cache:        cache,
-		cfClient:     services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword),
 		scenarioCalc: services.NewScenarioCalculator(),
 	}
 
-	// BOSH client is optional
-	if cfg.BOSHEnvironment != "" {
-		h.boshClient = services.NewBOSHClient(
-			cfg.BOSHEnvironment,
-			cfg.BOSHClient,
-			cfg.BOSHSecret,
-			cfg.BOSHCACert,
-			cfg.BOSHDeployment,
-		)
+	// CF client is optional (for testing)
+	if cfg != nil {
+		h.cfClient = services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword)
+
+		// BOSH client is optional
+		if cfg.BOSHEnvironment != "" {
+			h.boshClient = services.NewBOSHClient(
+				cfg.BOSHEnvironment,
+				cfg.BOSHClient,
+				cfg.BOSHSecret,
+				cfg.BOSHCACert,
+				cfg.BOSHDeployment,
+			)
+		}
 	}
 
 	return h
