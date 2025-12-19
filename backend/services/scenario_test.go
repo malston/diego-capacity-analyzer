@@ -192,3 +192,56 @@ func TestGenerateWarnings_RedundancyReduction(t *testing.T) {
 		t.Error("Expected warning for > 50% cell count reduction")
 	}
 }
+
+func TestCompare(t *testing.T) {
+	state := models.InfrastructureState{
+		TotalN1MemoryGB:   26624,
+		TotalCellCount:    470,
+		PlatformVMsGB:     4800,
+		TotalAppMemoryGB:  10500,
+		TotalAppInstances: 7500,
+		Clusters: []models.ClusterState{
+			{
+				DiegoCellCount:    470,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellMemoryGB: 64,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    230, // >50% reduction from 470
+	}
+
+	calc := NewScenarioCalculator()
+	comparison := calc.Compare(state, input)
+
+	// Current should match
+	if comparison.Current.CellCount != 470 {
+		t.Errorf("Expected Current.CellCount 470, got %d", comparison.Current.CellCount)
+	}
+
+	// Proposed should match
+	if comparison.Proposed.CellCount != 230 {
+		t.Errorf("Expected Proposed.CellCount 230, got %d", comparison.Proposed.CellCount)
+	}
+
+	// Delta - capacity increased
+	if comparison.Delta.CapacityChangeGB <= 0 {
+		t.Errorf("Expected positive capacity change, got %d", comparison.Delta.CapacityChangeGB)
+	}
+
+	// Delta - redundancy reduced (fewer cells)
+	if comparison.Delta.RedundancyChange != "reduced" {
+		t.Errorf("Expected RedundancyChange 'reduced', got '%s'", comparison.Delta.RedundancyChange)
+	}
+
+	// Should have warning about redundancy
+	if len(comparison.Warnings) == 0 {
+		t.Errorf("Expected at least one warning. Current cells: %d, Proposed cells: %d, Reduction: %.1f%%",
+			comparison.Current.CellCount, comparison.Proposed.CellCount,
+			float64(comparison.Current.CellCount-comparison.Proposed.CellCount)/float64(comparison.Current.CellCount)*100)
+	}
+}
