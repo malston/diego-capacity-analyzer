@@ -66,21 +66,36 @@ npm run build
 
 ## Backend Configuration
 
-The Go backend requires these environment variables:
+### Ops Manager Variables
 
 ```bash
-# Required
 export OM_TARGET=opsman.example.com        # Ops Manager hostname
 export OM_USERNAME=admin                    # Ops Manager username
 export OM_PASSWORD=secret                   # Ops Manager password
 export OM_SKIP_SSL_VALIDATION=true          # Skip SSL verification
+export OM_PRIVATE_KEY=~/.ssh/opsman_key     # SSH key for BOSH proxy
+```
 
-# Optional - derived from Ops Manager if not set
-export BOSH_ENVIRONMENT=...                 # BOSH Director URL
-export BOSH_CLIENT=...                      # BOSH UAA client
-export BOSH_CLIENT_SECRET=...               # BOSH UAA secret
-export BOSH_CA_CERT=...                     # BOSH CA certificate
-export BOSH_ALL_PROXY=...                   # SSH+SOCKS5 proxy URL
+### Deriving BOSH Variables from Ops Manager
+
+Use the `om` CLI to set BOSH environment variables:
+
+```bash
+# Get BOSH credentials from Ops Manager
+eval "$(om bosh-env 2>/dev/null)"
+
+# Get active CA certificate
+export BOSH_CA_CERT
+BOSH_CA_CERT="$(om certificate-authorities -f json | jq -r '.[] | select(.active==true) | .cert_pem')"
+
+# Set up SSH proxy through Ops Manager
+export BOSH_ALL_PROXY="ssh+socks5://ubuntu@$OM_TARGET:22?private-key=$OM_PRIVATE_KEY"
+
+# Ensure full URL for BOSH Director
+export BOSH_ENVIRONMENT=https://$BOSH_ENVIRONMENT:25555
+
+# Get CF deployment name
+export BOSH_DEPLOYMENT=$(bosh deployments --json | jq -r '.Tables[0].Rows[] | select(.name | startswith("cf-")) | .name')
 ```
 
 ## Key Backend Features
