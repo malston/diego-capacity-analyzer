@@ -15,6 +15,7 @@ Add what-if analysis capability to the Diego Capacity Analyzer, allowing operato
 2. Model what-if scenarios (VM size changes, cell count changes)
 3. Display tradeoffs (capacity vs redundancy vs N-1 utilization)
 4. Support multi-cluster environments with aggregate and per-cluster views
+5. Allow manual data input for environments without vCenter access
 
 ## Architecture
 
@@ -92,6 +93,126 @@ om staged-director-config --no-redact | yq '.iaas-configurations[0]'
 ### Caching
 
 vSphere data cached for 5 minutes (vs 30s for BOSH/CF data).
+
+## Manual Data Input
+
+For environments without vCenter access (consulting scenarios, pre-sales, mirroring customer environments), users can provide infrastructure data manually.
+
+### Data Sources (Priority Order)
+
+1. **API override** - JSON body in request takes precedence
+2. **Uploaded JSON file** - Stored in browser localStorage
+3. **Form input** - Quick entry for simple scenarios
+4. **Live vSphere** - Real-time data via govmomi (if configured)
+
+### JSON Schema for Manual Input
+
+```json
+{
+  "name": "Customer ACME Production",
+  "clusters": [
+    {
+      "name": "cluster-01",
+      "host_count": 8,
+      "memory_gb_per_host": 2048,
+      "cpu_cores_per_host": 64,
+      "diego_cell_count": 250,
+      "diego_cell_memory_gb": 32,
+      "diego_cell_cpu": 4
+    },
+    {
+      "name": "cluster-02",
+      "host_count": 7,
+      "memory_gb_per_host": 2048,
+      "cpu_cores_per_host": 64,
+      "diego_cell_count": 220,
+      "diego_cell_memory_gb": 32,
+      "diego_cell_cpu": 4
+    }
+  ],
+  "platform_vms_gb": 4800,
+  "total_app_memory_gb": 10500,
+  "total_app_instances": 7500
+}
+```
+
+### API Endpoint for Manual Data
+
+```
+POST /api/infrastructure/manual
+
+Request:
+{
+  "name": "Customer ACME Production",
+  "clusters": [...],
+  "platform_vms_gb": 4800,
+  "total_app_memory_gb": 10500,
+  "total_app_instances": 7500
+}
+
+Response:
+{
+  "source": "manual",
+  "name": "Customer ACME Production",
+  "clusters": [
+    {
+      "name": "cluster-01",
+      "host_count": 8,
+      "memory_gb": 16384,
+      "cpu_cores": 512,
+      "n1_memory_gb": 14336,
+      "usable_memory_gb": 12902,
+      "diego_cell_count": 250
+    },
+    ...
+  ],
+  "total_memory_gb": 30720,
+  "total_n1_memory_gb": 26624,
+  "total_host_count": 15,
+  "platform_vms_gb": 4800,
+  "total_app_memory_gb": 10500,
+  "total_app_instances": 7500
+}
+```
+
+### Frontend: Data Source Selector
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Data Source                                                 │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ ○ Live (vSphere)    ○ Upload JSON    ○ Manual Entry    ││
+│  └─────────────────────────────────────────────────────────┘│
+│                                                              │
+│  [Upload JSON File]  or  [Enter Manually]                   │
+│                                                              │
+│  Current: "Customer ACME Production" (manual)               │
+│  └─ 2 clusters, 15 hosts, 470 cells                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Quick Entry Form (Manual Entry Option)
+
+For simple single-cluster scenarios:
+
+| Field | Input | Example |
+|-------|-------|---------|
+| Environment name | Text | "Customer ACME" |
+| Host count | Number | 15 |
+| RAM per host (GB) | Number | 2048 |
+| CPU cores per host | Number | 64 |
+| Diego cell count | Number | 470 |
+| Cell size | Dropdown | 4×32 |
+| Platform VMs (GB) | Number | 4800 |
+| Total app memory (GB) | Number | 10500 |
+| App instances | Number | 7500 |
+
+### Export Feature
+
+"Export Configuration" button generates JSON file matching the input schema, allowing:
+- Save current live environment as template
+- Share configurations across team members
+- Version control environment snapshots
 
 ## Data Models
 
@@ -312,38 +433,45 @@ const VM_SIZE_PRESETS = [
 
 ## Implementation Phases
 
-### Phase 1: vSphere Client
+### Phase 1: Manual Data Input + Scenario Calculator
+
+Start with manual input so the tool is immediately usable without vCenter access.
+
+1. Add `models/scenario.go` for input/output types
+2. Add `models/infrastructure.go` for manual input schema
+3. Add `services/scenario.go` with calculation logic
+4. Add `POST /api/infrastructure/manual` endpoint
+5. Add `POST /api/scenario/compare` endpoint (accepts manual data)
+6. Unit tests validating formulas against capacity doc examples
+
+### Phase 2: Frontend (Manual Mode)
+
+1. Add `ScenarioAnalyzer.jsx` component
+2. Add `DataSourceSelector.jsx` with JSON upload + manual form
+3. Implement VM size presets and cluster selector
+4. Build comparison table with change indicators
+5. Add expandable per-cluster breakdown
+6. Style warnings with severity colors
+7. Add "Export Configuration" button
+8. Store manual data in localStorage
+
+### Phase 3: vSphere Client
 
 1. Add `services/vsphere.go` with govmomi integration
 2. Extract vCenter credentials from `om staged-director-config`
 3. Implement cluster/host inventory queries
 4. Support multiple clusters
-5. Add `GET /api/infrastructure` endpoint
-6. Unit tests with mock vSphere responses
-
-### Phase 2: Scenario Calculator
-
-1. Add `services/scenario.go` with calculation logic
-2. Add `models/scenario.go` for input/output types
-3. Add `POST /api/scenario/compare` endpoint
-4. Implement warning thresholds
-5. Unit tests validating formulas
-
-### Phase 3: Frontend
-
-1. Add `ScenarioAnalyzer.jsx` component
-2. Implement VM size presets and cluster selector
-3. Build comparison table with change indicators
-4. Add expandable per-cluster breakdown
-5. Style warnings with severity colors
-6. Integrate into existing dashboard
+5. Add `GET /api/infrastructure` endpoint (live mode)
+6. Wire "Live (vSphere)" option in DataSourceSelector
+7. Unit tests with mock vSphere responses
 
 ### Phase 4: Polish
 
-1. Add "Export to Markdown" button
+1. Add "Export to Markdown" button (generates doc like capacity analysis)
 2. Tune caching durations
 3. Error handling for vCenter connectivity
 4. Loading states during API calls
+5. Sample JSON files for common scenarios
 
 ## Testing Strategy
 
