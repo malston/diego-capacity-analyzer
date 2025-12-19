@@ -36,8 +36,12 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 
 	if caCert != "" {
 		certPool := x509.NewCertPool()
-		certPool.AppendCertsFromPEM([]byte(caCert))
-		tlsConfig.RootCAs = certPool
+		if ok := certPool.AppendCertsFromPEM([]byte(caCert)); ok {
+			tlsConfig.RootCAs = certPool
+		} else {
+			log.Printf("Warning: Failed to parse BOSH_CA_CERT, using InsecureSkipVerify")
+			tlsConfig.InsecureSkipVerify = true
+		}
 	} else {
 		tlsConfig.InsecureSkipVerify = true
 	}
@@ -134,6 +138,9 @@ func createSOCKS5DialContextFunc(allProxy string) func(ctx context.Context, netw
 }
 
 func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
+	if b.deployment == "" {
+		return nil, fmt.Errorf("BOSH_DEPLOYMENT is not configured")
+	}
 	url := fmt.Sprintf("%s/deployments/%s/vms?format=full", b.environment, b.deployment)
 
 	req, err := http.NewRequest("GET", url, nil)
