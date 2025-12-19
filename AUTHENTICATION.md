@@ -166,9 +166,9 @@ Access to fetch at 'https://api.sys.example.com/v3/apps' from origin 'http://loc
 ```
 
 **Solutions**:
-1. **Use CF CLI Proxy**: Run `cf api` with the API URL and use the CLI as a proxy
-2. **Add CORS Headers**: Configure CF/HAProxy to allow localhost in CORS headers
-3. **Use Backend Proxy**: Create a backend service to proxy CF API requests
+1. **Use Backend Proxy**: The Go backend service handles CF API requests and adds CORS headers
+2. **Configure Cloud Controller**: Add `localhost:3000` to `cc.allowed_cors_domains` in the BOSH manifest
+3. **Deploy to CF**: Deploy frontend to CF so it's on the same domain as the API
 
 ### Authentication Failures
 
