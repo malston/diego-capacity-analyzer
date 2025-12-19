@@ -17,11 +17,12 @@ import (
 )
 
 type CFClient struct {
-	apiURL   string
-	username string
-	password string
-	token    string
-	client   *http.Client
+	apiURL      string
+	username    string
+	password    string
+	token       string
+	client      *http.Client
+	logCache    *LogCacheClient
 }
 
 func NewCFClient(apiURL, username, password string) *CFClient {
@@ -99,6 +100,10 @@ func (c *CFClient) Authenticate() error {
 	}
 
 	c.token = tokenResp.AccessToken
+
+	// Initialize Log Cache client with the same token
+	c.logCache = NewLogCacheClient(c.apiURL, c.token)
+
 	return nil
 }
 
@@ -174,11 +179,24 @@ func (c *CFClient) GetApps() ([]models.App, error) {
 			}
 
 			// Calculate total memory across all processes
-			var totalInstances, totalRequestedMB, totalActualMB int
+			var totalInstances, totalRequestedMB int
 			for _, proc := range processes {
 				totalInstances += proc.Instances
 				totalRequestedMB += proc.Instances * proc.MemoryMB
-				totalActualMB += proc.Instances * proc.MemoryMB // In real scenario, would need actual metrics
+			}
+
+			// Try to get actual memory from Log Cache
+			totalActualMB := totalRequestedMB // Default to requested
+			if c.logCache != nil && totalInstances > 0 {
+				metrics, err := c.logCache.GetAppMemoryMetrics(resource.GUID)
+				if err == nil && metrics.MemoryBytesAvg > 0 {
+					// Convert bytes to MB
+					totalActualMB = int(metrics.MemoryBytesAvg / (1024 * 1024))
+					// Multiply by instances if we got per-instance average
+					if metrics.InstanceCount > 0 && metrics.InstanceCount < totalInstances {
+						totalActualMB = totalActualMB * totalInstances / metrics.InstanceCount
+					}
+				}
 			}
 
 			// Get isolation segment for the space
