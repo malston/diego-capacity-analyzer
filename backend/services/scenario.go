@@ -113,3 +113,60 @@ func (c *ScenarioCalculator) calculate(
 		InstancesPerCell: instancesPerCell,
 	}
 }
+
+// GenerateWarnings produces warnings based on proposed scenario
+func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioResult) []models.ScenarioWarning {
+	var warnings []models.ScenarioWarning
+
+	// N-1 utilization warnings
+	if proposed.N1UtilizationPct > 85 {
+		warnings = append(warnings, models.ScenarioWarning{
+			Severity: "critical",
+			Message:  "Exceeds N-1 capacity safety margin",
+		})
+	} else if proposed.N1UtilizationPct > 75 {
+		warnings = append(warnings, models.ScenarioWarning{
+			Severity: "warning",
+			Message:  "Approaching N-1 capacity limits",
+		})
+	}
+
+	// Free chunks warnings
+	if proposed.FreeChunks < 200 {
+		warnings = append(warnings, models.ScenarioWarning{
+			Severity: "critical",
+			Message:  "Critical: Low staging capacity",
+		})
+	} else if proposed.FreeChunks < 400 {
+		warnings = append(warnings, models.ScenarioWarning{
+			Severity: "warning",
+			Message:  "Low staging capacity",
+		})
+	}
+
+	// Cell utilization warnings
+	if proposed.UtilizationPct > 90 {
+		warnings = append(warnings, models.ScenarioWarning{
+			Severity: "critical",
+			Message:  "Cell utilization critically high",
+		})
+	} else if proposed.UtilizationPct > 80 {
+		warnings = append(warnings, models.ScenarioWarning{
+			Severity: "warning",
+			Message:  "Cell utilization elevated",
+		})
+	}
+
+	// Redundancy reduction warning
+	if current.CellCount > 0 {
+		reduction := float64(current.CellCount-proposed.CellCount) / float64(current.CellCount) * 100
+		if reduction > 50 {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "warning",
+				Message:  "Significant redundancy reduction",
+			})
+		}
+	}
+
+	return warnings
+}
