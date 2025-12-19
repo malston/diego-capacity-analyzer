@@ -1,14 +1,37 @@
 // frontend/src/components/DataSourceSelector.jsx
 // ABOUTME: Data source selector for infrastructure input
-// ABOUTME: Supports JSON upload and manual form entry
+// ABOUTME: Supports live vSphere, JSON upload, and manual form entry
 
-import React, { useState, useRef } from 'react';
-import { Upload, FileText, Edit3 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, FileText, Edit3, RefreshCw, Server, FolderOpen } from 'lucide-react';
+import { scenarioApi } from '../services/scenarioApi';
+
+const SAMPLE_FILES = [
+  { name: 'Small Foundation (Dev/Test)', file: 'small-foundation.json' },
+  { name: 'Medium Foundation (Staging)', file: 'medium-foundation.json' },
+  { name: 'Large Foundation (Production)', file: 'large-foundation.json' },
+  { name: 'Enterprise Multi-Cluster', file: 'multi-cluster-enterprise.json' },
+];
 
 const DataSourceSelector = ({ onDataLoaded, currentData }) => {
-  const [mode, setMode] = useState('upload'); // 'upload' | 'manual'
+  const [mode, setMode] = useState('upload'); // 'live' | 'upload' | 'manual'
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [vsphereConfigured, setVsphereConfigured] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Check if vSphere is configured on mount
+  useEffect(() => {
+    const checkVsphereStatus = async () => {
+      try {
+        const status = await scenarioApi.getInfrastructureStatus();
+        setVsphereConfigured(status.vsphere_configured);
+      } catch (err) {
+        console.warn('Could not check vSphere status:', err);
+      }
+    };
+    checkVsphereStatus();
+  }, []);
 
   // Manual entry form state
   const [formData, setFormData] = useState({
@@ -72,6 +95,40 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
     URL.revokeObjectURL(url);
   };
 
+  const handleFetchLive = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const state = await scenarioApi.getLiveInfrastructure();
+      onDataLoaded(state);
+      // Store in localStorage for persistence
+      localStorage.setItem('scenario-infrastructure', JSON.stringify(state));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadSample = async (filename) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/samples/${filename}`);
+      if (!response.ok) {
+        throw new Error('Failed to load sample file');
+      }
+      const data = await response.json();
+      validateManualInput(data);
+      onDataLoaded(data);
+      localStorage.setItem('scenario-infrastructure', JSON.stringify(data));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -123,14 +180,29 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-4">
-      <h3 className="text-lg font-semibold mb-3">Infrastructure Data Source</h3>
+    <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 mb-4">
+      <h3 className="text-lg font-semibold mb-4 text-gray-200">Infrastructure Data Source</h3>
 
-      <div className="flex gap-4 mb-4">
+      <div className="flex gap-3 mb-4 flex-wrap">
+        {vsphereConfigured && (
+          <button
+            onClick={() => setMode('live')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors ${
+              mode === 'live'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-slate-700 text-gray-300 hover:bg-slate-600 border border-slate-600'
+            }`}
+          >
+            <Server size={16} />
+            Live (vSphere)
+          </button>
+        )}
         <button
           onClick={() => setMode('upload')}
-          className={`flex items-center gap-2 px-4 py-2 rounded ${
-            mode === 'upload' ? 'bg-blue-600 text-white' : 'bg-gray-100'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors ${
+            mode === 'upload'
+              ? 'bg-cyan-600 text-white'
+              : 'bg-slate-700 text-gray-300 hover:bg-slate-600 border border-slate-600'
           }`}
         >
           <Upload size={16} />
@@ -138,8 +210,10 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
         </button>
         <button
           onClick={() => setMode('manual')}
-          className={`flex items-center gap-2 px-4 py-2 rounded ${
-            mode === 'manual' ? 'bg-blue-600 text-white' : 'bg-gray-100'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors ${
+            mode === 'manual'
+              ? 'bg-cyan-600 text-white'
+              : 'bg-slate-700 text-gray-300 hover:bg-slate-600 border border-slate-600'
           }`}
         >
           <Edit3 size={16} />
@@ -148,7 +222,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
         {currentData && (
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 rounded bg-gray-100 ml-auto"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-700 text-gray-300 hover:bg-slate-600 border border-slate-600 transition-colors ml-auto"
           >
             <FileText size={16} />
             Export
@@ -156,31 +230,77 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
         )}
       </div>
 
+      {mode === 'live' && (
+        <div className="border border-emerald-700/30 bg-emerald-900/20 rounded-lg p-6">
+          <div className="text-center">
+            <p className="text-gray-300 mb-4">
+              Fetch infrastructure data directly from vSphere
+            </p>
+            <button
+              onClick={handleFetchLive}
+              disabled={loading}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg mx-auto transition-colors ${
+                loading
+                  ? 'bg-slate-600 cursor-not-allowed text-gray-400'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+              }`}
+            >
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+              {loading ? 'Fetching...' : 'Fetch from vSphere'}
+            </button>
+            <p className="text-sm text-gray-500 mt-3">
+              Connects to vCenter to discover clusters, hosts, and Diego cells
+            </p>
+          </div>
+        </div>
+      )}
+
       {mode === 'upload' && (
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-          <input
-            type="file"
-            accept=".json"
-            onChange={handleFileUpload}
-            ref={fileInputRef}
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="text-blue-600 hover:text-blue-800"
-          >
-            Click to upload JSON file
-          </button>
-          <p className="text-sm text-gray-500 mt-2">
-            or drag and drop
-          </p>
+        <div className="space-y-4">
+          <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center bg-slate-700/30">
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleFileUpload}
+              ref={fileInputRef}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="text-cyan-400 hover:text-cyan-300 font-medium"
+            >
+              Click to upload JSON file
+            </button>
+            <p className="text-sm text-gray-500 mt-2">
+              or drag and drop
+            </p>
+          </div>
+
+          <div className="border-t border-slate-700 pt-4">
+            <p className="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+              <FolderOpen size={16} />
+              Or load a sample configuration:
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {SAMPLE_FILES.map((sample) => (
+                <button
+                  key={sample.file}
+                  onClick={() => handleLoadSample(sample.file)}
+                  disabled={loading}
+                  className="text-left px-3 py-2 text-sm bg-slate-700/50 text-gray-300 hover:bg-slate-600/50 rounded border border-slate-600 disabled:opacity-50 transition-colors"
+                >
+                  {sample.name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
       {mode === 'manual' && (
         <form onSubmit={handleManualSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
               Environment Name *
             </label>
             <input
@@ -188,7 +308,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 placeholder-gray-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
               placeholder="e.g., Production"
               required
             />
@@ -196,7 +316,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                 Host Count *
               </label>
               <input
@@ -204,7 +324,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
                 name="hostCount"
                 value={formData.hostCount}
                 onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono placeholder-gray-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
                 placeholder="e.g., 10"
                 min="1"
                 required
@@ -212,7 +332,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                 RAM per Host (GB) *
               </label>
               <input
@@ -220,7 +340,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
                 name="ramPerHost"
                 value={formData.ramPerHost}
                 onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono placeholder-gray-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
                 placeholder="e.g., 512"
                 min="1"
                 required
@@ -230,7 +350,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                 CPU Cores per Host
               </label>
               <input
@@ -238,14 +358,14 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
                 name="cpuCoresPerHost"
                 value={formData.cpuCoresPerHost}
                 onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono placeholder-gray-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
                 placeholder="Default: 64"
                 min="1"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                 Diego Cell Count *
               </label>
               <input
@@ -253,7 +373,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
                 name="diegoCellCount"
                 value={formData.diegoCellCount}
                 onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono placeholder-gray-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
                 placeholder="e.g., 30"
                 min="1"
                 required
@@ -263,14 +383,14 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                 Cell Memory (GB) *
               </label>
               <select
                 name="cellMemory"
                 value={formData.cellMemory}
                 onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
                 required
               >
                 <option value="32">32 GB</option>
@@ -280,14 +400,14 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                 Cell vCPU *
               </label>
               <select
                 name="cellVCpu"
                 value={formData.cellVCpu}
                 onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
                 required
               >
                 <option value="4">4 vCPU</option>
@@ -298,7 +418,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                 Platform VMs Memory (GB)
               </label>
               <input
@@ -306,14 +426,14 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
                 name="platformVMs"
                 value={formData.platformVMs}
                 onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono placeholder-gray-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
                 placeholder="Optional"
                 min="0"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                 Total App Memory (GB)
               </label>
               <input
@@ -321,7 +441,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
                 name="totalAppMemory"
                 value={formData.totalAppMemory}
                 onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono placeholder-gray-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
                 placeholder="Optional"
                 min="0"
               />
@@ -329,7 +449,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
               App Instances
             </label>
             <input
@@ -337,7 +457,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
               name="appInstances"
               value={formData.appInstances}
               onChange={handleInputChange}
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono placeholder-gray-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
               placeholder="Optional"
               min="0"
             />
@@ -345,7 +465,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-4 py-3 rounded-lg hover:from-cyan-500 hover:to-blue-500 transition-all font-medium"
           >
             Create Environment
           </button>
@@ -353,17 +473,31 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
       )}
 
       {error && (
-        <p className="text-red-600 text-sm mt-2">{error}</p>
+        <p className="text-red-400 text-sm mt-2">{error}</p>
       )}
 
       {currentData && (
-        <div className="mt-4 p-3 bg-gray-50 rounded text-sm">
-          <p className="font-medium">{currentData.name}</p>
-          <p className="text-gray-600">
+        <div className="mt-4 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
+          <div className="flex items-center justify-between">
+            <p className="font-medium text-gray-200">{currentData.name}</p>
+            {currentData.source && (
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                currentData.source === 'vsphere'
+                  ? 'bg-emerald-900/50 text-emerald-400'
+                  : 'bg-cyan-900/50 text-cyan-400'
+              }`}>
+                {currentData.source === 'vsphere' ? 'Live' : 'Manual'}
+              </span>
+            )}
+          </div>
+          <p className="text-gray-400 text-sm mt-1">
             {currentData.clusters?.length || 0} clusters, {' '}
             {currentData.clusters?.reduce((sum, c) => sum + c.host_count, 0) || 0} hosts, {' '}
             {currentData.clusters?.reduce((sum, c) => sum + c.diego_cell_count, 0) || 0} cells
           </p>
+          {currentData.cached && (
+            <p className="text-xs text-gray-500 mt-1">Cached data</p>
+          )}
         </div>
       )}
     </div>
