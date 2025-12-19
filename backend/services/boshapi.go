@@ -8,9 +8,14 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/markalston/diego-capacity-analyzer/backend/models"
 	"net/http"
+	"net/url"
+	"os"
+	"strings"
 	"time"
+
+	"github.com/markalston/diego-capacity-analyzer/backend/models"
+	"golang.org/x/net/proxy"
 )
 
 type BOSHClient struct {
@@ -33,6 +38,26 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 		tlsConfig.InsecureSkipVerify = true
 	}
 
+	transport := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+
+	// Check for BOSH_ALL_PROXY environment variable
+	if proxyURL := os.Getenv("BOSH_ALL_PROXY"); proxyURL != "" {
+		// Handle ssh+socks5:// format by converting to socks5://
+		proxyURL = strings.Replace(proxyURL, "ssh+socks5://", "socks5://", 1)
+		// Remove private-key parameter if present (handled externally via SSH tunnel)
+		if idx := strings.Index(proxyURL, "?"); idx != -1 {
+			proxyURL = proxyURL[:idx]
+		}
+
+		if parsed, err := url.Parse(proxyURL); err == nil {
+			if dialer, err := proxy.FromURL(parsed, proxy.Direct); err == nil {
+				transport.DialContext = dialer.(proxy.ContextDialer).DialContext
+			}
+		}
+	}
+
 	return &BOSHClient{
 		environment: environment,
 		clientID:    clientID,
@@ -40,10 +65,8 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 		caCert:      caCert,
 		deployment:  deployment,
 		client: &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: &http.Transport{
-				TLSClientConfig: tlsConfig,
-			},
+			Timeout: 60 * time.Second,
+			Transport: transport,
 		},
 	}
 }
