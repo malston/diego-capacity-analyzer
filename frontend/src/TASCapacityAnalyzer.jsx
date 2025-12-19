@@ -3,6 +3,7 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { Server, Activity, Zap, TrendingUp, AlertTriangle, CheckCircle, Settings, Layers, LogOut, User, RefreshCw, Database } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { cfApi } from './services/cfApi';
+import ScenarioAnalyzer from './components/ScenarioAnalyzer';
 
 // Mock data - replace with real CF API calls
 const mockData = {
@@ -29,6 +30,7 @@ const mockData = {
 
 const TASCapacityAnalyzer = () => {
   const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [overcommitRatio, setOvercommitRatio] = useState(1.0);
   const [selectedSegment, setSelectedSegment] = useState('all');
   const [showWhatIf, setShowWhatIf] = useState(false);
@@ -309,22 +311,49 @@ Check browser console (F12) for details.`;
           </div>
         </div>
 
-        {/* Controls Row */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            {/* Data Source Toggle */}
-            <button
-              onClick={toggleDataSource}
-              disabled={loading}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
-                useMockData
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
-                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              <Database className="w-4 h-4" />
-              {useMockData ? 'Using Mock Data' : 'Live CF Data'}
-            </button>
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === 'dashboard'
+                ? 'bg-blue-500 text-white'
+                : 'bg-slate-800/50 text-slate-300 border border-slate-700 hover:border-blue-500'
+            }`}
+          >
+            <Activity className="w-4 h-4 inline mr-2" />
+            Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('scenarios')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === 'scenarios'
+                ? 'bg-blue-500 text-white'
+                : 'bg-slate-800/50 text-slate-300 border border-slate-700 hover:border-blue-500'
+            }`}
+          >
+            <Zap className="w-4 h-4 inline mr-2" />
+            Scenario Analysis
+          </button>
+        </div>
+
+        {/* Controls Row (only show on dashboard) */}
+        {activeTab === 'dashboard' && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {/* Data Source Toggle */}
+              <button
+                onClick={toggleDataSource}
+                disabled={loading}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                  useMockData
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
+                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <Database className="w-4 h-4" />
+                {useMockData ? 'Using Mock Data' : 'Live CF Data'}
+              </button>
 
             {/* Test Connection Button */}
             {useMockData && (
@@ -360,34 +389,36 @@ Check browser console (F12) for details.`;
             )}
           </div>
 
-          <div className="flex gap-2">
-            <select
-              value={selectedSegment}
-              onChange={(e) => setSelectedSegment(e.target.value)}
-              className="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">All Segments</option>
-              <option value="default">Default</option>
-              <option value="production">Production</option>
-              <option value="development">Development</option>
-            </select>
-            
-            <button
-              onClick={() => setShowWhatIf(!showWhatIf)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                showWhatIf 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-slate-800/50 text-slate-300 border border-slate-700 hover:border-blue-500'
-              }`}
-            >
-              <Zap className="w-4 h-4 inline mr-2" />
-              What-If Mode
-            </button>
-          </div>
-        </div>
+              <div className="flex gap-2">
+                <select
+                  value={selectedSegment}
+                  onChange={(e) => setSelectedSegment(e.target.value)}
+                  className="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                >
+                  <option value="all">All Segments</option>
+                  <option value="default">Default</option>
+                  <option value="production">Production</option>
+                  <option value="development">Development</option>
+                </select>
+
+                <button
+                  onClick={() => setShowWhatIf(!showWhatIf)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    showWhatIf
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-slate-800/50 text-slate-300 border border-slate-700 hover:border-blue-500'
+                  }`}
+                >
+                  <Zap className="w-4 h-4 inline mr-2" />
+                  What-If Mode
+                </button>
+              </div>
+            </div>
+          )
+        }
 
         {/* Error Message */}
-        {error && (
+        {activeTab === 'dashboard' && error && (
           <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
@@ -410,8 +441,10 @@ Check browser console (F12) for details.`;
         )}
       </div>
 
-      {/* Rest of the dashboard stays the same... */}
-      {/* Key Metrics */}
+      {/* Dashboard Tab Content */}
+      {activeTab === 'dashboard' && (
+        <>
+          {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="metric-card p-6 rounded-xl">
           <div className="flex items-center justify-between mb-2">
@@ -668,6 +701,15 @@ Check browser console (F12) for details.`;
               </div>
             ))}
           </div>
+        </div>
+      )}
+        </>
+      )}
+
+      {/* Scenario Analysis Tab Content */}
+      {activeTab === 'scenarios' && (
+        <div className="mt-8">
+          <ScenarioAnalyzer />
         </div>
       )}
 
