@@ -1,0 +1,96 @@
+package models
+
+import (
+	"encoding/json"
+	"testing"
+)
+
+func TestManualInputParsing(t *testing.T) {
+	input := `{
+		"name": "Customer ACME Production",
+		"clusters": [
+			{
+				"name": "cluster-01",
+				"host_count": 8,
+				"memory_gb_per_host": 2048,
+				"cpu_cores_per_host": 64,
+				"diego_cell_count": 250,
+				"diego_cell_memory_gb": 32,
+				"diego_cell_cpu": 4
+			}
+		],
+		"platform_vms_gb": 4800,
+		"total_app_memory_gb": 10500,
+		"total_app_instances": 7500
+	}`
+
+	var mi ManualInput
+	err := json.Unmarshal([]byte(input), &mi)
+	if err != nil {
+		t.Fatalf("Failed to parse ManualInput: %v", err)
+	}
+
+	if mi.Name != "Customer ACME Production" {
+		t.Errorf("Expected name 'Customer ACME Production', got '%s'", mi.Name)
+	}
+	if len(mi.Clusters) != 1 {
+		t.Fatalf("Expected 1 cluster, got %d", len(mi.Clusters))
+	}
+	if mi.Clusters[0].HostCount != 8 {
+		t.Errorf("Expected host_count 8, got %d", mi.Clusters[0].HostCount)
+	}
+	if mi.TotalAppMemoryGB != 10500 {
+		t.Errorf("Expected total_app_memory_gb 10500, got %d", mi.TotalAppMemoryGB)
+	}
+}
+
+func TestInfrastructureStateCalculation(t *testing.T) {
+	mi := ManualInput{
+		Name: "Test Env",
+		Clusters: []ClusterInput{
+			{
+				Name:              "cluster-01",
+				HostCount:         8,
+				MemoryGBPerHost:   2048,
+				CPUCoresPerHost:   64,
+				DiegoCellCount:    250,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+			{
+				Name:              "cluster-02",
+				HostCount:         7,
+				MemoryGBPerHost:   2048,
+				CPUCoresPerHost:   64,
+				DiegoCellCount:    220,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+		},
+		PlatformVMsGB:      4800,
+		TotalAppMemoryGB:   10500,
+		TotalAppInstances:  7500,
+	}
+
+	state := mi.ToInfrastructureState()
+
+	// 8 + 7 = 15 hosts
+	if state.TotalHostCount != 15 {
+		t.Errorf("Expected TotalHostCount 15, got %d", state.TotalHostCount)
+	}
+
+	// (8 * 2048) + (7 * 2048) = 30720 GB
+	if state.TotalMemoryGB != 30720 {
+		t.Errorf("Expected TotalMemoryGB 30720, got %d", state.TotalMemoryGB)
+	}
+
+	// N-1 per cluster: (7 * 2048) + (6 * 2048) = 14336 + 12288 = 26624 GB
+	if state.TotalN1MemoryGB != 26624 {
+		t.Errorf("Expected TotalN1MemoryGB 26624, got %d", state.TotalN1MemoryGB)
+	}
+
+	// 250 + 220 = 470 cells
+	if state.TotalCellCount != 470 {
+		t.Errorf("Expected TotalCellCount 470, got %d", state.TotalCellCount)
+	}
+}
