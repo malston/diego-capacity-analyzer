@@ -111,3 +111,84 @@ func TestCalculateProposedScenario(t *testing.T) {
 		t.Errorf("Expected FaultImpact 32, got %d", result.FaultImpact)
 	}
 }
+
+func TestGenerateWarnings_CriticalN1(t *testing.T) {
+	current := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct: 90, // > 85% = critical
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+
+	calc := NewScenarioCalculator()
+	warnings := calc.GenerateWarnings(current, proposed)
+
+	found := false
+	for _, w := range warnings {
+		if w.Severity == "critical" && w.Message == "Exceeds N-1 capacity safety margin" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected critical warning for N-1 > 85%")
+	}
+}
+
+func TestGenerateWarnings_LowFreeChunks(t *testing.T) {
+	current := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       150, // < 200 = critical
+		CellCount:        100,
+	}
+
+	calc := NewScenarioCalculator()
+	warnings := calc.GenerateWarnings(current, proposed)
+
+	found := false
+	for _, w := range warnings {
+		if w.Severity == "critical" && w.Message == "Critical: Low staging capacity" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected critical warning for free chunks < 200")
+	}
+}
+
+func TestGenerateWarnings_RedundancyReduction(t *testing.T) {
+	current := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        40, // 60% reduction
+	}
+
+	calc := NewScenarioCalculator()
+	warnings := calc.GenerateWarnings(current, proposed)
+
+	found := false
+	for _, w := range warnings {
+		if w.Severity == "warning" && w.Message == "Significant redundancy reduction" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected warning for > 50% cell count reduction")
+	}
+}
