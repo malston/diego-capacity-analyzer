@@ -59,7 +59,7 @@ cf set-env capacity-backend CF_PASSWORD <password>
 cf restage capacity-backend
 ```
 
-2. **Deploy Frontend**
+1. **Deploy Frontend**
 
 ```bash
 cd frontend
@@ -69,7 +69,7 @@ npm run build
 cf push
 ```
 
-3. **Access UI**
+1. **Access UI**
 
 ```bash
 cf app capacity-ui  # Get URL
@@ -78,7 +78,7 @@ open https://capacity-ui.apps.example.com
 
 ## Architecture Diagram
 
-```
+```console
 Frontend (React)  →  Backend (Go)  →  CF API v3
                              ↓
                           BOSH API (Diego cells)
@@ -88,8 +88,7 @@ Frontend (React)  →  Backend (Go)  →  CF API v3
 
 ## Project Structure
 
-```
-.
+```sh
 ├── backend/              # Go HTTP service
 │   ├── main.go
 │   ├── config/          # Configuration loader
@@ -106,6 +105,7 @@ Frontend (React)  →  Backend (Go)  →  CF API v3
 │   └── manifest.yml     # CF deployment manifest
 │
 └── docs/                # Documentation
+```
 
 ## Contributing
 
@@ -117,12 +117,13 @@ MIT License - See LICENSE file for details
 
 ## Author
 
-**Mark Alston**  
+**Mark Alston**
 Broadcom/VMware Tanzu Platform Consultant
 
 ## Support
 
 For issues or questions:
+
 - Open an issue in this repository
 - Contact your Broadcom/VMware representative
 
