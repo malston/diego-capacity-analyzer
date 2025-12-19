@@ -1,0 +1,19 @@
+{
+  "name": "THD",
+  "clusters": [
+    {
+      "name": "THD",
+      "host_count": 15,
+      "memory_gb_per_host": 2000,
+      "cpu_cores_per_host": 64,
+      "diego_cell_count": 470,
+      "diego_cell_memory_gb": 32,
+      "diego_cell_cpu": 4,
+      "diego_cell_disk_gb": 128
+    }
+  ],
+  "platform_vms_gb": 4800,
+  "total_app_memory_gb": 14000,
+  "total_app_disk_gb": 1000,
+  "total_app_instances": 7000
+}

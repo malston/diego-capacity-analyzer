@@ -14,6 +14,7 @@ type ClusterInput struct {
 	DiegoCellCount    int    `json:"diego_cell_count"`
 	DiegoCellMemoryGB int    `json:"diego_cell_memory_gb"`
 	DiegoCellCPU      int    `json:"diego_cell_cpu"`
+	DiegoCellDiskGB   int    `json:"diego_cell_disk_gb"`
 }
 
 // ManualInput represents user-provided infrastructure data
@@ -22,6 +23,7 @@ type ManualInput struct {
 	Clusters          []ClusterInput `json:"clusters"`
 	PlatformVMsGB     int            `json:"platform_vms_gb"`
 	TotalAppMemoryGB  int            `json:"total_app_memory_gb"`
+	TotalAppDiskGB    int            `json:"total_app_disk_gb"`
 	TotalAppInstances int            `json:"total_app_instances"`
 }
 
@@ -36,6 +38,7 @@ type ClusterState struct {
 	DiegoCellCount    int    `json:"diego_cell_count"`
 	DiegoCellMemoryGB int    `json:"diego_cell_memory_gb"`
 	DiegoCellCPU      int    `json:"diego_cell_cpu"`
+	DiegoCellDiskGB   int    `json:"diego_cell_disk_gb"`
 }
 
 // InfrastructureState represents computed infrastructure metrics
@@ -49,6 +52,7 @@ type InfrastructureState struct {
 	TotalCellCount    int            `json:"total_cell_count"`
 	PlatformVMsGB     int            `json:"platform_vms_gb"`
 	TotalAppMemoryGB  int            `json:"total_app_memory_gb"`
+	TotalAppDiskGB    int            `json:"total_app_disk_gb"`
 	TotalAppInstances int            `json:"total_app_instances"`
 	Timestamp         time.Time      `json:"timestamp"`
 	Cached            bool           `json:"cached"`
@@ -62,6 +66,7 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 		Clusters:          make([]ClusterState, len(mi.Clusters)),
 		PlatformVMsGB:     mi.PlatformVMsGB,
 		TotalAppMemoryGB:  mi.TotalAppMemoryGB,
+		TotalAppDiskGB:    mi.TotalAppDiskGB,
 		TotalAppInstances: mi.TotalAppInstances,
 		Timestamp:         time.Now(),
 		Cached:            false,
@@ -83,6 +88,7 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 			DiegoCellCount:    c.DiegoCellCount,
 			DiegoCellMemoryGB: c.DiegoCellMemoryGB,
 			DiegoCellCPU:      c.DiegoCellCPU,
+			DiegoCellDiskGB:   c.DiegoCellDiskGB,
 		}
 
 		state.TotalMemoryGB += clusterMemory

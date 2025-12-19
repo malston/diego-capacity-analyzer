@@ -150,23 +150,25 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
         throw new Error('Diego cell count must be greater than 0');
       }
 
-      // Create ManualInput JSON
+      // Create ManualInput JSON matching backend model expectations
       const manualInput = {
         name: formData.name.trim(),
         clusters: [
           {
             name: formData.name.trim(),
             host_count: parseInt(formData.hostCount),
-            ram_per_host_gb: parseInt(formData.ramPerHost),
+            memory_gb_per_host: parseInt(formData.ramPerHost),
             cpu_cores_per_host: parseInt(formData.cpuCoresPerHost) || 64,
             diego_cell_count: parseInt(formData.diegoCellCount),
             diego_cell_memory_gb: parseInt(formData.cellMemory),
-            diego_cell_vcpu: parseInt(formData.cellVCpu),
-            platform_vms_memory_gb: formData.platformVMs ? parseInt(formData.platformVMs) : 0,
-            total_app_memory_gb: formData.totalAppMemory ? parseInt(formData.totalAppMemory) : 0,
-            app_instance_count: formData.appInstances ? parseInt(formData.appInstances) : 0
+            diego_cell_cpu: parseInt(formData.cellVCpu),
+            diego_cell_disk_gb: 0
           }
-        ]
+        ],
+        platform_vms_gb: formData.platformVMs ? parseInt(formData.platformVMs) : 0,
+        total_app_memory_gb: formData.totalAppMemory ? parseInt(formData.totalAppMemory) : 0,
+        total_app_disk_gb: 0,
+        total_app_instances: formData.appInstances ? parseInt(formData.appInstances) : 0
       };
 
       validateManualInput(manualInput);

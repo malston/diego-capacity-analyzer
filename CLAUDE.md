@@ -118,6 +118,26 @@ export BOSH_DEPLOYMENT=$(bosh deployments --json | jq -r '.Tables[0].Rows[] | se
 - Retrieves real container memory metrics
 - Provides accurate "used" memory vs "allocated" memory
 
+### vSphere Integration (`services/vsphere.go`)
+
+- Connects to vCenter via govmomi to discover infrastructure
+- Retrieves cluster, host, and VM inventory for capacity analysis
+- Automatically detects Diego cell VMs by name pattern
+
+**Diego Cell VM Naming:**
+- Standard TAS: VMs named `diego_cell/*` or `diego-cell-*`
+- Small Footprint TAS/TPCF: Diego cells run on `compute` instances (colocated)
+- Detection matches: `diego_cell*`, `diego-cell*`, `compute*`, `diego*`
+
+**Environment Variables:**
+```bash
+export VSPHERE_HOST=vcenter.example.com
+export VSPHERE_USERNAME=administrator@vsphere.local
+export VSPHERE_PASSWORD=secret
+export VSPHERE_DATACENTER=Datacenter-Name
+export VSPHERE_INSECURE=true  # optional, defaults to true
+```
+
 ## API Endpoints
 
 ```
