@@ -140,8 +140,16 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Calculate cell used_mb from app metrics in same isolation segment
-	if len(resp.Cells) > 0 && len(resp.Apps) > 0 {
+	// If BOSH didn't provide UsedMB (vitals unavailable), calculate from app metrics
+	needsAppCalculation := false
+	for _, cell := range resp.Cells {
+		if cell.UsedMB == 0 {
+			needsAppCalculation = true
+			break
+		}
+	}
+
+	if needsAppCalculation && len(resp.Cells) > 0 && len(resp.Apps) > 0 {
 		// Sum actual memory per isolation segment
 		segmentMemory := make(map[string]int)
 		for _, app := range resp.Apps {
@@ -154,13 +162,14 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			segmentCellCount[cell.IsolationSegment]++
 		}
 
-		// Distribute app memory across cells in segment
+		// Distribute app memory across cells in segment (only for cells without BOSH data)
 		for i := range resp.Cells {
-			segment := resp.Cells[i].IsolationSegment
-			cellCount := segmentCellCount[segment]
-			if cellCount > 0 && segmentMemory[segment] > 0 {
-				// Evenly distribute segment memory across cells
-				resp.Cells[i].UsedMB = segmentMemory[segment] / cellCount
+			if resp.Cells[i].UsedMB == 0 {
+				segment := resp.Cells[i].IsolationSegment
+				cellCount := segmentCellCount[segment]
+				if cellCount > 0 && segmentMemory[segment] > 0 {
+					resp.Cells[i].UsedMB = segmentMemory[segment] / cellCount
+				}
 			}
 		}
 	}

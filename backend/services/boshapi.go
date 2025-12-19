@@ -340,12 +340,15 @@ func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 			memPercent := parseIntOrZero(vm.Vitals.Mem.Percent)
 			cpuSys := parseFloatOrZero(vm.Vitals.CPU.Sys)
 
+			// mem.percent from BOSH vitals is VM-level memory usage
+			usedMB := (memoryMB * memPercent) / 100
+
 			cells = append(cells, models.DiegoCell{
 				ID:               vm.ID,
 				Name:             fmt.Sprintf("%s/%d", vm.JobName, vm.Index),
 				MemoryMB:         memoryMB,
-				AllocatedMB:      (memoryMB * memPercent) / 100,
-				UsedMB:           0, // Will be calculated from apps
+				AllocatedMB:      usedMB, // Use VM memory as proxy for allocation
+				UsedMB:           usedMB, // VM-level memory usage from BOSH vitals
 				CPUPercent:       int(cpuSys),
 				IsolationSegment: "default", // Will be refined later
 			})
