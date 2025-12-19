@@ -4,6 +4,7 @@
 package services
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,6 +31,9 @@ func NewCFClient(apiURL, username, password string) *CFClient {
 		password: password,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
 		},
 	}
 }
@@ -55,6 +59,11 @@ func (c *CFClient) Authenticate() error {
 	}
 
 	uaaURL := info.Links.Login.Href
+
+	// If login URL not in info response, construct from API URL
+	if uaaURL == "" {
+		uaaURL = strings.Replace(c.apiURL, "://api.", "://login.", 1)
+	}
 
 	// Authenticate with UAA
 	data := url.Values{}
