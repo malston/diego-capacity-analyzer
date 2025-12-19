@@ -263,7 +263,7 @@ func TestEnableCORS(t *testing.T) {
 		t.Errorf("Expected CORS header, got %s", w.Header().Get("Access-Control-Allow-Origin"))
 	}
 
-	if w.Header().Get("Access-Control-Allow-Methods") != "GET, OPTIONS" {
+	if w.Header().Get("Access-Control-Allow-Methods") != "GET, POST, OPTIONS" {
 		t.Errorf("Expected CORS methods, got %s", w.Header().Get("Access-Control-Allow-Methods"))
 	}
 }

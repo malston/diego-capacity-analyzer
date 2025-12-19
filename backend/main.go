@@ -39,6 +39,8 @@ func main() {
 	// Register routes
 	http.HandleFunc("/api/health", h.EnableCORS(h.Health))
 	http.HandleFunc("/api/dashboard", h.EnableCORS(h.Dashboard))
+	http.HandleFunc("/api/infrastructure/manual", h.EnableCORS(h.HandleManualInfrastructure))
+	http.HandleFunc("/api/scenario/compare", h.EnableCORS(h.HandleScenarioCompare))
 
 	// Start server
 	addr := ":" + cfg.Port
