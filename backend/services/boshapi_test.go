@@ -35,6 +35,11 @@ func TestBOSHClient_GetDiegoCells(t *testing.T) {
 				"token_type":   "bearer",
 				"expires_in":   3600,
 			})
+		case "/deployments":
+			// Return list of deployments
+			json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"name": "cf-test"},
+			})
 		case "/deployments/cf-test/vms":
 			if r.URL.Query().Get("format") == "full" {
 				// Check for Bearer token

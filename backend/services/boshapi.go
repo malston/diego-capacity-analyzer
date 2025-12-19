@@ -279,17 +279,84 @@ type boshVM struct {
 }
 
 func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
-	if b.deployment == "" {
-		return nil, fmt.Errorf("BOSH_DEPLOYMENT is not configured")
-	}
-
 	// Authenticate with UAA first
 	if err := b.authenticate(); err != nil {
 		return nil, fmt.Errorf("failed to authenticate with BOSH: %w", err)
 	}
 
-	// Request VMs with format=full (returns a task)
-	reqURL := fmt.Sprintf("%s/deployments/%s/vms?format=full", b.environment, b.deployment)
+	// Get list of deployments to query
+	deployments, err := b.getDeployments()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deployments: %w", err)
+	}
+
+	var allCells []models.DiegoCell
+	for _, deployment := range deployments {
+		cells, err := b.getCellsForDeployment(deployment)
+		if err != nil {
+			log.Printf("Warning: failed to get cells for deployment %s: %v", deployment, err)
+			continue
+		}
+		allCells = append(allCells, cells...)
+	}
+
+	if len(allCells) == 0 {
+		return nil, fmt.Errorf("no Diego cells found in any deployment")
+	}
+
+	return allCells, nil
+}
+
+// getDeployments returns list of CF and isolation segment deployments
+func (b *BOSHClient) getDeployments() ([]string, error) {
+	req, err := http.NewRequest("GET", b.environment+"/deployments", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+b.token)
+
+	resp, err := b.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deployments: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("BOSH API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var deploymentList []struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&deploymentList); err != nil {
+		return nil, fmt.Errorf("failed to parse deployments: %w", err)
+	}
+
+	// Filter for CF and isolation segment deployments
+	var result []string
+	for _, d := range deploymentList {
+		if strings.HasPrefix(d.Name, "cf-") || strings.HasPrefix(d.Name, "p-isolation-segment") {
+			result = append(result, d.Name)
+		}
+	}
+
+	// If specific deployment configured, use that instead
+	if b.deployment != "" {
+		// Check if configured deployment exists
+		for _, d := range deploymentList {
+			if d.Name == b.deployment {
+				return []string{b.deployment}, nil
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// getCellsForDeployment fetches Diego cells for a specific deployment
+func (b *BOSHClient) getCellsForDeployment(deployment string) ([]models.DiegoCell, error) {
+	reqURL := fmt.Sprintf("%s/deployments/%s/vms?format=full", b.environment, deployment)
 
 	req, err := http.NewRequest("GET", reqURL, nil)
 	if err != nil {
@@ -332,9 +399,19 @@ func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 		return nil, err
 	}
 
+	// Determine isolation segment from deployment name
+	// p-isolation-segment-* deployments have isolated cells
+	isolationSegment := "default"
+	if strings.HasPrefix(deployment, "p-isolation-segment") {
+		// The segment name is typically configured in the tile
+		// For now, use a generic name based on deployment
+		isolationSegment = "isolated"
+	}
+
 	var cells []models.DiegoCell
 	for _, vm := range vms {
-		if vm.JobName == "diego_cell" || vm.JobName == "compute" {
+		// Include diego_cell, compute, and isolated_diego_cell
+		if vm.JobName == "diego_cell" || vm.JobName == "compute" || vm.JobName == "isolated_diego_cell" {
 			memoryKB := parseIntOrZero(vm.Vitals.Mem.KB)
 			memoryMB := memoryKB / 1024
 			memPercent := parseIntOrZero(vm.Vitals.Mem.Percent)
@@ -343,14 +420,20 @@ func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 			// mem.percent from BOSH vitals is VM-level memory usage
 			usedMB := (memoryMB * memPercent) / 100
 
+			// Use deployment-specific isolation segment
+			cellSegment := isolationSegment
+			if vm.JobName == "isolated_diego_cell" {
+				cellSegment = "isolated" // isolated_diego_cell is always in an isolation segment
+			}
+
 			cells = append(cells, models.DiegoCell{
 				ID:               vm.ID,
 				Name:             fmt.Sprintf("%s/%d", vm.JobName, vm.Index),
 				MemoryMB:         memoryMB,
-				AllocatedMB:      usedMB, // Use VM memory as proxy for allocation
-				UsedMB:           usedMB, // VM-level memory usage from BOSH vitals
+				AllocatedMB:      usedMB,
+				UsedMB:           usedMB,
 				CPUPercent:       int(cpuSys),
-				IsolationSegment: "default", // Will be refined later
+				IsolationSegment: cellSegment,
 			})
 		}
 	}
