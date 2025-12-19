@@ -183,9 +183,9 @@ func (c *CFClient) GetApps() ([]models.App, error) {
 
 			// Get isolation segment for the space
 			isoSegName, err := c.getSpaceIsolationSegment(resource.Relationships.Space.Data.GUID)
-			if err != nil {
-				// Not all spaces have isolation segments - default to empty string
-				isoSegName = ""
+			if err != nil || isoSegName == "" {
+				// Apps without explicit isolation segment run on "default"
+				isoSegName = "default"
 			}
 
 			apps = append(apps, models.App{
