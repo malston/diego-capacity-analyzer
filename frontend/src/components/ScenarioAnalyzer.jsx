@@ -109,6 +109,12 @@ const ScenarioAnalyzer = () => {
         currentData={infrastructureData}
       />
 
+      {!infrastructureState && (
+        <div className="text-center py-8 text-gray-500">
+          <p className="text-sm">Load infrastructure data above to start analyzing scenarios</p>
+        </div>
+      )}
+
       {infrastructureState && (
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
           <h3 className="text-lg font-semibold mb-4 text-gray-200 flex items-center gap-2">
