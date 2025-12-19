@@ -39,7 +39,7 @@ const ScenarioAnalyzer = () => {
 
   // Additional app state
   const [additionalApp, setAdditionalApp] = useState({
-    name: '',
+    name: 'hypothetical-app',
     instances: 1,
     memoryGB: 1,
     diskGB: 1,
@@ -373,7 +373,6 @@ const ScenarioAnalyzer = () => {
                           type="text"
                           value={additionalApp.name}
                           onChange={(e) => setAdditionalApp({ ...additionalApp, name: e.target.value })}
-                          placeholder="my-new-service"
                           className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-cyan-500 outline-none"
                         />
                       </div>
