@@ -1,0 +1,19 @@
+# Binaries
+capacity-backend
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test coverage
+*.out
+coverage.html
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
