@@ -30,6 +30,7 @@ dist-ssr
 .env
 .env.local
 .env.production
+.envrc
 
 # Manifests
 cf.yml
