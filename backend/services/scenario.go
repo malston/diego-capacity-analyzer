@@ -170,3 +170,34 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 
 	return warnings
 }
+
+// Compare computes full comparison between current and proposed scenarios
+func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input models.ScenarioInput) models.ScenarioComparison {
+	current := c.CalculateCurrent(state)
+	proposed := c.CalculateProposed(state, input)
+	warnings := c.GenerateWarnings(current, proposed)
+
+	// Calculate delta
+	capacityChange := proposed.AppCapacityGB - current.AppCapacityGB
+	utilizationChange := proposed.UtilizationPct - current.UtilizationPct
+
+	var redundancyChange string
+	if proposed.CellCount > current.CellCount {
+		redundancyChange = "improved"
+	} else if proposed.CellCount < current.CellCount {
+		redundancyChange = "reduced"
+	} else {
+		redundancyChange = "unchanged"
+	}
+
+	return models.ScenarioComparison{
+		Current:  current,
+		Proposed: proposed,
+		Warnings: warnings,
+		Delta: models.ScenarioDelta{
+			CapacityChangeGB:     capacityChange,
+			UtilizationChangePct: utilizationChange,
+			RedundancyChange:     redundancyChange,
+		},
+	}
+}
