@@ -198,8 +198,8 @@ func TestCFClient_GetApps(t *testing.T) {
 	if apps[1].RequestedMB != 3072 {
 		t.Errorf("Expected 3072 MB (3 * 1024), got %d", apps[1].RequestedMB)
 	}
-	if apps[1].IsolationSegment != "" {
-		t.Errorf("Expected empty isolation segment, got '%s'", apps[1].IsolationSegment)
+	if apps[1].IsolationSegment != "default" {
+		t.Errorf("Expected 'default' isolation segment, got '%s'", apps[1].IsolationSegment)
 	}
 }
 
