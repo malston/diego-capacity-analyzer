@@ -27,6 +27,11 @@ func main() {
 	} else {
 		log.Printf("BOSH: not configured (degraded mode)")
 	}
+	if cfg.VSphereConfigured() {
+		log.Printf("vSphere: %s (datacenter: %s)", cfg.VSphereHost, cfg.VSphereDatacenter)
+	} else {
+		log.Printf("vSphere: not configured (manual mode only)")
+	}
 
 	// Initialize cache
 	cacheTTL := time.Duration(cfg.CacheTTL) * time.Second
@@ -39,7 +44,9 @@ func main() {
 	// Register routes
 	http.HandleFunc("/api/health", h.EnableCORS(h.Health))
 	http.HandleFunc("/api/dashboard", h.EnableCORS(h.Dashboard))
+	http.HandleFunc("/api/infrastructure", h.EnableCORS(h.HandleInfrastructure))
 	http.HandleFunc("/api/infrastructure/manual", h.EnableCORS(h.HandleManualInfrastructure))
+	http.HandleFunc("/api/infrastructure/status", h.EnableCORS(h.HandleInfrastructureStatus))
 	http.HandleFunc("/api/scenario/compare", h.EnableCORS(h.HandleScenarioCompare))
 
 	// Start server

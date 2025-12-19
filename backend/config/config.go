@@ -30,6 +30,19 @@ type Config struct {
 	CredHubURL    string
 	CredHubClient string
 	CredHubSecret string
+
+	// vSphere (optional)
+	VSphereHost       string
+	VSphereUsername   string
+	VSpherePassword   string
+	VSphereDatacenter string
+	VSphereInsecure   bool
+	VSphereCacheTTL   int // seconds, default 300 (5 min)
+}
+
+// VSphereConfigured returns true if vSphere credentials are set
+func (c *Config) VSphereConfigured() bool {
+	return c.VSphereHost != "" && c.VSphereUsername != "" && c.VSpherePassword != "" && c.VSphereDatacenter != ""
 }
 
 func Load() (*Config, error) {
@@ -50,6 +63,13 @@ func Load() (*Config, error) {
 		CredHubURL:    os.Getenv("CREDHUB_URL"),
 		CredHubClient: os.Getenv("CREDHUB_CLIENT"),
 		CredHubSecret: os.Getenv("CREDHUB_SECRET"),
+
+		VSphereHost:       os.Getenv("VSPHERE_HOST"),
+		VSphereUsername:   os.Getenv("VSPHERE_USERNAME"),
+		VSpherePassword:   os.Getenv("VSPHERE_PASSWORD"),
+		VSphereDatacenter: os.Getenv("VSPHERE_DATACENTER"),
+		VSphereInsecure:   getEnvBool("VSPHERE_INSECURE", true),
+		VSphereCacheTTL:   getEnvInt("VSPHERE_CACHE_TTL", 300),
 	}
 
 	// Validate required fields
@@ -77,6 +97,15 @@ func getEnvInt(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {
 		if intVal, err := strconv.Atoi(value); err == nil {
 			return intVal
+		}
+	}
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if boolVal, err := strconv.ParseBool(value); err == nil {
+			return boolVal
 		}
 	}
 	return defaultValue

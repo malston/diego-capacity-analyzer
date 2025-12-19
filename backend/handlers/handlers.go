@@ -4,6 +4,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -21,6 +22,7 @@ type Handler struct {
 	cache               *cache.Cache
 	cfClient            *services.CFClient
 	boshClient          *services.BOSHClient
+	vsphereClient       *services.VSphereClient
 	infrastructureState *models.InfrastructureState
 	scenarioCalc        *services.ScenarioCalculator
 	infraMutex          sync.RWMutex
@@ -45,6 +47,16 @@ func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 				cfg.BOSHSecret,
 				cfg.BOSHCACert,
 				cfg.BOSHDeployment,
+			)
+		}
+
+		// vSphere client is optional
+		if cfg.VSphereConfigured() {
+			h.vsphereClient = services.VSphereClientFromEnv(
+				cfg.VSphereHost,
+				cfg.VSphereUsername,
+				cfg.VSpherePassword,
+				cfg.VSphereDatacenter,
 			)
 		}
 	}
@@ -227,6 +239,90 @@ func (h *Handler) HandleManualInfrastructure(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(state)
+}
+
+// HandleInfrastructure returns live infrastructure data from vSphere
+func (h *Handler) HandleInfrastructure(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Check if vSphere is configured
+	if h.vsphereClient == nil {
+		writeError(w, "vSphere not configured. Set VSPHERE_HOST, VSPHERE_USERNAME, VSPHERE_PASSWORD, and VSPHERE_DATACENTER environment variables.", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Check cache first
+	cacheKey := "infrastructure:vsphere"
+	if cached, found := h.cache.Get(cacheKey); found {
+		log.Println("Serving infrastructure from cache")
+		state := cached.(models.InfrastructureState)
+		state.Cached = true
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(state)
+		return
+	}
+
+	// Connect to vSphere
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := h.vsphereClient.Connect(ctx); err != nil {
+		log.Printf("vSphere connection error: %v", err)
+		writeError(w, "Failed to connect to vSphere: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	defer h.vsphereClient.Disconnect(ctx)
+
+	// Get infrastructure state
+	state, err := h.vsphereClient.GetInfrastructureState(ctx)
+	if err != nil {
+		log.Printf("vSphere inventory error: %v", err)
+		writeError(w, "Failed to get vSphere inventory: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Cache result
+	h.cache.SetWithTTL(cacheKey, state, time.Duration(h.cfg.VSphereCacheTTL)*time.Second)
+
+	// Store as current infrastructure state for scenario calculations
+	h.infraMutex.Lock()
+	h.infrastructureState = &state
+	h.infraMutex.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(state)
+}
+
+// HandleInfrastructureStatus returns the current data source status
+func (h *Handler) HandleInfrastructureStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	h.infraMutex.RLock()
+	state := h.infrastructureState
+	h.infraMutex.RUnlock()
+
+	status := map[string]interface{}{
+		"vsphere_configured": h.vsphereClient != nil,
+		"has_data":           state != nil,
+	}
+
+	if state != nil {
+		status["source"] = state.Source
+		status["name"] = state.Name
+		status["cluster_count"] = len(state.Clusters)
+		status["host_count"] = state.TotalHostCount
+		status["cell_count"] = state.TotalCellCount
+		status["timestamp"] = state.Timestamp
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
 }
 
 func (h *Handler) HandleScenarioCompare(w http.ResponseWriter, r *http.Request) {
