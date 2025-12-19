@@ -33,4 +33,4 @@ dist-ssr
 
 # Manifests
 cf.yml
-bosh-*.yml
+bosh-*.yml.envrc
