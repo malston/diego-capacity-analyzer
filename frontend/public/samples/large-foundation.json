@@ -8,7 +8,8 @@
       "cpu_cores_per_host": 64,
       "diego_cell_count": 250,
       "diego_cell_memory_gb": 32,
-      "diego_cell_cpu": 4
+      "diego_cell_cpu": 4,
+      "diego_cell_disk_gb": 128
     },
     {
       "name": "compute-cluster-02",
@@ -17,10 +18,12 @@
       "cpu_cores_per_host": 64,
       "diego_cell_count": 220,
       "diego_cell_memory_gb": 32,
-      "diego_cell_cpu": 4
+      "diego_cell_cpu": 4,
+      "diego_cell_disk_gb": 128
     }
   ],
   "platform_vms_gb": 4800,
   "total_app_memory_gb": 10500,
+  "total_app_disk_gb": 15000,
   "total_app_instances": 7500
 }
