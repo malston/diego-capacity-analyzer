@@ -3,12 +3,12 @@
 // ABOUTME: Combines data source, comparison table, and warnings
 
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw } from 'lucide-react';
+import { Calculator, RefreshCw, FileDown, Sparkles } from 'lucide-react';
 import DataSourceSelector from './DataSourceSelector';
-import ComparisonTable from './ComparisonTable';
-import WarningsList from './WarningsList';
+import ScenarioResults from './ScenarioResults';
 import { scenarioApi } from '../services/scenarioApi';
 import { VM_SIZE_PRESETS, DEFAULT_PRESET_INDEX } from '../config/vmPresets';
+import { generateMarkdownReport, downloadMarkdown } from '../utils/exportMarkdown';
 
 const ScenarioAnalyzer = () => {
   const [infrastructureData, setInfrastructureData] = useState(null);
@@ -86,11 +86,20 @@ const ScenarioAnalyzer = () => {
   const preset = VM_SIZE_PRESETS[selectedPreset];
   const isCustom = preset.cpu === null;
 
+  const handleExportMarkdown = () => {
+    if (!comparison || !infrastructureData) return;
+    const markdown = generateMarkdownReport(comparison, infrastructureData);
+    const filename = `${infrastructureData.name || 'capacity'}-analysis-${new Date().toISOString().split('T')[0]}.md`;
+    downloadMarkdown(markdown, filename);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Calculator className="text-blue-600" />
+        <h2 className="text-2xl font-bold text-gray-100 flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg">
+            <Sparkles className="text-white" size={20} />
+          </div>
           What-If Scenario Analysis
         </h2>
       </div>
@@ -100,19 +109,28 @@ const ScenarioAnalyzer = () => {
         currentData={infrastructureData}
       />
 
-      {infrastructureState && (
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-semibold mb-4">Proposed Configuration</h3>
+      {!infrastructureState && (
+        <div className="text-center py-8 text-gray-500">
+          <p className="text-sm">Load infrastructure data above to start analyzing scenarios</p>
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      {infrastructureState && (
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <h3 className="text-lg font-semibold mb-4 text-gray-200 flex items-center gap-2">
+            <Calculator size={18} className="text-cyan-400" />
+            Proposed Configuration
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                 VM Size
               </label>
               <select
                 value={selectedPreset}
                 onChange={(e) => setSelectedPreset(Number(e.target.value))}
-                className="w-full border rounded-md px-3 py-2"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
               >
                 {VM_SIZE_PRESETS.map((p, i) => (
                   <option key={i} value={i}>
@@ -125,7 +143,7 @@ const ScenarioAnalyzer = () => {
             {isCustom && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                     vCPU
                   </label>
                   <input
@@ -133,11 +151,11 @@ const ScenarioAnalyzer = () => {
                     value={customCPU}
                     onChange={(e) => setCustomCPU(Number(e.target.value))}
                     min={1}
-                    className="w-full border rounded-md px-3 py-2"
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                     Memory (GB)
                   </label>
                   <input
@@ -145,14 +163,14 @@ const ScenarioAnalyzer = () => {
                     value={customMemory}
                     onChange={(e) => setCustomMemory(Number(e.target.value))}
                     min={8}
-                    className="w-full border rounded-md px-3 py-2"
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
                   />
                 </div>
               </>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2">
                 Cell Count
               </label>
               <input
@@ -160,7 +178,7 @@ const ScenarioAnalyzer = () => {
                 value={cellCount}
                 onChange={(e) => setCellCount(Number(e.target.value))}
                 min={1}
-                className="w-full border rounded-md px-3 py-2"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
               />
             </div>
           </div>
@@ -168,14 +186,14 @@ const ScenarioAnalyzer = () => {
           <button
             onClick={handleCompare}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 transition-all font-medium shadow-lg shadow-cyan-500/20"
           >
             {loading ? (
-              <RefreshCw className="animate-spin" size={16} />
+              <RefreshCw className="animate-spin" size={18} />
             ) : (
-              <Calculator size={16} />
+              <Sparkles size={18} />
             )}
-            Compare Scenarios
+            Run Analysis
           </button>
         </div>
       )}
@@ -188,8 +206,16 @@ const ScenarioAnalyzer = () => {
 
       {comparison && (
         <>
-          <ComparisonTable comparison={comparison} />
-          <WarningsList warnings={comparison.warnings} />
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={handleExportMarkdown}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-gray-200 rounded-lg hover:bg-slate-600 transition-colors border border-slate-600"
+            >
+              <FileDown size={16} />
+              Export Report
+            </button>
+          </div>
+          <ScenarioResults comparison={comparison} warnings={comparison.warnings} />
         </>
       )}
     </div>

@@ -40,4 +40,35 @@ export const scenarioApi = {
     }
     return response.json();
   },
+
+  /**
+   * Fetch live infrastructure data from vSphere
+   * @returns {Promise<Object>} InfrastructureState
+   */
+  async getLiveInfrastructure() {
+    const response = await fetch(`${API_URL}/api/infrastructure`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch live infrastructure');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get current infrastructure status
+   * @returns {Promise<Object>} Status including vsphere_configured, has_data, source
+   */
+  async getInfrastructureStatus() {
+    const response = await fetch(`${API_URL}/api/infrastructure/status`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+      return { vsphere_configured: false, has_data: false };
+    }
+    return response.json();
+  },
 };
