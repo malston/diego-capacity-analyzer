@@ -9,14 +9,15 @@ import (
 )
 
 func TestBOSHClient_GetDiegoCells(t *testing.T) {
-	// Mock BOSH server with UAA endpoints
+	taskDone := false
+
+	// Mock BOSH server with UAA and task endpoints
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		switch r.URL.Path {
 		case "/info":
 			// Return BOSH info with UAA URL pointing to this server
-			// Use the request Host to build the UAA URL dynamically
 			uaaURL := "https://" + r.Host
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"name": "test-bosh",
@@ -41,23 +42,35 @@ func TestBOSHClient_GetDiegoCells(t *testing.T) {
 					w.WriteHeader(http.StatusUnauthorized)
 					return
 				}
-				w.Write([]byte(`[
-					{
-						"job_name": "diego_cell",
-						"index": 0,
-						"id": "cell-01",
-						"vitals": {
-							"mem": {"kb": 16777216, "percent": 60},
-							"cpu": {"sys": 45},
-							"disk": {"system": {"percent": 30}}
-						}
-					},
-					{
-						"job_name": "router",
-						"index": 0,
-						"id": "router-01"
-					}
-				]`))
+				// Return a task object
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"id":          123,
+					"state":       "queued",
+					"description": "retrieve vm-stats",
+				})
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		case "/tasks/123":
+			// Return task status
+			if !taskDone {
+				taskDone = true
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"id":    123,
+					"state": "processing",
+				})
+			} else {
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"id":    123,
+					"state": "done",
+				})
+			}
+		case "/tasks/123/output":
+			if r.URL.Query().Get("type") == "result" {
+				// Return NDJSON output
+				w.Write([]byte(`{"job_name":"diego_cell","index":0,"id":"cell-01","vitals":{"mem":{"kb":"16777216","percent":"60"},"cpu":{"sys":"45","user":"10","wait":"2"},"disk":{"system":{"percent":"30"}}}}
+{"job_name":"router","index":0,"id":"router-01","vitals":{"mem":{"kb":"4194304","percent":"40"},"cpu":{"sys":"20","user":"5","wait":"1"},"disk":{"system":{"percent":"20"}}}}
+`))
 				return
 			}
 			w.WriteHeader(http.StatusNotFound)
@@ -83,7 +96,7 @@ func TestBOSHClient_GetDiegoCells(t *testing.T) {
 		t.Errorf("Expected 1 diego cell, got %d", len(cells))
 	}
 
-	if cells[0].Name != "diego_cell/0" {
+	if len(cells) > 0 && cells[0].Name != "diego_cell/0" {
 		t.Errorf("Expected diego_cell/0, got %s", cells[0].Name)
 	}
 }

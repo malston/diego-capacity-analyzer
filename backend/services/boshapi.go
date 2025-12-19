@@ -247,6 +247,37 @@ func createSOCKS5DialContextFunc(allProxy string) func(ctx context.Context, netw
 	}
 }
 
+// boshTask represents a BOSH async task
+type boshTask struct {
+	ID          int    `json:"id"`
+	State       string `json:"state"`
+	Description string `json:"description"`
+	Result      string `json:"result"`
+}
+
+// boshVM represents a VM from the BOSH VMs endpoint
+type boshVM struct {
+	JobName string `json:"job_name"`
+	Index   int    `json:"index"`
+	ID      string `json:"id"`
+	Vitals  struct {
+		Mem struct {
+			KB      string `json:"kb"`
+			Percent string `json:"percent"`
+		} `json:"mem"`
+		CPU struct {
+			Sys  string `json:"sys"`
+			User string `json:"user"`
+			Wait string `json:"wait"`
+		} `json:"cpu"`
+		Disk struct {
+			System struct {
+				Percent string `json:"percent"`
+			} `json:"system"`
+		} `json:"disk"`
+	} `json:"vitals"`
+}
+
 func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 	if b.deployment == "" {
 		return nil, fmt.Errorf("BOSH_DEPLOYMENT is not configured")
@@ -257,13 +288,13 @@ func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 		return nil, fmt.Errorf("failed to authenticate with BOSH: %w", err)
 	}
 
+	// Request VMs with format=full (returns a task)
 	reqURL := fmt.Sprintf("%s/deployments/%s/vms?format=full", b.environment, b.deployment)
 
 	req, err := http.NewRequest("GET", reqURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-
 	req.Header.Set("Authorization", "Bearer "+b.token)
 
 	resp, err := b.client.Do(req)
@@ -272,50 +303,150 @@ func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	// BOSH returns 302 redirect to task, or task object directly
+	var taskID int
+	if resp.StatusCode == http.StatusFound {
+		// Get task ID from Location header
+		location := resp.Header.Get("Location")
+		// Location is like /tasks/123
+		fmt.Sscanf(location, "/tasks/%d", &taskID)
+	} else if resp.StatusCode == http.StatusOK {
+		// Parse task from response body
+		var task boshTask
+		if err := json.NewDecoder(resp.Body).Decode(&task); err != nil {
+			return nil, fmt.Errorf("failed to parse task response: %w", err)
+		}
+		taskID = task.ID
+	} else {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("BOSH API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var vms []struct {
-		JobName string `json:"job_name"`
-		Index   int    `json:"index"`
-		ID      string `json:"id"`
-		Vitals  struct {
-			Mem struct {
-				KB      int `json:"kb"`
-				Percent int `json:"percent"`
-			} `json:"mem"`
-			CPU struct {
-				Sys int `json:"sys"`
-			} `json:"cpu"`
-			Disk struct {
-				System struct {
-					Percent int `json:"percent"`
-				} `json:"system"`
-			} `json:"disk"`
-		} `json:"vitals"`
+	if taskID == 0 {
+		return nil, fmt.Errorf("could not determine task ID from BOSH response")
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&vms); err != nil {
-		return nil, fmt.Errorf("failed to parse VMs: %w", err)
+	// Poll task until done
+	vms, err := b.waitForTaskAndGetOutput(taskID)
+	if err != nil {
+		return nil, err
 	}
 
 	var cells []models.DiegoCell
 	for _, vm := range vms {
 		if vm.JobName == "diego_cell" || vm.JobName == "compute" {
-			memoryMB := vm.Vitals.Mem.KB / 1024
+			memoryKB := parseIntOrZero(vm.Vitals.Mem.KB)
+			memoryMB := memoryKB / 1024
+			memPercent := parseIntOrZero(vm.Vitals.Mem.Percent)
+			cpuSys := parseFloatOrZero(vm.Vitals.CPU.Sys)
+
 			cells = append(cells, models.DiegoCell{
 				ID:               vm.ID,
 				Name:             fmt.Sprintf("%s/%d", vm.JobName, vm.Index),
 				MemoryMB:         memoryMB,
-				AllocatedMB:      (memoryMB * vm.Vitals.Mem.Percent) / 100,
+				AllocatedMB:      (memoryMB * memPercent) / 100,
 				UsedMB:           0, // Will be calculated from apps
-				CPUPercent:       vm.Vitals.CPU.Sys,
+				CPUPercent:       int(cpuSys),
 				IsolationSegment: "default", // Will be refined later
 			})
 		}
 	}
 
 	return cells, nil
+}
+
+// waitForTaskAndGetOutput polls a BOSH task until done and returns VM data
+func (b *BOSHClient) waitForTaskAndGetOutput(taskID int) ([]boshVM, error) {
+	taskURL := fmt.Sprintf("%s/tasks/%d", b.environment, taskID)
+
+	for i := 0; i < 60; i++ { // Max 60 attempts (2 minutes with 2s sleep)
+		req, err := http.NewRequest("GET", taskURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create task request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+b.token)
+
+		resp, err := b.client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get task status: %w", err)
+		}
+
+		var task boshTask
+		if err := json.NewDecoder(resp.Body).Decode(&task); err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("failed to parse task status: %w", err)
+		}
+		resp.Body.Close()
+
+		switch task.State {
+		case "done":
+			// Get task output
+			return b.getTaskOutput(taskID)
+		case "error", "cancelled":
+			return nil, fmt.Errorf("BOSH task failed: %s", task.Result)
+		case "processing", "queued":
+			time.Sleep(2 * time.Second)
+		default:
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	return nil, fmt.Errorf("timeout waiting for BOSH task %d", taskID)
+}
+
+// getTaskOutput retrieves the output from a completed task
+func (b *BOSHClient) getTaskOutput(taskID int) ([]boshVM, error) {
+	outputURL := fmt.Sprintf("%s/tasks/%d/output?type=result", b.environment, taskID)
+
+	req, err := http.NewRequest("GET", outputURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create output request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+b.token)
+
+	resp, err := b.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task output: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get task output (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	// Task output is NDJSON (newline-delimited JSON)
+	var vms []boshVM
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read task output: %w", err)
+	}
+
+	lines := strings.Split(string(body), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var vm boshVM
+		if err := json.Unmarshal([]byte(line), &vm); err != nil {
+			log.Printf("Warning: failed to parse VM line: %s", line)
+			continue
+		}
+		vms = append(vms, vm)
+	}
+
+	return vms, nil
+}
+
+func parseIntOrZero(s string) int {
+	var i int
+	fmt.Sscanf(s, "%d", &i)
+	return i
+}
+
+func parseFloatOrZero(s string) float64 {
+	var f float64
+	fmt.Sscanf(s, "%f", &f)
+	return f
 }
