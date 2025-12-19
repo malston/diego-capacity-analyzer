@@ -51,13 +51,30 @@ func (v *VSphereClient) Connect(ctx context.Context) error {
 
 	u, err := url.Parse(host + "/sdk")
 	if err != nil {
-		return fmt.Errorf("parsing vCenter URL: %w", err)
+		return fmt.Errorf("invalid vCenter URL '%s': %w", v.creds.Host, err)
 	}
 	u.User = url.UserPassword(v.creds.Username, v.creds.Password)
 
 	client, err := govmomi.NewClient(ctx, u, v.creds.Insecure)
 	if err != nil {
-		return fmt.Errorf("connecting to vCenter: %w", err)
+		// Provide more specific error messages
+		errStr := err.Error()
+		if strings.Contains(errStr, "connection refused") {
+			return fmt.Errorf("connection refused to vCenter at %s - verify the host is reachable", v.creds.Host)
+		}
+		if strings.Contains(errStr, "no such host") {
+			return fmt.Errorf("cannot resolve vCenter hostname '%s' - verify DNS", v.creds.Host)
+		}
+		if strings.Contains(errStr, "401") || strings.Contains(errStr, "Cannot complete login") {
+			return fmt.Errorf("authentication failed - verify username and password")
+		}
+		if strings.Contains(errStr, "context deadline exceeded") || strings.Contains(errStr, "timeout") {
+			return fmt.Errorf("connection timeout to vCenter at %s - check network connectivity", v.creds.Host)
+		}
+		if strings.Contains(errStr, "certificate") || strings.Contains(errStr, "x509") {
+			return fmt.Errorf("SSL certificate error connecting to %s - try setting VSPHERE_INSECURE=true", v.creds.Host)
+		}
+		return fmt.Errorf("failed to connect to vCenter at %s: %w", v.creds.Host, err)
 	}
 
 	v.client = client
@@ -66,7 +83,10 @@ func (v *VSphereClient) Connect(ctx context.Context) error {
 	// Set datacenter
 	dc, err := v.finder.Datacenter(ctx, v.creds.Datacenter)
 	if err != nil {
-		return fmt.Errorf("finding datacenter %s: %w", v.creds.Datacenter, err)
+		if strings.Contains(err.Error(), "not found") {
+			return fmt.Errorf("datacenter '%s' not found - verify the datacenter name", v.creds.Datacenter)
+		}
+		return fmt.Errorf("error accessing datacenter '%s': %w", v.creds.Datacenter, err)
 	}
 	v.datacenter = dc
 	v.finder.SetDatacenter(dc)

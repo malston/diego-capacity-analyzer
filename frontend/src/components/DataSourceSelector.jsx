@@ -3,8 +3,15 @@
 // ABOUTME: Supports live vSphere, JSON upload, and manual form entry
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, Edit3, RefreshCw, Server } from 'lucide-react';
+import { Upload, FileText, Edit3, RefreshCw, Server, FolderOpen } from 'lucide-react';
 import { scenarioApi } from '../services/scenarioApi';
+
+const SAMPLE_FILES = [
+  { name: 'Small Foundation (Dev/Test)', file: 'small-foundation.json' },
+  { name: 'Medium Foundation (Staging)', file: 'medium-foundation.json' },
+  { name: 'Large Foundation (Production)', file: 'large-foundation.json' },
+  { name: 'Enterprise Multi-Cluster', file: 'multi-cluster-enterprise.json' },
+];
 
 const DataSourceSelector = ({ onDataLoaded, currentData }) => {
   const [mode, setMode] = useState('upload'); // 'live' | 'upload' | 'manual'
@@ -96,6 +103,25 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
       onDataLoaded(state);
       // Store in localStorage for persistence
       localStorage.setItem('scenario-infrastructure', JSON.stringify(state));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadSample = async (filename) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/samples/${filename}`);
+      if (!response.ok) {
+        throw new Error('Failed to load sample file');
+      }
+      const data = await response.json();
+      validateManualInput(data);
+      onDataLoaded(data);
+      localStorage.setItem('scenario-infrastructure', JSON.stringify(data));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -224,23 +250,44 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
       )}
 
       {mode === 'upload' && (
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-          <input
-            type="file"
-            accept=".json"
-            onChange={handleFileUpload}
-            ref={fileInputRef}
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="text-blue-600 hover:text-blue-800"
-          >
-            Click to upload JSON file
-          </button>
-          <p className="text-sm text-gray-500 mt-2">
-            or drag and drop
-          </p>
+        <div className="space-y-4">
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleFileUpload}
+              ref={fileInputRef}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="text-blue-600 hover:text-blue-800"
+            >
+              Click to upload JSON file
+            </button>
+            <p className="text-sm text-gray-500 mt-2">
+              or drag and drop
+            </p>
+          </div>
+
+          <div className="border-t pt-4">
+            <p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <FolderOpen size={16} />
+              Or load a sample configuration:
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {SAMPLE_FILES.map((sample) => (
+                <button
+                  key={sample.file}
+                  onClick={() => handleLoadSample(sample.file)}
+                  disabled={loading}
+                  className="text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 disabled:opacity-50"
+                >
+                  {sample.name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

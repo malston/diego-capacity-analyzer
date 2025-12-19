@@ -1,0 +1,35 @@
+{
+  "name": "Enterprise Multi-Cluster (Production)",
+  "clusters": [
+    {
+      "name": "az1-compute",
+      "host_count": 12,
+      "memory_gb_per_host": 2048,
+      "cpu_cores_per_host": 128,
+      "diego_cell_count": 300,
+      "diego_cell_memory_gb": 64,
+      "diego_cell_cpu": 8
+    },
+    {
+      "name": "az2-compute",
+      "host_count": 12,
+      "memory_gb_per_host": 2048,
+      "cpu_cores_per_host": 128,
+      "diego_cell_count": 300,
+      "diego_cell_memory_gb": 64,
+      "diego_cell_cpu": 8
+    },
+    {
+      "name": "az3-compute",
+      "host_count": 12,
+      "memory_gb_per_host": 2048,
+      "cpu_cores_per_host": 128,
+      "diego_cell_count": 300,
+      "diego_cell_memory_gb": 64,
+      "diego_cell_cpu": 8
+    }
+  ],
+  "platform_vms_gb": 12000,
+  "total_app_memory_gb": 45000,
+  "total_app_instances": 15000
+}

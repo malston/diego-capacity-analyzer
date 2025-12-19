@@ -195,8 +195,8 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Cache result
-	h.cache.Set("dashboard:all", resp)
+	// Cache result with shorter TTL for live BOSH/CF data
+	h.cache.SetWithTTL("dashboard:all", resp, time.Duration(h.cfg.DashboardTTL)*time.Second)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

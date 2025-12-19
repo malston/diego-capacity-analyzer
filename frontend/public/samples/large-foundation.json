@@ -1,0 +1,26 @@
+{
+  "name": "Large Foundation (Production)",
+  "clusters": [
+    {
+      "name": "compute-cluster-01",
+      "host_count": 8,
+      "memory_gb_per_host": 2048,
+      "cpu_cores_per_host": 64,
+      "diego_cell_count": 250,
+      "diego_cell_memory_gb": 32,
+      "diego_cell_cpu": 4
+    },
+    {
+      "name": "compute-cluster-02",
+      "host_count": 7,
+      "memory_gb_per_host": 2048,
+      "cpu_cores_per_host": 64,
+      "diego_cell_count": 220,
+      "diego_cell_memory_gb": 32,
+      "diego_cell_cpu": 4
+    }
+  ],
+  "platform_vms_gb": 4800,
+  "total_app_memory_gb": 10500,
+  "total_app_instances": 7500
+}

@@ -3,12 +3,13 @@
 // ABOUTME: Combines data source, comparison table, and warnings
 
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw } from 'lucide-react';
+import { Calculator, RefreshCw, FileDown } from 'lucide-react';
 import DataSourceSelector from './DataSourceSelector';
 import ComparisonTable from './ComparisonTable';
 import WarningsList from './WarningsList';
 import { scenarioApi } from '../services/scenarioApi';
 import { VM_SIZE_PRESETS, DEFAULT_PRESET_INDEX } from '../config/vmPresets';
+import { generateMarkdownReport, downloadMarkdown } from '../utils/exportMarkdown';
 
 const ScenarioAnalyzer = () => {
   const [infrastructureData, setInfrastructureData] = useState(null);
@@ -85,6 +86,13 @@ const ScenarioAnalyzer = () => {
 
   const preset = VM_SIZE_PRESETS[selectedPreset];
   const isCustom = preset.cpu === null;
+
+  const handleExportMarkdown = () => {
+    if (!comparison || !infrastructureData) return;
+    const markdown = generateMarkdownReport(comparison, infrastructureData);
+    const filename = `${infrastructureData.name || 'capacity'}-analysis-${new Date().toISOString().split('T')[0]}.md`;
+    downloadMarkdown(markdown, filename);
+  };
 
   return (
     <div className="space-y-6">
@@ -188,6 +196,15 @@ const ScenarioAnalyzer = () => {
 
       {comparison && (
         <>
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={handleExportMarkdown}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              <FileDown size={16} />
+              Export to Markdown
+            </button>
+          </div>
           <ComparisonTable comparison={comparison} />
           <WarningsList warnings={comparison.warnings} />
         </>

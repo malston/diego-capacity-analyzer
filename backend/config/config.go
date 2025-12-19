@@ -11,8 +11,9 @@ import (
 
 type Config struct {
 	// Server
-	Port     string
-	CacheTTL int // seconds
+	Port           string
+	CacheTTL       int // seconds, default for general cache
+	DashboardTTL   int // seconds, for BOSH/CF data (default 30s)
 
 	// CF API
 	CFAPIUrl   string
@@ -47,8 +48,9 @@ func (c *Config) VSphereConfigured() bool {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:     getEnv("PORT", "8080"),
-		CacheTTL: getEnvInt("CACHE_TTL", 300),
+		Port:         getEnv("PORT", "8080"),
+		CacheTTL:     getEnvInt("CACHE_TTL", 300),
+		DashboardTTL: getEnvInt("DASHBOARD_CACHE_TTL", 30),
 
 		CFAPIUrl:   os.Getenv("CF_API_URL"),
 		CFUsername: os.Getenv("CF_USERNAME"),
