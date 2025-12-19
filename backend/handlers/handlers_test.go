@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +12,160 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/backend/cache"
 	"github.com/markalston/diego-capacity-analyzer/backend/config"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
+	"github.com/markalston/diego-capacity-analyzer/backend/services"
 )
+
+// setupMockBOSHServer creates a mock BOSH API server that returns cells with no UsedMB
+func setupMockBOSHServer(cellsWithNoUsedMB bool) *httptest.Server {
+	taskDone := false
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/info":
+			uaaURL := "https://" + r.Host
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"name": "test-bosh",
+				"user_authentication": map[string]interface{}{
+					"type": "uaa",
+					"options": map[string]interface{}{
+						"url": uaaURL,
+					},
+				},
+			})
+		case "/oauth/token":
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"access_token": "test-token",
+				"token_type":   "bearer",
+				"expires_in":   3600,
+			})
+		case "/deployments":
+			json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"name": "cf-test"},
+			})
+		case "/deployments/cf-test/vms":
+			if r.URL.Query().Get("format") == "full" {
+				// Return a task object
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"id":          123,
+					"state":       "queued",
+					"description": "retrieve vm-stats",
+				})
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		case "/tasks/123":
+			if !taskDone {
+				taskDone = true
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"id":    123,
+					"state": "processing",
+				})
+			} else {
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"id":    123,
+					"state": "done",
+				})
+			}
+		case "/tasks/123/output":
+			if r.URL.Query().Get("type") == "result" {
+				// Return two diego cells as NDJSON - with mem.percent = "0" to trigger app calculation
+				// This simulates when BOSH vitals don't have rep metrics populated yet
+				// usedMB = (memoryMB * 0) / 100 = 0, which triggers needsAppCalculation
+				w.Write([]byte(`{"job_name":"diego_cell","index":0,"id":"cell-01","vitals":{"mem":{"kb":"32000000","percent":"0"},"cpu":{"sys":"10","user":"5","wait":"1"},"disk":{"system":{"percent":"30"}}}}
+{"job_name":"diego_cell","index":1,"id":"cell-02","vitals":{"mem":{"kb":"32000000","percent":"0"},"cpu":{"sys":"10","user":"5","wait":"1"},"disk":{"system":{"percent":"30"}}}}
+`))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+
+	return server
+}
+
+// setupMockCFServerWithApps creates a mock CF API server that returns apps with ActualMB
+func setupMockCFServerWithApps() (*httptest.Server, *httptest.Server) {
+	uaaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/token" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"access_token":"test-token","token_type":"bearer"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	var cfServerURL string
+	cfServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch {
+		case r.URL.Path == "/v3/info":
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"links":{"self":{"href":"` + cfServerURL + `"},"login":{"href":"` + uaaServer.URL + `"}}}`))
+
+		case r.URL.Path == "/v3/apps":
+			w.WriteHeader(http.StatusOK)
+			// Return 2 apps in the "shared" segment with 512MB each (2 instances = 1024MB actual)
+			w.Write([]byte(`{
+				"resources": [
+					{
+						"guid": "app-1",
+						"name": "test-app-1",
+						"state": "STARTED",
+						"relationships": {
+							"space": {"data": {"guid": "space-1"}}
+						}
+					},
+					{
+						"guid": "app-2",
+						"name": "test-app-2",
+						"state": "STARTED",
+						"relationships": {
+							"space": {"data": {"guid": "space-1"}}
+						}
+					}
+				],
+				"pagination": {"next": null}
+			}`))
+
+		case strings.HasPrefix(r.URL.Path, "/v3/apps/") && strings.HasSuffix(r.URL.Path, "/processes"):
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{
+				"resources": [
+					{
+						"type": "web",
+						"instances": 2,
+						"memory_in_mb": 512
+					}
+				]
+			}`))
+
+		case strings.HasPrefix(r.URL.Path, "/v3/spaces/") && strings.HasSuffix(r.URL.Path, "/relationships/isolation_segment"):
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"data": null}`))
+
+		case r.URL.Path == "/v3/isolation_segments":
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{
+				"resources": [
+					{"guid": "iso-seg-1", "name": "shared"}
+				],
+				"pagination": {"next": null}
+			}`))
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	cfServerURL = cfServer.URL
+
+	return cfServer, uaaServer
+}
 
 // setupMockCFServer creates a mock CF API server with UAA authentication
 func setupMockCFServer() (*httptest.Server, *httptest.Server) {
@@ -398,5 +552,354 @@ func TestHandleScenarioCompare(t *testing.T) {
 	}
 	if comparison.Proposed.CellCount != 235 {
 		t.Errorf("Expected Proposed.CellCount 235, got %d", comparison.Proposed.CellCount)
+	}
+}
+
+func TestHandleManualInfrastructure_MethodNotAllowed(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("GET", "/api/infrastructure/manual", nil)
+	w := httptest.NewRecorder()
+	handler.HandleManualInfrastructure(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("Expected status 405, got %d", w.Code)
+	}
+
+	var resp models.ErrorResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if resp.Error != "Method not allowed" {
+		t.Errorf("Expected 'Method not allowed' error, got '%s'", resp.Error)
+	}
+}
+
+func TestHandleManualInfrastructure_InvalidJSON(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader("not valid json"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handler.HandleManualInfrastructure(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+
+	var resp models.ErrorResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if resp.Error != "Invalid JSON" {
+		t.Errorf("Expected 'Invalid JSON' error, got '%s'", resp.Error)
+	}
+}
+
+func TestHandleInfrastructure_MethodNotAllowed(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("POST", "/api/infrastructure", nil)
+	w := httptest.NewRecorder()
+	handler.HandleInfrastructure(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("Expected status 405, got %d", w.Code)
+	}
+}
+
+func TestHandleInfrastructure_VSphereNotConfigured(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("GET", "/api/infrastructure", nil)
+	w := httptest.NewRecorder()
+	handler.HandleInfrastructure(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status 503, got %d", w.Code)
+	}
+
+	var resp models.ErrorResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if !strings.Contains(resp.Error, "vSphere not configured") {
+		t.Errorf("Expected vSphere not configured error, got '%s'", resp.Error)
+	}
+}
+
+func TestHandleInfrastructureStatus_MethodNotAllowed(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("POST", "/api/infrastructure/status", nil)
+	w := httptest.NewRecorder()
+	handler.HandleInfrastructureStatus(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("Expected status 405, got %d", w.Code)
+	}
+}
+
+func TestHandleInfrastructureStatus_NoData(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("GET", "/api/infrastructure/status", nil)
+	w := httptest.NewRecorder()
+	handler.HandleInfrastructureStatus(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if resp["vsphere_configured"] != false {
+		t.Errorf("Expected vsphere_configured false, got %v", resp["vsphere_configured"])
+	}
+	if resp["has_data"] != false {
+		t.Errorf("Expected has_data false, got %v", resp["has_data"])
+	}
+}
+
+func TestHandleInfrastructureStatus_WithData(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// First load manual infrastructure
+	manualBody := `{
+		"name": "Test Env",
+		"clusters": [{
+			"name": "cluster-01",
+			"host_count": 8,
+			"memory_gb_per_host": 2048,
+			"cpu_cores_per_host": 64,
+			"diego_cell_count": 250,
+			"diego_cell_memory_gb": 32,
+			"diego_cell_cpu": 4
+		}],
+		"platform_vms_gb": 4800,
+		"total_app_memory_gb": 10500,
+		"total_app_instances": 7500
+	}`
+
+	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	handler.HandleManualInfrastructure(w1, req1)
+
+	// Now check status
+	req2 := httptest.NewRequest("GET", "/api/infrastructure/status", nil)
+	w2 := httptest.NewRecorder()
+	handler.HandleInfrastructureStatus(w2, req2)
+
+	if w2.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w2.Code)
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w2.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if resp["has_data"] != true {
+		t.Errorf("Expected has_data true, got %v", resp["has_data"])
+	}
+	if resp["source"] != "manual" {
+		t.Errorf("Expected source 'manual', got %v", resp["source"])
+	}
+	if resp["name"] != "Test Env" {
+		t.Errorf("Expected name 'Test Env', got %v", resp["name"])
+	}
+	if resp["host_count"].(float64) != 8 {
+		t.Errorf("Expected host_count 8, got %v", resp["host_count"])
+	}
+	if resp["cell_count"].(float64) != 250 {
+		t.Errorf("Expected cell_count 250, got %v", resp["cell_count"])
+	}
+}
+
+func TestHandleScenarioCompare_MethodNotAllowed(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("GET", "/api/scenario/compare", nil)
+	w := httptest.NewRecorder()
+	handler.HandleScenarioCompare(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("Expected status 405, got %d", w.Code)
+	}
+}
+
+func TestHandleScenarioCompare_NoInfrastructureData(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	body := `{"proposed_cell_memory_gb": 64, "proposed_cell_cpu": 4, "proposed_cell_count": 235}`
+	req := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handler.HandleScenarioCompare(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+
+	var resp models.ErrorResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if !strings.Contains(resp.Error, "No infrastructure data") {
+		t.Errorf("Expected 'No infrastructure data' error, got '%s'", resp.Error)
+	}
+}
+
+func TestHandleScenarioCompare_InvalidJSON(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// First load manual infrastructure
+	manualBody := `{
+		"name": "Test Env",
+		"clusters": [{
+			"name": "cluster-01",
+			"host_count": 8,
+			"memory_gb_per_host": 2048,
+			"cpu_cores_per_host": 64,
+			"diego_cell_count": 250,
+			"diego_cell_memory_gb": 32,
+			"diego_cell_cpu": 4
+		}],
+		"platform_vms_gb": 4800,
+		"total_app_memory_gb": 10500,
+		"total_app_instances": 7500
+	}`
+
+	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	handler.HandleManualInfrastructure(w1, req1)
+
+	// Now try with invalid JSON
+	req2 := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader("not valid json"))
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	handler.HandleScenarioCompare(w2, req2)
+
+	if w2.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w2.Code)
+	}
+
+	var resp models.ErrorResponse
+	if err := json.NewDecoder(w2.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if resp.Error != "Invalid JSON" {
+		t.Errorf("Expected 'Invalid JSON' error, got '%s'", resp.Error)
+	}
+}
+
+func TestDashboardHandler_AppMemoryCalculation(t *testing.T) {
+	// Set up mock CF server with apps
+	cfServer, uaaServer := setupMockCFServerWithApps()
+	defer cfServer.Close()
+	defer uaaServer.Close()
+
+	// Set up mock BOSH server that returns cells with UsedMB = 0
+	boshServer := setupMockBOSHServer(true) // true = cells have no UsedMB
+	defer boshServer.Close()
+
+	cfg := &config.Config{
+		CFAPIUrl:        cfServer.URL,
+		CFUsername:      "admin",
+		CFPassword:      "secret",
+		BOSHEnvironment: boshServer.URL,
+		BOSHClient:      "ops_manager",
+		BOSHSecret:      "secret",
+		BOSHDeployment:  "cf-test",
+		DashboardTTL:    30,
+	}
+	c := cache.New(5 * time.Minute)
+
+	// Create handler and inject a BOSH client with custom TLS config
+	h := &Handler{
+		cfg:          cfg,
+		cache:        c,
+		scenarioCalc: services.NewScenarioCalculator(),
+	}
+	h.cfClient = services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword)
+
+	// Create BOSH client with TLS skip verify for test server
+	h.boshClient = services.NewBOSHClient(
+		boshServer.URL,
+		cfg.BOSHClient,
+		cfg.BOSHSecret,
+		"", // no CA cert
+		cfg.BOSHDeployment,
+	)
+	// Override HTTP client to skip TLS verification for test
+	h.boshClient.SetHTTPClient(&http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	})
+
+	req := httptest.NewRequest("GET", "/api/dashboard", nil)
+	w := httptest.NewRecorder()
+
+	h.Dashboard(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp models.DashboardResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// Verify cells are present
+	if len(resp.Cells) == 0 {
+		t.Fatal("Expected cells in response, got none")
+	}
+
+	// Verify apps are present
+	if len(resp.Apps) == 0 {
+		t.Fatal("Expected apps in response, got none")
+	}
+
+	// Verify the needsAppCalculation code path was exercised:
+	// - BOSH returned cells with UsedMB=0 (mem.percent="0")
+	// - CF returned apps with ActualMB (2 apps × 2 instances × 512MB = 2048MB)
+	// - Handler calculated UsedMB = 2048MB / 2 cells = 1024MB per cell
+	expectedUsedMB := 1024
+	for _, cell := range resp.Cells {
+		if cell.UsedMB != expectedUsedMB {
+			t.Errorf("Expected UsedMB=%d (calculated from app memory), got %d for cell %s",
+				expectedUsedMB, cell.UsedMB, cell.Name)
+		}
+		if cell.IsolationSegment != "default" {
+			t.Errorf("Expected IsolationSegment='default', got '%s' for cell %s",
+				cell.IsolationSegment, cell.Name)
+		}
 	}
 }
