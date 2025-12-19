@@ -206,9 +206,10 @@ func TestDashboardHandler_Cache(t *testing.T) {
 	defer uaaServer.Close()
 
 	cfg := &config.Config{
-		CFAPIUrl:   cfServer.URL,
-		CFUsername: "admin",
-		CFPassword: "secret",
+		CFAPIUrl:     cfServer.URL,
+		CFUsername:   "admin",
+		CFPassword:   "secret",
+		DashboardTTL: 30, // 30 seconds for test
 	}
 	c := cache.New(5 * time.Minute)
 	h := NewHandler(cfg, c)
