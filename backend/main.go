@@ -4,22 +4,46 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
+	"time"
+
+	"github.com/markalston/diego-capacity-analyzer/backend/cache"
+	"github.com/markalston/diego-capacity-analyzer/backend/config"
+	"github.com/markalston/diego-capacity-analyzer/backend/handlers"
 )
 
 func main() {
-	port := "8080"
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
 
-	http.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"status":"ok"}`)
-	})
+	log.Printf("Starting Diego Capacity Analyzer Backend")
+	log.Printf("CF API: %s", cfg.CFAPIUrl)
+	if cfg.BOSHEnvironment != "" {
+		log.Printf("BOSH: %s", cfg.BOSHEnvironment)
+	} else {
+		log.Printf("BOSH: not configured (degraded mode)")
+	}
 
-	log.Printf("Starting capacity analyzer backend on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+	// Initialize cache
+	cacheTTL := time.Duration(cfg.CacheTTL) * time.Second
+	c := cache.New(cacheTTL)
+	log.Printf("Cache TTL: %v", cacheTTL)
+
+	// Initialize handlers
+	h := handlers.NewHandler(cfg, c)
+
+	// Register routes
+	http.HandleFunc("/api/health", h.EnableCORS(h.Health))
+	http.HandleFunc("/api/dashboard", h.EnableCORS(h.Dashboard))
+
+	// Start server
+	addr := ":" + cfg.Port
+	log.Printf("Server listening on %s", addr)
+	if err := http.ListenAndServe(addr, nil); err != nil {
+		log.Fatalf("Server failed: %v", err)
 	}
 }
