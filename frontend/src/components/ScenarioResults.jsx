@@ -2,11 +2,12 @@
 // ABOUTME: Replaces basic ComparisonTable with visual capacity analysis
 
 import React from 'react';
-import { CheckCircle2, XCircle, AlertTriangle, Zap, HardDrive, Cpu, Server, Shield, Activity } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Zap, HardDrive, Cpu, Server, Shield, Activity, Database, Gauge } from 'lucide-react';
 import CapacityGauge from './CapacityGauge';
 import MetricScorecard from './MetricScorecard';
+import { TPS_STATUS_COLORS, TPS_STATUS_BG_COLORS } from '../config/resourceConfig';
 
-const ScenarioResults = ({ comparison, warnings = [] }) => {
+const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memory'] }) => {
   if (!comparison) return null;
 
   const { current, proposed, delta } = comparison;
@@ -72,7 +73,11 @@ const ScenarioResults = ({ comparison, warnings = [] }) => {
       </div>
 
       {/* Key Gauges Row */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className={`grid gap-6 ${
+        selectedResources.includes('disk') && proposed.disk_capacity_gb > 0
+          ? 'grid-cols-2 lg:grid-cols-4'
+          : 'grid-cols-3'
+      }`}>
         {/* N-1 Utilization Gauge */}
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-4 text-gray-400">
@@ -94,7 +99,7 @@ const ScenarioResults = ({ comparison, warnings = [] }) => {
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-4 text-gray-400">
             <Activity size={16} />
-            <span className="text-xs uppercase tracking-wider font-medium">Cell Utilization</span>
+            <span className="text-xs uppercase tracking-wider font-medium">Memory Utilization</span>
           </div>
           <CapacityGauge
             value={proposed.utilization_pct}
@@ -106,6 +111,25 @@ const ScenarioResults = ({ comparison, warnings = [] }) => {
             App memory / capacity
           </div>
         </div>
+
+        {/* Disk Utilization Gauge - only if disk selected and has data */}
+        {selectedResources.includes('disk') && proposed.disk_capacity_gb > 0 && (
+          <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-4 text-gray-400">
+              <Database size={16} />
+              <span className="text-xs uppercase tracking-wider font-medium">Disk Utilization</span>
+            </div>
+            <CapacityGauge
+              value={proposed.disk_utilization_pct}
+              label="Disk Used"
+              thresholds={{ warning: 80, critical: 90 }}
+              inverse={true}
+            />
+            <div className="mt-4 text-center text-xs text-gray-500">
+              App disk / capacity
+            </div>
+          </div>
+        )}
 
         {/* Free Chunks Gauge */}
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
@@ -125,6 +149,59 @@ const ScenarioResults = ({ comparison, warnings = [] }) => {
           </div>
         </div>
       </div>
+
+      {/* TPS Performance Indicator */}
+      {proposed.estimated_tps > 0 && (
+        <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
+          <div className="flex items-center gap-2 mb-4 text-gray-400">
+            <Gauge size={16} />
+            <span className="text-xs uppercase tracking-wider font-medium">Scheduling Performance (TPS)</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              {/* Current TPS */}
+              <div className="text-center">
+                <div className="text-xs text-gray-500 mb-1">Current</div>
+                <div className="text-2xl font-mono font-bold text-gray-300">
+                  {current.estimated_tps.toLocaleString()}
+                </div>
+                <div className={`text-xs mt-1 px-2 py-0.5 rounded ${TPS_STATUS_BG_COLORS[current.tps_status] || 'bg-gray-500/20'} ${TPS_STATUS_COLORS[current.tps_status] || 'text-gray-400'}`}>
+                  {current.tps_status}
+                </div>
+              </div>
+
+              {/* Arrow */}
+              <div className="text-3xl text-cyan-500">→</div>
+
+              {/* Proposed TPS */}
+              <div className="text-center">
+                <div className="text-xs text-gray-500 mb-1">Proposed</div>
+                <div className={`text-2xl font-mono font-bold ${TPS_STATUS_COLORS[proposed.tps_status] || 'text-gray-300'}`}>
+                  {proposed.estimated_tps.toLocaleString()}
+                </div>
+                <div className={`text-xs mt-1 px-2 py-0.5 rounded ${TPS_STATUS_BG_COLORS[proposed.tps_status] || 'bg-gray-500/20'} ${TPS_STATUS_COLORS[proposed.tps_status] || 'text-gray-400'}`}>
+                  {proposed.tps_status}
+                </div>
+              </div>
+            </div>
+
+            {/* TPS Change Indicator */}
+            <div className="text-right">
+              <div className="text-xs text-gray-500 mb-1">Change</div>
+              <div className={`text-xl font-mono font-bold ${
+                proposed.estimated_tps >= current.estimated_tps ? 'text-emerald-400' : 'text-amber-400'
+              }`}>
+                {proposed.estimated_tps >= current.estimated_tps ? '+' : ''}
+                {((proposed.estimated_tps - current.estimated_tps) / Math.max(1, current.estimated_tps) * 100).toFixed(0)}%
+              </div>
+              <div className="text-xs text-gray-500">
+                {proposed.estimated_tps - current.estimated_tps >= 0 ? '+' : ''}
+                {(proposed.estimated_tps - current.estimated_tps).toLocaleString()} TPS
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detailed Metrics Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

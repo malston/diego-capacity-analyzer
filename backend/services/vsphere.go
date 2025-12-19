@@ -6,6 +6,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 	"time"
@@ -231,14 +232,13 @@ func (v *VSphereClient) getDiegoCellsInCluster(ctx context.Context, cluster *obj
 			cells = append(cells, vmInfo)
 		}
 	}
-
 	return cells, nil
 }
 
 // getVMInfo retrieves VM configuration
 func (v *VSphereClient) getVMInfo(ctx context.Context, vm *object.VirtualMachine) (VMInfo, error) {
 	var vmMo mo.VirtualMachine
-	err := vm.Properties(ctx, vm.Reference(), []string{"config", "runtime", "summary"}, &vmMo)
+	err := vm.Properties(ctx, vm.Reference(), []string{"config", "runtime", "summary", "customValue"}, &vmMo)
 	if err != nil {
 		return VMInfo{}, err
 	}
@@ -253,10 +253,29 @@ func (v *VSphereClient) getVMInfo(ctx context.Context, vm *object.VirtualMachine
 		info.NumCPU = vmMo.Config.Hardware.NumCPU
 	}
 
-	// Check if this is a Diego cell by name pattern
-	// BOSH naming: diego_cell/<uuid> or diego-cell-<index>
-	name := strings.ToLower(vm.Name())
-	info.IsDiegoCell = strings.Contains(name, "diego_cell") || strings.Contains(name, "diego-cell")
+	// Check custom attributes for BOSH job name
+	// BOSH sets custom attributes like "job", "id", "deployment"
+	for _, cv := range vmMo.CustomValue {
+		if field, ok := cv.(*types.CustomFieldStringValue); ok {
+			// Check if value looks like a diego cell job name
+			val := strings.ToLower(field.Value)
+			if strings.Contains(val, "diego_cell") || strings.Contains(val, "diego-cell") ||
+				strings.HasPrefix(val, "compute") || strings.HasPrefix(val, "diego") ||
+				strings.Contains(val, "isolated_diego_cell") {
+				info.IsDiegoCell = true
+				break
+			}
+		}
+	}
+
+	// Fallback to name-based detection if no custom attributes matched
+	if !info.IsDiegoCell {
+		name := strings.ToLower(vm.Name())
+		info.IsDiegoCell = strings.Contains(name, "diego_cell") ||
+			strings.Contains(name, "diego-cell") ||
+			strings.HasPrefix(name, "compute") ||
+			strings.HasPrefix(name, "diego")
+	}
 
 	if info.IsDiegoCell {
 		info.CellMemoryGB = int(info.MemoryMB / 1024)
@@ -283,10 +302,19 @@ func (v *VSphereClient) getVMInfo(ctx context.Context, vm *object.VirtualMachine
 
 // GetInfrastructureState builds InfrastructureState from vSphere data
 func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.InfrastructureState, error) {
+	// Get all clusters for host/memory info
 	clusters, err := v.GetClusters(ctx)
 	if err != nil {
 		return models.InfrastructureState{}, fmt.Errorf("getting clusters: %w", err)
 	}
+
+	// Find all Diego cells across entire datacenter (not filtered by cluster)
+	allCells, err := v.getAllDiegoCells(ctx)
+	if err != nil {
+		return models.InfrastructureState{}, fmt.Errorf("getting Diego cells: %w", err)
+	}
+
+	log.Printf("[vSphere] Found %d Diego cells total in datacenter", len(allCells))
 
 	state := models.InfrastructureState{
 		Source:    "vsphere",
@@ -296,48 +324,64 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 		Cached:    false,
 	}
 
+	// Calculate totals from all clusters
 	for _, c := range clusters {
-		// Skip clusters with no Diego cells
-		if c.DiegoCellCount == 0 {
-			continue
-		}
-
-		// Calculate cell size from first cell (assuming uniform)
-		var cellMemoryGB, cellCPU int
-		if len(c.DiegoCells) > 0 {
-			cellMemoryGB = c.DiegoCells[0].CellMemoryGB
-			cellCPU = c.DiegoCells[0].CellCPU
-		}
-
 		hostCount := len(c.Hosts)
 		memoryGB := int(c.TotalMemoryMB / 1024)
 		n1MemoryGB := 0
 		if hostCount > 1 {
-			// N-1: remove largest host's memory (simplified: assume uniform hosts)
 			n1MemoryGB = memoryGB - (memoryGB / hostCount)
 		}
-		usableMemoryGB := int(float64(n1MemoryGB) * 0.9)
+
+		state.TotalMemoryGB += memoryGB
+		state.TotalN1MemoryGB += n1MemoryGB
+		state.TotalHostCount += hostCount
+	}
+
+	// Create a single cluster entry with all Diego cells
+	if len(allCells) > 0 {
+		// Calculate cell size from first cell (assuming uniform)
+		cellMemoryGB := allCells[0].CellMemoryGB
+		cellCPU := allCells[0].CellCPU
 
 		clusterState := models.ClusterState{
-			Name:              c.Name,
-			HostCount:         hostCount,
-			MemoryGB:          memoryGB,
-			CPUCores:          int(c.TotalCPUCores),
-			N1MemoryGB:        n1MemoryGB,
-			UsableMemoryGB:    usableMemoryGB,
-			DiegoCellCount:    c.DiegoCellCount,
+			Name:              v.creds.Datacenter,
+			HostCount:         state.TotalHostCount,
+			MemoryGB:          state.TotalMemoryGB,
+			CPUCores:          0, // Could aggregate from clusters if needed
+			N1MemoryGB:        state.TotalN1MemoryGB,
+			UsableMemoryGB:    int(float64(state.TotalN1MemoryGB) * 0.9),
+			DiegoCellCount:    len(allCells),
 			DiegoCellMemoryGB: cellMemoryGB,
 			DiegoCellCPU:      cellCPU,
 		}
 
 		state.Clusters = append(state.Clusters, clusterState)
-		state.TotalMemoryGB += memoryGB
-		state.TotalN1MemoryGB += n1MemoryGB
-		state.TotalHostCount += hostCount
-		state.TotalCellCount += c.DiegoCellCount
+		state.TotalCellCount = len(allCells)
 	}
 
 	return state, nil
+}
+
+// getAllDiegoCells finds all Diego cell VMs in the datacenter
+func (v *VSphereClient) getAllDiegoCells(ctx context.Context) ([]VMInfo, error) {
+	vms, err := v.finder.VirtualMachineList(ctx, "*")
+	if err != nil {
+		return nil, fmt.Errorf("listing VMs: %w", err)
+	}
+
+	var cells []VMInfo
+	for _, vm := range vms {
+		vmInfo, err := v.getVMInfo(ctx, vm)
+		if err != nil {
+			continue
+		}
+		if vmInfo.IsDiegoCell {
+			cells = append(cells, vmInfo)
+		}
+	}
+
+	return cells, nil
 }
 
 // ParseOpsManagerCredentials extracts vCenter credentials from om staged-director-config output

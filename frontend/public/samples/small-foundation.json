@@ -8,10 +8,12 @@
       "cpu_cores_per_host": 32,
       "diego_cell_count": 10,
       "diego_cell_memory_gb": 32,
-      "diego_cell_cpu": 4
+      "diego_cell_cpu": 4,
+      "diego_cell_disk_gb": 64
     }
   ],
   "platform_vms_gb": 200,
   "total_app_memory_gb": 150,
+  "total_app_disk_gb": 100,
   "total_app_instances": 50
 }

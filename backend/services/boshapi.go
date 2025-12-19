@@ -36,6 +36,18 @@ type BOSHClient struct {
 }
 
 func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BOSHClient {
+	// Normalize environment URL - bosh cli omits protocol and sometimes port
+	if environment != "" {
+		// Add https:// if missing
+		if !strings.HasPrefix(environment, "https://") && !strings.HasPrefix(environment, "http://") {
+			environment = "https://" + environment
+		}
+		// Add default port :25555 if no port specified
+		if u, err := url.Parse(environment); err == nil && u.Port() == "" {
+			environment = environment + ":25555"
+		}
+	}
+
 	tlsConfig := &tls.Config{}
 
 	if caCert != "" {
@@ -74,6 +86,11 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 			Transport: transport,
 		},
 	}
+}
+
+// SetHTTPClient allows overriding the HTTP client (useful for testing)
+func (b *BOSHClient) SetHTTPClient(client *http.Client) {
+	b.client = client
 }
 
 // getUAAEndpoint discovers the UAA endpoint from the BOSH Director info
