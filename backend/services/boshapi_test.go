@@ -2,37 +2,68 @@ package services
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
 func TestBOSHClient_GetDiegoCells(t *testing.T) {
-	// Mock BOSH server
+	// Mock BOSH server with UAA endpoints
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/deployments/cf-test/vms" && r.URL.Query().Get("format") == "full" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`[
-				{
-					"job_name": "diego_cell",
-					"index": 0,
-					"id": "cell-01",
-					"vitals": {
-						"mem": {"kb": 16777216, "percent": 60},
-						"cpu": {"sys": 45},
-						"disk": {"system": {"percent": 30}}
-					}
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/info":
+			// Return BOSH info with UAA URL pointing to this server
+			// Use the request Host to build the UAA URL dynamically
+			uaaURL := "https://" + r.Host
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"name": "test-bosh",
+				"user_authentication": map[string]interface{}{
+					"type": "uaa",
+					"options": map[string]interface{}{
+						"url": uaaURL,
+					},
 				},
-				{
-					"job_name": "router",
-					"index": 0,
-					"id": "router-01"
+			})
+		case "/oauth/token":
+			// Return a fake token
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"access_token": "test-token",
+				"token_type":   "bearer",
+				"expires_in":   3600,
+			})
+		case "/deployments/cf-test/vms":
+			if r.URL.Query().Get("format") == "full" {
+				// Check for Bearer token
+				if r.Header.Get("Authorization") != "Bearer test-token" {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
 				}
-			]`))
-			return
+				w.Write([]byte(`[
+					{
+						"job_name": "diego_cell",
+						"index": 0,
+						"id": "cell-01",
+						"vitals": {
+							"mem": {"kb": 16777216, "percent": 60},
+							"cpu": {"sys": 45},
+							"disk": {"system": {"percent": 30}}
+						}
+					},
+					{
+						"job_name": "router",
+						"index": 0,
+						"id": "router-01"
+					}
+				]`))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		default:
+			w.WriteHeader(http.StatusNotFound)
 		}
-		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer server.Close()
 

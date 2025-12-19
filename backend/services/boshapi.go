@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -29,6 +30,9 @@ type BOSHClient struct {
 	caCert      string
 	deployment  string
 	client      *http.Client
+	token       string
+	tokenExpiry time.Time
+	tokenMutex  sync.RWMutex
 }
 
 func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BOSHClient {
@@ -70,6 +74,112 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 			Transport: transport,
 		},
 	}
+}
+
+// getUAAEndpoint discovers the UAA endpoint from the BOSH Director info
+func (b *BOSHClient) getUAAEndpoint() (string, error) {
+	req, err := http.NewRequest("GET", b.environment+"/info", nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create info request: %w", err)
+	}
+
+	resp, err := b.client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to get BOSH info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("BOSH info returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var info struct {
+		UserAuthentication struct {
+			Type    string `json:"type"`
+			Options struct {
+				URL string `json:"url"`
+			} `json:"options"`
+		} `json:"user_authentication"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return "", fmt.Errorf("failed to parse BOSH info: %w", err)
+	}
+
+	if info.UserAuthentication.Options.URL == "" {
+		// Fall back to Director URL with port 8443
+		parsed, err := url.Parse(b.environment)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse environment URL: %w", err)
+		}
+		host := parsed.Hostname()
+		return fmt.Sprintf("https://%s:8443", host), nil
+	}
+
+	return info.UserAuthentication.Options.URL, nil
+}
+
+// authenticate gets an OAuth token from BOSH's UAA
+func (b *BOSHClient) authenticate() error {
+	b.tokenMutex.RLock()
+	if b.token != "" && time.Now().Before(b.tokenExpiry) {
+		b.tokenMutex.RUnlock()
+		return nil
+	}
+	b.tokenMutex.RUnlock()
+
+	b.tokenMutex.Lock()
+	defer b.tokenMutex.Unlock()
+
+	// Double-check after acquiring write lock
+	if b.token != "" && time.Now().Before(b.tokenExpiry) {
+		return nil
+	}
+
+	uaaURL, err := b.getUAAEndpoint()
+	if err != nil {
+		return fmt.Errorf("failed to get UAA endpoint: %w", err)
+	}
+
+	data := url.Values{}
+	data.Set("grant_type", "client_credentials")
+
+	req, err := http.NewRequest("POST", uaaURL+"/oauth/token", strings.NewReader(data.Encode()))
+	if err != nil {
+		return fmt.Errorf("failed to create token request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+	req.SetBasicAuth(b.clientID, b.secret)
+
+	resp, err := b.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to get token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("UAA token request failed (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	var tokenResp struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+		ExpiresIn   int    `json:"expires_in"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return fmt.Errorf("failed to parse token response: %w", err)
+	}
+
+	b.token = tokenResp.AccessToken
+	// Set expiry with 1 minute buffer
+	b.tokenExpiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn-60) * time.Second)
+
+	return nil
 }
 
 // createSOCKS5DialContextFunc creates a dial function for SSH+SOCKS5 proxy connections.
@@ -141,14 +251,20 @@ func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 	if b.deployment == "" {
 		return nil, fmt.Errorf("BOSH_DEPLOYMENT is not configured")
 	}
-	url := fmt.Sprintf("%s/deployments/%s/vms?format=full", b.environment, b.deployment)
 
-	req, err := http.NewRequest("GET", url, nil)
+	// Authenticate with UAA first
+	if err := b.authenticate(); err != nil {
+		return nil, fmt.Errorf("failed to authenticate with BOSH: %w", err)
+	}
+
+	reqURL := fmt.Sprintf("%s/deployments/%s/vms?format=full", b.environment, b.deployment)
+
+	req, err := http.NewRequest("GET", reqURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.SetBasicAuth(b.clientID, b.secret)
+	req.Header.Set("Authorization", "Bearer "+b.token)
 
 	resp, err := b.client.Do(req)
 	if err != nil {
@@ -157,7 +273,8 @@ func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("BOSH API returned status %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("BOSH API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var vms []struct {
