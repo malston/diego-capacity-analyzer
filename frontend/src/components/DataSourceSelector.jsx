@@ -188,7 +188,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
           <button
             onClick={() => setMode('live')}
             className={`flex items-center gap-2 px-4 py-2 rounded ${
-              mode === 'live' ? 'bg-green-600 text-white' : 'bg-gray-100'
+              mode === 'live' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'
             }`}
           >
             <Server size={16} />
@@ -198,7 +198,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
         <button
           onClick={() => setMode('upload')}
           className={`flex items-center gap-2 px-4 py-2 rounded ${
-            mode === 'upload' ? 'bg-blue-600 text-white' : 'bg-gray-100'
+            mode === 'upload' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
           }`}
         >
           <Upload size={16} />
@@ -207,7 +207,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
         <button
           onClick={() => setMode('manual')}
           className={`flex items-center gap-2 px-4 py-2 rounded ${
-            mode === 'manual' ? 'bg-blue-600 text-white' : 'bg-gray-100'
+            mode === 'manual' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
           }`}
         >
           <Edit3 size={16} />
@@ -216,7 +216,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
         {currentData && (
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 rounded bg-gray-100 ml-auto"
+            className="flex items-center gap-2 px-4 py-2 rounded bg-gray-100 text-gray-700 ml-auto"
           >
             <FileText size={16} />
             Export
@@ -281,7 +281,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
                   key={sample.file}
                   onClick={() => handleLoadSample(sample.file)}
                   disabled={loading}
-                  className="text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 disabled:opacity-50"
+                  className="text-left px-3 py-2 text-sm bg-gray-50 text-gray-700 hover:bg-gray-100 rounded border border-gray-200 disabled:opacity-50"
                 >
                   {sample.name}
                 </button>
@@ -471,9 +471,9 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
       )}
 
       {currentData && (
-        <div className="mt-4 p-3 bg-gray-50 rounded text-sm">
+        <div className="mt-4 p-3 bg-gray-50 rounded text-sm text-gray-800">
           <div className="flex items-center justify-between">
-            <p className="font-medium">{currentData.name}</p>
+            <p className="font-medium text-gray-900">{currentData.name}</p>
             {currentData.source && (
               <span className={`px-2 py-0.5 rounded text-xs ${
                 currentData.source === 'vsphere'
