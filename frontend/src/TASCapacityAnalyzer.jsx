@@ -38,41 +38,31 @@ const TASCapacityAnalyzer = () => {
   const [error, setError] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
 
-  // Load real CF data
+  // Load real CF data from backend
   const loadCFData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Fetch apps from CF API
-      const apps = await cfApi.getAppsWithSegments();
-      
-      // Note: Diego cell data requires BOSH API or custom metrics endpoint
-      // For now, we'll use mock cell data and real app data
-      const cells = mockData.cells; // Replace with real cell data when available
-      
-      setData({
-        cells,
-        apps,
-      });
-      
-      setUseMockData(false);
-      setLastRefresh(new Date());
-    } catch (err) {
-      console.error('Error loading CF data:', err);
-      
-      // Determine error type for better messaging
-      let errorMessage = err.message;
-      if (err.message.includes('Failed to fetch')) {
-        errorMessage = 'Network error - likely CORS issue. Check browser console for details.';
-      } else if (err.message.includes('401')) {
-        errorMessage = 'Authentication failed. Your token may have expired. Try logging out and back in.';
-      } else if (err.message.includes('403')) {
-        errorMessage = 'Permission denied. Your user may not have access to read apps.';
+      const apiURL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+      const response = await fetch(`${apiURL}/api/dashboard`);
+
+      if (!response.ok) {
+        throw new Error(`Backend returned ${response.status}`);
       }
-      
-      setError(errorMessage);
-      // Fall back to mock data on error
+
+      const dashboardData = await response.json();
+
+      setData({
+        cells: dashboardData.cells,
+        apps: dashboardData.apps,
+      });
+
+      setUseMockData(false);
+      setLastRefresh(new Date(dashboardData.metadata.timestamp));
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setError(err.message);
       setData(mockData);
       setUseMockData(true);
     } finally {

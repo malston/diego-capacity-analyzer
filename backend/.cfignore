@@ -1,0 +1,13 @@
+# Binaries
+capacity-backend
+*.exe
+
+# Tests
+*_test.go
+coverage.out
+
+# Development
+.env
+.git/
+.gitignore
+README.md
