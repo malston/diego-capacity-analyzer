@@ -76,6 +76,11 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 	}
 }
 
+// SetHTTPClient allows overriding the HTTP client (useful for testing)
+func (b *BOSHClient) SetHTTPClient(client *http.Client) {
+	b.client = client
+}
+
 // getUAAEndpoint discovers the UAA endpoint from the BOSH Director info
 func (b *BOSHClient) getUAAEndpoint() (string, error) {
 	req, err := http.NewRequest("GET", b.environment+"/info", nil)
