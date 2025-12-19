@@ -43,9 +43,11 @@ npm run dev
 
 ## Deployment to Cloud Foundry
 
-### 1. Deploy Backend
+For complete deployment instructions, see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
-See [backend/README.md](backend/README.md) for detailed instructions.
+### Quick Deploy
+
+1. **Deploy Backend**
 
 ```bash
 cd backend
@@ -53,11 +55,11 @@ cd backend
 cf push
 cf set-env capacity-backend CF_USERNAME admin
 cf set-env capacity-backend CF_PASSWORD <password>
-# ... set other env vars
+# ... set other env vars (see deployment guide)
 cf restage capacity-backend
 ```
 
-### 2. Deploy Frontend
+2. **Deploy Frontend**
 
 ```bash
 cd frontend
@@ -67,7 +69,7 @@ npm run build
 cf push
 ```
 
-### 3. Access UI
+3. **Access UI**
 
 ```bash
 cf app capacity-ui  # Get URL
