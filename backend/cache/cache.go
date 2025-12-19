@@ -49,6 +49,15 @@ func (c *Cache) Set(key string, value interface{}) {
 	c.store.Store(key, e)
 }
 
+// SetWithTTL stores a value with a custom TTL
+func (c *Cache) SetWithTTL(key string, value interface{}, ttl time.Duration) {
+	e := entry{
+		data:      value,
+		expiresAt: time.Now().Add(ttl),
+	}
+	c.store.Store(key, e)
+}
+
 func (c *Cache) Clear(key string) {
 	c.store.Delete(key)
 }
