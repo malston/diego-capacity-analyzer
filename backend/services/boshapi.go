@@ -4,18 +4,22 @@
 package services
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/cloudfoundry/socks5-proxy"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
-	"golang.org/x/net/proxy"
 )
 
 type BOSHClient struct {
@@ -39,22 +43,15 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 	}
 
 	transport := &http.Transport{
-		TLSClientConfig: tlsConfig,
+		TLSClientConfig:     tlsConfig,
+		TLSHandshakeTimeout: 30 * time.Second,
 	}
 
 	// Check for BOSH_ALL_PROXY environment variable
-	if proxyURL := os.Getenv("BOSH_ALL_PROXY"); proxyURL != "" {
-		// Handle ssh+socks5:// format by converting to socks5://
-		proxyURL = strings.Replace(proxyURL, "ssh+socks5://", "socks5://", 1)
-		// Remove private-key parameter if present (handled externally via SSH tunnel)
-		if idx := strings.Index(proxyURL, "?"); idx != -1 {
-			proxyURL = proxyURL[:idx]
-		}
-
-		if parsed, err := url.Parse(proxyURL); err == nil {
-			if dialer, err := proxy.FromURL(parsed, proxy.Direct); err == nil {
-				transport.DialContext = dialer.(proxy.ContextDialer).DialContext
-			}
+	if allProxy := os.Getenv("BOSH_ALL_PROXY"); allProxy != "" {
+		dialContextFunc := createSOCKS5DialContextFunc(allProxy)
+		if dialContextFunc != nil {
+			transport.DialContext = dialContextFunc
 		}
 	}
 
@@ -65,9 +62,74 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 		caCert:      caCert,
 		deployment:  deployment,
 		client: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout:   120 * time.Second,
 			Transport: transport,
 		},
+	}
+}
+
+// createSOCKS5DialContextFunc creates a dial function for SSH+SOCKS5 proxy connections.
+// Supports format: ssh+socks5://user@host:port?private-key=/path/to/key
+func createSOCKS5DialContextFunc(allProxy string) func(ctx context.Context, network, address string) (net.Conn, error) {
+	// Strip ssh+ prefix if present
+	allProxy = strings.TrimPrefix(allProxy, "ssh+")
+
+	proxyURL, err := url.Parse(allProxy)
+	if err != nil {
+		log.Printf("Failed to parse BOSH_ALL_PROXY URL: %v", err)
+		return nil
+	}
+
+	queryMap, err := url.ParseQuery(proxyURL.RawQuery)
+	if err != nil {
+		log.Printf("Failed to parse BOSH_ALL_PROXY query params: %v", err)
+		return nil
+	}
+
+	username := ""
+	if proxyURL.User != nil {
+		username = proxyURL.User.Username()
+	}
+
+	proxySSHKeyPath := queryMap.Get("private-key")
+	if proxySSHKeyPath == "" {
+		log.Printf("BOSH_ALL_PROXY missing required 'private-key' query param")
+		return nil
+	}
+
+	proxySSHKey, err := os.ReadFile(proxySSHKeyPath)
+	if err != nil {
+		log.Printf("Failed to read SSH private key: %v", err)
+		return nil
+	}
+
+	// Create the socks5 proxy with host key callback
+	socks5Proxy := proxy.NewSocks5Proxy(proxy.NewHostKey(), log.Default(), 1*time.Minute)
+
+	var (
+		dialer proxy.DialFunc
+		mut    sync.RWMutex
+	)
+
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		mut.RLock()
+		haveDialer := dialer != nil
+		mut.RUnlock()
+
+		if haveDialer {
+			return dialer(network, address)
+		}
+
+		mut.Lock()
+		defer mut.Unlock()
+		if dialer == nil {
+			proxyDialer, err := socks5Proxy.Dialer(username, string(proxySSHKey), proxyURL.Host)
+			if err != nil {
+				return nil, fmt.Errorf("error creating SOCKS5 dialer: %w", err)
+			}
+			dialer = proxyDialer
+		}
+		return dialer(network, address)
 	}
 }
 
