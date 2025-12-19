@@ -1,0 +1,121 @@
+// ABOUTME: HTTP handlers for capacity analyzer API endpoints
+// ABOUTME: Provides health check, dashboard, and resource-specific endpoints
+
+package handlers
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/markalston/diego-capacity-analyzer/backend/cache"
+	"github.com/markalston/diego-capacity-analyzer/backend/config"
+	"github.com/markalston/diego-capacity-analyzer/backend/models"
+	"github.com/markalston/diego-capacity-analyzer/backend/services"
+)
+
+type Handler struct {
+	cfg        *config.Config
+	cache      *cache.Cache
+	cfClient   *services.CFClient
+	boshClient *services.BOSHClient
+}
+
+func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
+	h := &Handler{
+		cfg:      cfg,
+		cache:    cache,
+		cfClient: services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword),
+	}
+
+	// BOSH client is optional
+	if cfg.BOSHEnvironment != "" {
+		h.boshClient = services.NewBOSHClient(
+			cfg.BOSHEnvironment,
+			cfg.BOSHClient,
+			cfg.BOSHSecret,
+			cfg.BOSHCACert,
+			cfg.BOSHDeployment,
+		)
+	}
+
+	return h
+}
+
+func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
+	resp := map[string]interface{}{
+		"cf_api":   "ok",
+		"bosh_api": "not_configured",
+		"cache_status": map[string]bool{
+			"cells_cached": false,
+			"apps_cached":  false,
+		},
+	}
+
+	if h.boshClient != nil {
+		resp["bosh_api"] = "ok"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
+	// Check cache
+	if cached, found := h.cache.Get("dashboard:all"); found {
+		log.Println("Serving from cache")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(cached)
+		return
+	}
+
+	// Fetch fresh data
+	log.Println("Fetching fresh data")
+
+	resp := models.DashboardResponse{
+		Cells:    []models.DiegoCell{},
+		Apps:     []models.App{},
+		Segments: []models.IsolationSegment{},
+		Metadata: models.Metadata{
+			Timestamp:     time.Now(),
+			Cached:        false,
+			BOSHAvailable: h.boshClient != nil,
+		},
+	}
+
+	// Fetch BOSH cells (optional, degraded mode if fails)
+	if h.boshClient != nil {
+		cells, err := h.boshClient.GetDiegoCells()
+		if err != nil {
+			log.Printf("BOSH API error (degraded mode): %v", err)
+			resp.Metadata.BOSHAvailable = false
+		} else {
+			resp.Cells = cells
+		}
+	}
+
+	// Cache result
+	h.cache.Set("dashboard:all", resp)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *Handler) EnableCORS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next(w, r)
+	}
+}
