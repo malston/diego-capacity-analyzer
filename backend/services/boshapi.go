@@ -289,14 +289,17 @@ func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deployments: %w", err)
 	}
+	log.Printf("Found %d deployments to query: %v", len(deployments), deployments)
 
 	var allCells []models.DiegoCell
 	for _, deployment := range deployments {
+		log.Printf("Querying deployment: %s", deployment)
 		cells, err := b.getCellsForDeployment(deployment)
 		if err != nil {
 			log.Printf("Warning: failed to get cells for deployment %s: %v", deployment, err)
 			continue
 		}
+		log.Printf("Found %d cells in deployment %s", len(cells), deployment)
 		allCells = append(allCells, cells...)
 	}
 
@@ -341,15 +344,13 @@ func (b *BOSHClient) getDeployments() ([]string, error) {
 		}
 	}
 
-	// If specific deployment configured, use that instead
-	if b.deployment != "" {
-		// Check if configured deployment exists
-		for _, d := range deploymentList {
-			if d.Name == b.deployment {
-				return []string{b.deployment}, nil
-			}
+	log.Printf("All deployments from BOSH: %v", func() []string {
+		names := make([]string, len(deploymentList))
+		for i, d := range deploymentList {
+			names[i] = d.Name
 		}
-	}
+		return names
+	}())
 
 	return result, nil
 }
