@@ -512,20 +512,37 @@ Check browser console (F12) for details.`;
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm text-slate-400 mb-3">
-                Memory Overcommit Ratio: <span className="text-white font-bold">{overcommitRatio.toFixed(2)}x</span>
+                Memory Overcommit Ratio: <span className={`font-bold ${
+                  overcommitRatio <= 1.5 ? 'text-emerald-400' :
+                  overcommitRatio <= 2.0 ? 'text-yellow-400' :
+                  overcommitRatio <= 3.0 ? 'text-orange-400' :
+                  'text-red-400'
+                }`}>{overcommitRatio.toFixed(1)}x</span>
+                <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
+                  overcommitRatio <= 1.5 ? 'bg-emerald-900/50 text-emerald-400' :
+                  overcommitRatio <= 2.0 ? 'bg-yellow-900/50 text-yellow-400' :
+                  overcommitRatio <= 3.0 ? 'bg-orange-900/50 text-orange-400' :
+                  'bg-red-900/50 text-red-400'
+                }`}>
+                  {overcommitRatio <= 1.5 ? 'Safe' :
+                   overcommitRatio <= 2.0 ? 'Caution' :
+                   overcommitRatio <= 3.0 ? 'High Risk' :
+                   'Labs Only'}
+                </span>
               </label>
               <input
                 type="range"
                 min="1.0"
-                max="2.0"
+                max="4.0"
                 step="0.1"
                 value={overcommitRatio}
                 onChange={(e) => setOvercommitRatio(parseFloat(e.target.value))}
                 className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
               />
               <div className="flex justify-between text-xs text-slate-500 mt-1">
-                <span>1.0x (No overcommit)</span>
-                <span>2.0x (High risk)</span>
+                <span>1.0x (None)</span>
+                <span className="text-yellow-500">2.0x</span>
+                <span className="text-red-500">4.0x (Labs)</span>
               </div>
             </div>
 
