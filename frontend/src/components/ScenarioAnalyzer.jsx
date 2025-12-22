@@ -2,8 +2,8 @@
 // ABOUTME: Main what-if scenario analyzer component
 // ABOUTME: Combines data source, comparison table, and warnings
 
-import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw, FileDown, Sparkles, ChevronDown, ChevronUp, Plus, X, Settings2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Calculator, RefreshCw, FileDown, Sparkles, ChevronDown, ChevronUp, Plus, X, Settings2, Server, HardDrive, Cpu, Database } from 'lucide-react';
 import DataSourceSelector from './DataSourceSelector';
 import ScenarioResults from './ScenarioResults';
 import { scenarioApi } from '../services/scenarioApi';
@@ -98,6 +98,59 @@ const ScenarioAnalyzer = () => {
     );
   };
 
+  // Compute current configuration summary from loaded data
+  const currentConfig = useMemo(() => {
+    if (!infrastructureData?.clusters?.length) return null;
+
+    const clusters = infrastructureData.clusters;
+    const totalCells = clusters.reduce((sum, c) => sum + (c.diego_cell_count || 0), 0);
+    const totalHosts = clusters.reduce((sum, c) => sum + (c.host_count || 0), 0);
+
+    // Get cell specs from first cluster (assume uniform)
+    const firstCluster = clusters[0];
+    const cellCpu = firstCluster.diego_cell_cpu || firstCluster.diego_cell_vcpu || 0;
+    const cellMemoryGB = firstCluster.diego_cell_memory_gb || 0;
+    const cellDiskGB = firstCluster.diego_cell_disk_gb || 0;
+
+    const totalMemoryGB = totalCells * cellMemoryGB;
+    const totalDiskGB = totalCells * cellDiskGB;
+
+    return {
+      name: infrastructureData.name || 'Loaded Infrastructure',
+      totalCells,
+      totalHosts,
+      cellCpu,
+      cellMemoryGB,
+      cellDiskGB,
+      totalMemoryGB,
+      totalDiskGB,
+      clusterCount: clusters.length,
+    };
+  }, [infrastructureData]);
+
+  // Calculate equivalent cell count suggestion when VM size changes
+  const equivalentCellSuggestion = useMemo(() => {
+    if (!currentConfig || currentConfig.totalMemoryGB === 0) return null;
+
+    const preset = VM_SIZE_PRESETS[selectedPreset];
+    const proposedMemoryGB = preset.memoryGB || customMemory;
+
+    // If proposed memory is same as current, no suggestion needed
+    if (proposedMemoryGB === currentConfig.cellMemoryGB) return null;
+
+    // Calculate equivalent cells to maintain same total capacity
+    const equivalentCells = Math.round(currentConfig.totalMemoryGB / proposedMemoryGB);
+
+    // Only show if different from current cell count
+    if (equivalentCells === cellCount) return null;
+
+    return {
+      equivalentCells,
+      proposedMemoryGB,
+      currentTotalGB: currentConfig.totalMemoryGB,
+    };
+  }, [currentConfig, selectedPreset, customMemory, cellCount]);
+
   const handleCompare = async () => {
     if (!infrastructureState) return;
 
@@ -188,6 +241,79 @@ const ScenarioAnalyzer = () => {
       {!infrastructureState && (
         <div className="text-center py-8 text-gray-500">
           <p className="text-sm">Load infrastructure data above to start analyzing scenarios</p>
+        </div>
+      )}
+
+      {/* Current Configuration Summary */}
+      {currentConfig && infrastructureState && (
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 mb-6">
+          <h3 className="text-lg font-semibold mb-4 text-gray-200 flex items-center gap-2">
+            <Server size={18} className="text-emerald-400" />
+            Current Configuration
+            <span className="text-xs font-normal text-gray-500 ml-2">
+              (from loaded data)
+            </span>
+          </h3>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                <Server size={14} />
+                Cells
+              </div>
+              <div className="text-2xl font-mono font-bold text-emerald-400">
+                {currentConfig.totalCells}
+              </div>
+              {currentConfig.clusterCount > 1 && (
+                <div className="text-xs text-gray-500 mt-1">
+                  across {currentConfig.clusterCount} clusters
+                </div>
+              )}
+            </div>
+
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                <Cpu size={14} />
+                Cell Size
+              </div>
+              <div className="text-2xl font-mono font-bold text-emerald-400">
+                {currentConfig.cellCpu} <span className="text-gray-500">×</span> {currentConfig.cellMemoryGB}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">vCPU × GB</div>
+            </div>
+
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                <HardDrive size={14} />
+                Total Memory
+              </div>
+              <div className="text-2xl font-mono font-bold text-emerald-400">
+                {currentConfig.totalMemoryGB >= 1000
+                  ? `${(currentConfig.totalMemoryGB / 1000).toFixed(1)}T`
+                  : `${currentConfig.totalMemoryGB}G`}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {currentConfig.totalCells} × {currentConfig.cellMemoryGB}GB
+              </div>
+            </div>
+
+            {currentConfig.cellDiskGB > 0 && (
+              <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+                <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                  <Database size={14} />
+                  Total Disk
+                </div>
+                <div className="text-2xl font-mono font-bold text-emerald-400">
+                  {currentConfig.totalDiskGB >= 1000
+                    ? `${(currentConfig.totalDiskGB / 1000).toFixed(1)}T`
+                    : `${currentConfig.totalDiskGB}G`}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {currentConfig.totalCells} × {currentConfig.cellDiskGB}GB
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -300,6 +426,16 @@ const ScenarioAnalyzer = () => {
                 min={1}
                 className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
               />
+              {equivalentCellSuggestion && (
+                <button
+                  type="button"
+                  onClick={() => setCellCount(equivalentCellSuggestion.equivalentCells)}
+                  className="mt-2 text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
+                >
+                  <Sparkles size={12} />
+                  For equivalent capacity ({equivalentCellSuggestion.currentTotalGB}GB): use {equivalentCellSuggestion.equivalentCells} cells
+                </button>
+              )}
             </div>
           </div>
 
