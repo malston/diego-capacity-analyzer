@@ -66,7 +66,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          go build -o capacity-backend-${{ matrix.goos }}-${{ matrix.goarch }} ./...
+          go build -o capacity-backend-${{ matrix.goos }}-${{ matrix.goarch }} .
 
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
