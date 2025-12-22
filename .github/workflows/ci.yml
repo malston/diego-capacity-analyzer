@@ -1,5 +1,5 @@
 # ABOUTME: CI workflow for Diego Capacity Analyzer
-# ABOUTME: Runs frontend build and backend tests on PRs and main pushes
+# ABOUTME: Runs frontend tests/build and backend tests on PRs and main pushes
 
 name: CI
 
@@ -11,7 +11,7 @@ on:
 
 jobs:
   frontend:
-    name: Frontend Build
+    name: Frontend Tests & Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -29,6 +29,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build
