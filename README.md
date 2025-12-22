@@ -2,7 +2,7 @@
 
 A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego cell capacity, density optimization, and right-sizing recommendations.
 
-![TAS Capacity Analyzer](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![TAS Capacity Analyzer](https://img.shields.io/badge/version-1.2.0-blue.svg)
 ![React](https://img.shields.io/badge/react-18.2-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
