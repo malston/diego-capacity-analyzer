@@ -1,9 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Server, Activity, Zap, TrendingUp, AlertTriangle, CheckCircle, Settings, Layers, LogOut, User, RefreshCw, Database } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { cfApi } from './services/cfApi';
 import ScenarioAnalyzer from './components/ScenarioAnalyzer';
+import Tooltip from './components/Tooltip';
+
+const DASHBOARD_TOOLTIPS = {
+  totalCells: "Number of Diego cells (VMs that run app containers). More cells = more capacity for workloads.",
+  utilization: "Percentage of total memory actively consumed by running apps. Below 50% = consolidation opportunity. Above 80% = running hot.",
+  avgCpu: "Average processor load across all cells. Sustained >70% means apps are competing for CPU cycles.",
+  unusedMemory: "Memory apps reserved but aren't actually using. May be an optimization opportunity for right-sizing.",
+};
 
 // Mock data - replace with real CF API calls
 const mockData = {
@@ -128,7 +136,7 @@ Check browser console (F12) for details.`;
 
     const totalAppMemoryRequested = filteredApps.reduce((sum, a) => sum + (a.requested_mb * a.instances), 0);
     const totalAppMemoryUsed = filteredApps.reduce((sum, a) => sum + (a.actual_mb * a.instances), 0);
-    const wastedMemory = totalAppMemoryRequested - totalAppMemoryUsed;
+    const unusedMemory = totalAppMemoryRequested - totalAppMemoryUsed;
 
     // What-if calculations
     const newCapacity = totalMemory * overcommitRatio;
@@ -143,8 +151,8 @@ Check browser console (F12) for details.`;
       avgCpu,
       utilizationPercent: (totalUsed / totalMemory) * 100,
       allocationPercent: (totalAllocated / totalMemory) * 100,
-      wastedMemory,
-      wastedPercent: (wastedMemory / totalAppMemoryRequested) * 100,
+      unusedMemory,
+      unusedPercent: (unusedMemory / totalAppMemoryRequested) * 100,
       totalApps: filteredApps.length,
       totalInstances: currentInstances,
       newCapacity,
@@ -448,7 +456,9 @@ Check browser console (F12) for details.`;
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="metric-card p-6 rounded-xl">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-slate-400 text-sm uppercase tracking-wide">Total Cells</span>
+            <Tooltip text={DASHBOARD_TOOLTIPS.totalCells} position="bottom" showIcon>
+              <span className="text-slate-400 text-sm uppercase tracking-wide">Total Cells</span>
+            </Tooltip>
             <Server className="w-5 h-5 text-blue-400" />
           </div>
           <div className="text-3xl font-bold text-white mb-1">{metrics.totalCells}</div>
@@ -457,7 +467,9 @@ Check browser console (F12) for details.`;
 
         <div className="metric-card p-6 rounded-xl">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-slate-400 text-sm uppercase tracking-wide">Utilization</span>
+            <Tooltip text={DASHBOARD_TOOLTIPS.utilization} position="bottom" showIcon>
+              <span className="text-slate-400 text-sm uppercase tracking-wide">Utilization</span>
+            </Tooltip>
             <Activity className="w-5 h-5 text-emerald-400" />
           </div>
           <div className="text-3xl font-bold text-white mb-1">{metrics.utilizationPercent.toFixed(1)}%</div>
@@ -468,7 +480,9 @@ Check browser console (F12) for details.`;
 
         <div className="metric-card p-6 rounded-xl">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-slate-400 text-sm uppercase tracking-wide">Avg CPU</span>
+            <Tooltip text={DASHBOARD_TOOLTIPS.avgCpu} position="bottom" showIcon>
+              <span className="text-slate-400 text-sm uppercase tracking-wide">Avg CPU</span>
+            </Tooltip>
             <TrendingUp className="w-5 h-5 text-amber-400" />
           </div>
           <div className="text-3xl font-bold text-white mb-1">{metrics.avgCpu.toFixed(1)}%</div>
@@ -477,11 +491,13 @@ Check browser console (F12) for details.`;
 
         <div className="metric-card p-6 rounded-xl">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-slate-400 text-sm uppercase tracking-wide">Wasted Memory</span>
-            <AlertTriangle className="w-5 h-5 text-red-400" />
+            <Tooltip text={DASHBOARD_TOOLTIPS.unusedMemory} position="bottom" showIcon>
+              <span className="text-slate-400 text-sm uppercase tracking-wide">Unused Memory</span>
+            </Tooltip>
+            <AlertTriangle className="w-5 h-5 text-amber-400" />
           </div>
-          <div className="text-3xl font-bold text-white mb-1">{(metrics.wastedMemory / 1024).toFixed(1)} GB</div>
-          <div className="text-xs text-slate-400">{metrics.wastedPercent.toFixed(1)}% over-allocated</div>
+          <div className="text-3xl font-bold text-white mb-1">{(metrics.unusedMemory / 1024).toFixed(1)} GB</div>
+          <div className="text-xs text-slate-400">{metrics.unusedPercent.toFixed(1)}% over-allocated</div>
         </div>
       </div>
 
@@ -543,13 +559,13 @@ Check browser console (F12) for details.`;
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(71, 85, 105, 0.3)" />
               <XAxis dataKey="name" stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 12 }} />
               <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+              <RechartsTooltip
+                contentStyle={{
+                  backgroundColor: 'rgba(15, 23, 42, 0.95)',
                   border: '1px solid rgba(59, 130, 246, 0.3)',
                   borderRadius: '8px',
                   color: '#fff'
-                }} 
+                }}
               />
               <Legend wrapperStyle={{ color: '#94a3b8' }} />
               <Bar dataKey="used" stackId="a" fill="#3b82f6" name="Used %" />
@@ -581,13 +597,13 @@ Check browser console (F12) for details.`;
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+              <RechartsTooltip
+                contentStyle={{
+                  backgroundColor: 'rgba(15, 23, 42, 0.95)',
                   border: '1px solid rgba(59, 130, 246, 0.3)',
                   borderRadius: '8px',
                   color: '#fff'
-                }} 
+                }}
               />
             </PieChart>
           </ResponsiveContainer>
