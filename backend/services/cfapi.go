@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -100,6 +101,7 @@ func (c *CFClient) Authenticate() error {
 	}
 
 	c.token = tokenResp.AccessToken
+	slog.Info("CF API authentication successful", "api_url", c.apiURL)
 
 	// Initialize Log Cache client with the same token
 	c.logCache = NewLogCacheClient(c.apiURL, c.token)
@@ -137,10 +139,13 @@ func (c *CFClient) doAuthenticatedRequest(method, path string) (*http.Response, 
 
 // GetApps fetches all apps from CF API v3 with pagination
 func (c *CFClient) GetApps() ([]models.App, error) {
+	start := time.Now()
 	var apps []models.App
+	var pageCount int
 	nextURL := "/v3/apps?per_page=100"
 
 	for nextURL != "" {
+		pageCount++
 		resp, err := c.doAuthenticatedRequest("GET", nextURL)
 		if err != nil {
 			return nil, err
@@ -229,6 +234,7 @@ func (c *CFClient) GetApps() ([]models.App, error) {
 		}
 	}
 
+	slog.Info("CF API GetApps completed", "app_count", len(apps), "pages", pageCount, "duration_ms", time.Since(start).Milliseconds())
 	return apps, nil
 }
 

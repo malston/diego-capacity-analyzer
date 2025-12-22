@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -55,7 +56,7 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 		if ok := certPool.AppendCertsFromPEM([]byte(caCert)); ok {
 			tlsConfig.RootCAs = certPool
 		} else {
-			log.Printf("Warning: Failed to parse BOSH_CA_CERT, using InsecureSkipVerify")
+			slog.Warn("Failed to parse BOSH_CA_CERT, using InsecureSkipVerify")
 			tlsConfig.InsecureSkipVerify = true
 		}
 	} else {
@@ -207,13 +208,13 @@ func createSOCKS5DialContextFunc(allProxy string) func(ctx context.Context, netw
 
 	proxyURL, err := url.Parse(allProxy)
 	if err != nil {
-		log.Printf("Failed to parse BOSH_ALL_PROXY URL: %v", err)
+		slog.Error("Failed to parse BOSH_ALL_PROXY URL", "error", err)
 		return nil
 	}
 
 	queryMap, err := url.ParseQuery(proxyURL.RawQuery)
 	if err != nil {
-		log.Printf("Failed to parse BOSH_ALL_PROXY query params: %v", err)
+		slog.Error("Failed to parse BOSH_ALL_PROXY query params", "error", err)
 		return nil
 	}
 
@@ -224,13 +225,13 @@ func createSOCKS5DialContextFunc(allProxy string) func(ctx context.Context, netw
 
 	proxySSHKeyPath := queryMap.Get("private-key")
 	if proxySSHKeyPath == "" {
-		log.Printf("BOSH_ALL_PROXY missing required 'private-key' query param")
+		slog.Error("BOSH_ALL_PROXY missing required 'private-key' query param")
 		return nil
 	}
 
 	proxySSHKey, err := os.ReadFile(proxySSHKeyPath)
 	if err != nil {
-		log.Printf("Failed to read SSH private key: %v", err)
+		slog.Error("Failed to read SSH private key", "path", proxySSHKeyPath, "error", err)
 		return nil
 	}
 
@@ -306,17 +307,17 @@ func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deployments: %w", err)
 	}
-	log.Printf("Found %d deployments to query: %v", len(deployments), deployments)
+	slog.Info("Found deployments to query", "count", len(deployments), "deployments", deployments)
 
 	var allCells []models.DiegoCell
 	for _, deployment := range deployments {
-		log.Printf("Querying deployment: %s", deployment)
+		slog.Debug("Querying deployment", "deployment", deployment)
 		cells, err := b.getCellsForDeployment(deployment)
 		if err != nil {
-			log.Printf("Warning: failed to get cells for deployment %s: %v", deployment, err)
+			slog.Warn("Failed to get cells for deployment", "deployment", deployment, "error", err)
 			continue
 		}
-		log.Printf("Found %d cells in deployment %s", len(cells), deployment)
+		slog.Debug("Found cells in deployment", "deployment", deployment, "count", len(cells))
 		allCells = append(allCells, cells...)
 	}
 
@@ -361,13 +362,11 @@ func (b *BOSHClient) getDeployments() ([]string, error) {
 		}
 	}
 
-	log.Printf("All deployments from BOSH: %v", func() []string {
-		names := make([]string, len(deploymentList))
-		for i, d := range deploymentList {
-			names[i] = d.Name
-		}
-		return names
-	}())
+	allDeploymentNames := make([]string, len(deploymentList))
+	for i, d := range deploymentList {
+		allDeploymentNames[i] = d.Name
+	}
+	slog.Debug("All deployments from BOSH", "deployments", allDeploymentNames)
 
 	return result, nil
 }
@@ -534,7 +533,7 @@ func (b *BOSHClient) getTaskOutput(taskID int) ([]boshVM, error) {
 		}
 		var vm boshVM
 		if err := json.Unmarshal([]byte(line), &vm); err != nil {
-			log.Printf("Warning: failed to parse VM line: %s", line)
+			slog.Warn("Failed to parse VM line", "line", line, "error", err)
 			continue
 		}
 		vms = append(vms, vm)

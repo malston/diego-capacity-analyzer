@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -125,6 +126,7 @@ func (l *LogCacheClient) GetAppMemoryMetrics(appGUID string) (*AppMetrics, error
 	}
 
 	if count == 0 {
+		slog.Debug("Log Cache returned no memory metrics", "app_guid", appGUID)
 		return &AppMetrics{
 			GUID:           appGUID,
 			MemoryBytesAvg: 0,
@@ -133,12 +135,14 @@ func (l *LogCacheClient) GetAppMemoryMetrics(appGUID string) (*AppMetrics, error
 		}, nil
 	}
 
-	return &AppMetrics{
+	metrics := &AppMetrics{
 		GUID:           appGUID,
 		MemoryBytesAvg: totalMemory / int64(count),
-		MemoryBytesCur: totalMemory / int64(len(instancesSeen)), // Latest per instance
+		MemoryBytesCur: totalMemory / int64(len(instancesSeen)),
 		InstanceCount:  len(instancesSeen),
-	}, nil
+	}
+	slog.Debug("Log Cache metrics retrieved", "app_guid", appGUID, "avg_bytes", metrics.MemoryBytesAvg, "instances", metrics.InstanceCount)
+	return metrics, nil
 }
 
 // GetAppMemoryPromQL uses PromQL endpoint for more precise queries
