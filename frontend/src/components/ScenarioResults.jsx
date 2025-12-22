@@ -9,7 +9,7 @@ import Tooltip from './Tooltip';
 import { TPS_STATUS_COLORS, TPS_STATUS_BG_COLORS } from '../config/resourceConfig';
 
 const TOOLTIPS = {
-  n1Capacity: "Utilization if you lose one cell (host failure scenario). Below 75% = safe headroom. Above 85% = cannot survive cell loss.",
+  n1Capacity: "Infrastructure utilization vs N-1 host capacity. If one ESXi host fails, can the remaining hosts run all Diego cell and platform VMs? Below 75% = safe. Above 85% = at risk of capacity exhaustion after host failure.",
   memoryUtilization: "App memory divided by total cell capacity. Below 80% = healthy headroom. Above 90% = near capacity exhaustion.",
   diskUtilization: "App disk usage divided by total cell disk capacity. Same thresholds as memory.",
   stagingCapacity: "Available 4GB chunks for staging new apps. When you cf push, Diego needs a 4GB chunk to build your app. Low chunks = deployment queues.",
