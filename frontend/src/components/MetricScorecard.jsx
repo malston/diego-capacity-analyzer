@@ -3,6 +3,7 @@
 
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus, ArrowRight } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 const MetricScorecard = ({
   label,
@@ -14,6 +15,7 @@ const MetricScorecard = ({
   thresholds = { warning: 75, critical: 85 },
   showBar = false,
   max = 100,
+  tooltip = null,
 }) => {
   const change = proposedValue - currentValue;
   const changePercent = currentValue !== 0 ? (change / currentValue) * 100 : 0;
@@ -55,7 +57,13 @@ const MetricScorecard = ({
     <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50 hover:border-slate-600/50 transition-colors">
       {/* Label */}
       <div className="text-xs uppercase tracking-wider text-gray-400 font-medium mb-3">
-        {label}
+        {tooltip ? (
+          <Tooltip text={tooltip} position="top" showIcon>
+            {label}
+          </Tooltip>
+        ) : (
+          label
+        )}
       </div>
 
       {/* Values row */}
