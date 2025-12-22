@@ -5,7 +5,21 @@ import React from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, Zap, HardDrive, Cpu, Server, Shield, Activity, Database, Gauge } from 'lucide-react';
 import CapacityGauge from './CapacityGauge';
 import MetricScorecard from './MetricScorecard';
+import Tooltip from './Tooltip';
 import { TPS_STATUS_COLORS, TPS_STATUS_BG_COLORS } from '../config/resourceConfig';
+
+const TOOLTIPS = {
+  n1Capacity: "Utilization if you lose one cell (host failure scenario). Below 75% = safe headroom. Above 85% = cannot survive cell loss.",
+  memoryUtilization: "App memory divided by total cell capacity. Below 80% = healthy headroom. Above 90% = near capacity exhaustion.",
+  diskUtilization: "App disk usage divided by total cell disk capacity. Same thresholds as memory.",
+  stagingCapacity: "Available 4GB chunks for staging new apps. When you cf push, Diego needs a 4GB chunk to build your app. Low chunks = deployment queues.",
+  tps: "Tasks Per Second - how fast Diego's scheduler can place app instances. Higher = faster deploys and scaling.",
+  tpsStatus: "Optimal (≥80% of peak): scheduler performing well. Degraded (50-79%): noticeable slowdown. Critical (<50%): severe delays.",
+  cellCount: "Number of Diego cell VMs running your apps.",
+  appCapacity: "Total memory available for apps after system overhead.",
+  faultImpact: "Average app instances displaced if one cell fails. Lower = smaller blast radius.",
+  instancesPerCell: "Average app instances per cell. Lower = more distributed workload.",
+};
 
 const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memory'] }) => {
   if (!comparison) return null;
@@ -82,7 +96,9 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-4 text-gray-400">
             <Shield size={16} />
-            <span className="text-xs uppercase tracking-wider font-medium">N-1 Capacity</span>
+            <Tooltip text={TOOLTIPS.n1Capacity} position="bottom" showIcon>
+              <span className="text-xs uppercase tracking-wider font-medium">N-1 Capacity</span>
+            </Tooltip>
           </div>
           <CapacityGauge
             value={proposed.n1_utilization_pct}
@@ -99,7 +115,9 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-4 text-gray-400">
             <Activity size={16} />
-            <span className="text-xs uppercase tracking-wider font-medium">Memory Utilization</span>
+            <Tooltip text={TOOLTIPS.memoryUtilization} position="bottom" showIcon>
+              <span className="text-xs uppercase tracking-wider font-medium">Memory Utilization</span>
+            </Tooltip>
           </div>
           <CapacityGauge
             value={proposed.utilization_pct}
@@ -117,7 +135,9 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
           <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
             <div className="flex items-center gap-2 mb-4 text-gray-400">
               <Database size={16} />
-              <span className="text-xs uppercase tracking-wider font-medium">Disk Utilization</span>
+              <Tooltip text={TOOLTIPS.diskUtilization} position="bottom" showIcon>
+                <span className="text-xs uppercase tracking-wider font-medium">Disk Utilization</span>
+              </Tooltip>
             </div>
             <CapacityGauge
               value={proposed.disk_utilization_pct}
@@ -135,7 +155,9 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-4 text-gray-400">
             <Zap size={16} />
-            <span className="text-xs uppercase tracking-wider font-medium">Staging Capacity</span>
+            <Tooltip text={TOOLTIPS.stagingCapacity} position="bottom" showIcon>
+              <span className="text-xs uppercase tracking-wider font-medium">Staging Capacity</span>
+            </Tooltip>
           </div>
           <CapacityGauge
             value={Math.min((proposed.free_chunks / 800) * 100, 100)}
@@ -155,7 +177,9 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-4 text-gray-400">
             <Gauge size={16} />
-            <span className="text-xs uppercase tracking-wider font-medium">Scheduling Performance (TPS)</span>
+            <Tooltip text={TOOLTIPS.tps} position="bottom" showIcon>
+              <span className="text-xs uppercase tracking-wider font-medium">Scheduling Performance (TPS)</span>
+            </Tooltip>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
@@ -212,6 +236,7 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
           icon={Server}
           inverse={false}
           thresholds={{ warning: 0, critical: 0 }}
+          tooltip={TOOLTIPS.cellCount}
         />
         <MetricScorecard
           label="App Capacity"
@@ -221,6 +246,7 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
           unit="B"
           inverse={false}
           thresholds={{ warning: 0, critical: 0 }}
+          tooltip={TOOLTIPS.appCapacity}
         />
         <MetricScorecard
           label="Fault Impact"
@@ -229,6 +255,7 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
           unit=" apps/cell"
           inverse={true}
           thresholds={{ warning: 25, critical: 50 }}
+          tooltip={TOOLTIPS.faultImpact}
         />
         <MetricScorecard
           label="Instances/Cell"
@@ -237,6 +264,7 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
           format={(v) => v.toFixed(1)}
           inverse={true}
           thresholds={{ warning: 30, critical: 50 }}
+          tooltip={TOOLTIPS.instancesPerCell}
         />
       </div>
 
