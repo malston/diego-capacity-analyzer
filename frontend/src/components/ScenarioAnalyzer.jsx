@@ -128,6 +128,29 @@ const ScenarioAnalyzer = () => {
     };
   }, [infrastructureData]);
 
+  // Calculate equivalent cell count suggestion when VM size changes
+  const equivalentCellSuggestion = useMemo(() => {
+    if (!currentConfig || currentConfig.totalMemoryGB === 0) return null;
+
+    const preset = VM_SIZE_PRESETS[selectedPreset];
+    const proposedMemoryGB = preset.memoryGB || customMemory;
+
+    // If proposed memory is same as current, no suggestion needed
+    if (proposedMemoryGB === currentConfig.cellMemoryGB) return null;
+
+    // Calculate equivalent cells to maintain same total capacity
+    const equivalentCells = Math.round(currentConfig.totalMemoryGB / proposedMemoryGB);
+
+    // Only show if different from current cell count
+    if (equivalentCells === cellCount) return null;
+
+    return {
+      equivalentCells,
+      proposedMemoryGB,
+      currentTotalGB: currentConfig.totalMemoryGB,
+    };
+  }, [currentConfig, selectedPreset, customMemory, cellCount]);
+
   const handleCompare = async () => {
     if (!infrastructureState) return;
 
@@ -403,6 +426,16 @@ const ScenarioAnalyzer = () => {
                 min={1}
                 className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
               />
+              {equivalentCellSuggestion && (
+                <button
+                  type="button"
+                  onClick={() => setCellCount(equivalentCellSuggestion.equivalentCells)}
+                  className="mt-2 text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
+                >
+                  <Sparkles size={12} />
+                  For equivalent capacity ({equivalentCellSuggestion.currentTotalGB}GB): use {equivalentCellSuggestion.equivalentCells} cells
+                </button>
+              )}
             </div>
           </div>
 
