@@ -227,13 +227,46 @@ Available 4GB chunks for `cf push` staging operations.
 
 ### Scenario Analysis Tab (Calculated)
 
-| Metric | Formula | Notes |
-|--------|---------|-------|
-| **N-1 Utilization** | `(Cell Memory + Platform VMs) / N-1 Host Capacity × 100` | N-1 Host Capacity = total cluster memory minus one host |
-| **Memory Utilization** | `App Memory / App Capacity × 100` | App Capacity = cells × (memory - 7% overhead) |
-| **Free Chunks** | `(App Capacity - App Memory) / 4 GB` | 4 GB = staging chunk size |
+The Scenario Analysis tab displays results in several visual sections:
+
+#### Capacity Gauges
+
+Circular gauges showing utilization percentages with color-coded status:
+
+| Gauge | Formula | Thresholds |
+|-------|---------|------------|
+| **N-1 Host Capacity** | `(Cell Memory + Platform VMs) / N-1 Capacity × 100` | Warning: 75%, Critical: 85% |
+| **Memory Utilization** | `App Memory / App Capacity × 100` | Warning: 80%, Critical: 90% |
+| **Disk Utilization** | `App Disk / Disk Capacity × 100` | Warning: 80%, Critical: 90% |
+| **Staging Capacity** | `Free Chunks / 800 × 100` (visual scale) | Warning: <50%, Critical: <25% |
+
+Where:
+- **N-1 Capacity** = Total cluster memory minus one host's memory
+- **App Capacity** = `cells × (cell_memory_gb - 7% overhead)`
+- **Free Chunks** = `(App Capacity - App Memory) / 4 GB`
+
+#### TPS Performance
+
+Compares current vs proposed scheduler throughput with status indicators. See [TPS Performance (Modeled)](#tps-performance-modeled) below.
+
+#### Metric Scorecards
+
+Grid of cards showing current → proposed values with change indicators:
+
+| Scorecard | Formula | Notes |
+|-----------|---------|-------|
+| **Cell Count** | Direct count | Number of Diego cell VMs |
+| **App Capacity** | `cells × (cell_memory - 7% overhead)` | Total memory available for apps |
 | **Fault Impact** | `Total App Instances / Cell Count` | Apps displaced if one cell fails |
 | **Instances/Cell** | `Total App Instances / Cell Count` | Distribution density |
+
+#### Cell Configuration Change
+
+Visual comparison of cell specs (vCPU × GB) between current and proposed, showing:
+- Current cell size and count
+- Proposed cell size and count
+- Redundancy change indicator (improved/reduced/no change)
+- Capacity change summary in GB
 
 ### TPS Performance (Modeled)
 
