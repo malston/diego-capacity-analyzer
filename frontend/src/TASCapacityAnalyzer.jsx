@@ -334,17 +334,6 @@ Check browser console (F12) for details.`;
             Dashboard
           </button>
           <button
-            onClick={() => setActiveTab('scenarios')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'scenarios'
-                ? 'bg-blue-500 text-white'
-                : 'bg-slate-800/50 text-slate-300 border border-slate-700 hover:border-blue-500'
-            }`}
-          >
-            <Zap className="w-4 h-4 inline mr-2" />
-            Scenario Analysis
-          </button>
-          <button
             onClick={() => setActiveTab('planning')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeTab === 'planning'
@@ -354,6 +343,17 @@ Check browser console (F12) for details.`;
           >
             <Server className="w-4 h-4 inline mr-2" />
             Infrastructure Planning
+          </button>
+          <button
+            onClick={() => setActiveTab('scenarios')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === 'scenarios'
+                ? 'bg-blue-500 text-white'
+                : 'bg-slate-800/50 text-slate-300 border border-slate-700 hover:border-blue-500'
+            }`}
+          >
+            <Zap className="w-4 h-4 inline mr-2" />
+            Scenario Analysis
           </button>
         </div>
 
@@ -751,17 +751,17 @@ Check browser console (F12) for details.`;
         </>
       )}
 
-      {/* Scenario Analysis Tab Content */}
-      {activeTab === 'scenarios' && (
-        <div className="mt-8">
-          <ScenarioAnalyzer />
-        </div>
-      )}
-
       {/* Infrastructure Planning Tab Content */}
       {activeTab === 'planning' && (
         <div className="mt-8">
           <InfrastructurePlanning />
+        </div>
+      )}
+
+      {/* Scenario Analysis Tab Content */}
+      {activeTab === 'scenarios' && (
+        <div className="mt-8">
+          <ScenarioAnalyzer />
         </div>
       )}
 
