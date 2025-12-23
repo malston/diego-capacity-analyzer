@@ -150,7 +150,7 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
           </div>
         )}
 
-        {/* Free Chunks Gauge */}
+        {/* Free Chunks - threshold-based display */}
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-4 text-gray-400">
             <Zap size={16} />
@@ -158,15 +158,27 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
               <span className="text-xs uppercase tracking-wider font-medium">Staging Capacity</span>
             </Tooltip>
           </div>
-          <CapacityGauge
-            value={Math.min((proposed.free_chunks / 800) * 100, 100)}
-            label={`${formatNum(proposed.free_chunks)} chunks`}
-            thresholds={{ warning: 50, critical: 25 }}
-            inverse={false}
-            suffix=""
-          />
+          <div className="flex flex-col items-center justify-center h-[120px]">
+            <div className={`text-4xl font-mono font-bold ${
+              proposed.free_chunks >= 20 ? 'text-emerald-400' :
+              proposed.free_chunks >= 10 ? 'text-amber-400' :
+              'text-red-400'
+            }`}>
+              {formatNum(proposed.free_chunks)}
+            </div>
+            <div className="text-sm text-gray-400 mt-2">free chunks</div>
+            <div className={`text-xs mt-2 px-2 py-0.5 rounded ${
+              proposed.free_chunks >= 20 ? 'bg-emerald-900/30 text-emerald-400' :
+              proposed.free_chunks >= 10 ? 'bg-amber-900/30 text-amber-400' :
+              'bg-red-900/30 text-red-400'
+            }`}>
+              {proposed.free_chunks >= 20 ? 'Healthy' :
+               proposed.free_chunks >= 10 ? 'Limited' :
+               'Constrained'}
+            </div>
+          </div>
           <div className="mt-4 text-center text-xs text-gray-500">
-            Available 4GB chunks
+            4GB chunks for concurrent staging
           </div>
         </div>
       </div>
