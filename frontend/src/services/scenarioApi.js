@@ -73,6 +73,24 @@ export const scenarioApi = {
   },
 
   /**
+   * Set infrastructure state directly (for vSphere data loaded from cache)
+   * @param {Object} state - InfrastructureState object
+   * @returns {Promise<Object>} InfrastructureState
+   */
+  async setInfrastructureState(state) {
+    const response = await fetch(`${API_URL}/api/infrastructure/state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to set infrastructure state');
+    }
+    return response.json();
+  },
+
+  /**
    * Calculate max deployable cells given IaaS capacity
    * @param {Object} input - PlanningInput with cell_memory_gb, cell_cpu, overhead_pct
    * @returns {Promise<Object>} PlanningResponse with result and recommendations
