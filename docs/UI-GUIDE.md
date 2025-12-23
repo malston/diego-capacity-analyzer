@@ -238,7 +238,7 @@ Circular gauges showing utilization percentages with color-coded status:
 | **N-1 Host Capacity** | `(Cell Memory + Platform VMs) / N-1 Capacity × 100` | Warning: 75%, Critical: 85% |
 | **Memory Utilization** | `App Memory / App Capacity × 100` | Warning: 80%, Critical: 90% |
 | **Disk Utilization** | `App Disk / Disk Capacity × 100` | Warning: 80%, Critical: 90% |
-| **Staging Capacity** | `Free Chunks / 800 × 100` (visual scale) | Warning: <50%, Critical: <25% |
+| **Staging Capacity** | Raw count of free 4GB chunks | Healthy: ≥20, Limited: 10-19, Constrained: <10 |
 
 Where:
 - **N-1 Capacity** = Total cluster memory minus one host's memory
