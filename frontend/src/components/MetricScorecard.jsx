@@ -1,7 +1,6 @@
 // ABOUTME: Scorecard component for displaying individual metrics
 // ABOUTME: Shows value with change indicator and status bar
 
-import React from 'react';
 import { TrendingUp, TrendingDown, Minus, ArrowRight } from 'lucide-react';
 import Tooltip from './Tooltip';
 

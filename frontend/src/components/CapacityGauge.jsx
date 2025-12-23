@@ -1,8 +1,6 @@
 // ABOUTME: Circular gauge component for capacity/utilization metrics
 // ABOUTME: Shows percentage fill with color-coded status
 
-import React from 'react';
-
 const CapacityGauge = ({
   value,
   max = 100,
@@ -20,24 +18,20 @@ const CapacityGauge = ({
   const strokeDashoffset = circumference - (displayPercentage / 100) * circumference;
 
   // Determine status color
-  let status = 'good';
   let color = '#06b6d4'; // cyan-500
   let bgGlow = 'rgba(6, 182, 212, 0.15)';
 
   // For inverse metrics (utilization), higher value = worse
   // Over capacity is always critical
   if (isOverCapacity) {
-    status = 'critical';
     color = '#ef4444'; // red-500
     bgGlow = 'rgba(239, 68, 68, 0.25)';
   } else if (inverse) {
     // For utilization-style metrics: higher = worse
     if (value >= thresholds.critical) {
-      status = 'critical';
       color = '#ef4444';
       bgGlow = 'rgba(239, 68, 68, 0.15)';
     } else if (value >= thresholds.warning) {
-      status = 'warning';
       color = '#f59e0b';
       bgGlow = 'rgba(245, 158, 11, 0.15)';
     }
@@ -45,11 +39,9 @@ const CapacityGauge = ({
     // For non-inverse metrics: check thresholds normally
     const effectiveValue = displayPercentage;
     if (effectiveValue >= thresholds.critical) {
-      status = 'critical';
       color = '#ef4444';
       bgGlow = 'rgba(239, 68, 68, 0.15)';
     } else if (effectiveValue >= thresholds.warning) {
-      status = 'warning';
       color = '#f59e0b';
       bgGlow = 'rgba(245, 158, 11, 0.15)';
     }

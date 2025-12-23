@@ -1,4 +1,3 @@
-import React from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import TASCapacityAnalyzer from './TASCapacityAnalyzer'
 import Login from './components/Login'

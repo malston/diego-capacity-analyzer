@@ -2,7 +2,7 @@
 // ABOUTME: Data source selector for infrastructure input
 // ABOUTME: Supports live vSphere, JSON upload, and manual form entry
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, Edit3, RefreshCw, Server, FolderOpen } from 'lucide-react';
 import { scenarioApi } from '../services/scenarioApi';
 

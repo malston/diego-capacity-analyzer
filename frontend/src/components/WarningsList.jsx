@@ -2,7 +2,6 @@
 // ABOUTME: Displays scenario warnings with severity colors
 // ABOUTME: Critical warnings in red, warnings in yellow
 
-import React from 'react';
 import { AlertTriangle, AlertCircle, Info } from 'lucide-react';
 
 const severityConfig = {

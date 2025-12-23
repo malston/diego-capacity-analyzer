@@ -1,7 +1,6 @@
 // ABOUTME: Lightweight tooltip component using CSS-only approach
 // ABOUTME: Displays help text on hover with configurable positioning
 
-import React from 'react';
 import { HelpCircle } from 'lucide-react';
 
 const Tooltip = ({ text, children, position = 'top', showIcon = false }) => {

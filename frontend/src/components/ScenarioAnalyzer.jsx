@@ -2,7 +2,7 @@
 // ABOUTME: Main what-if scenario analyzer component
 // ABOUTME: Combines data source, comparison table, and warnings
 
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Calculator, RefreshCw, FileDown, Sparkles, ChevronDown, ChevronUp, Plus, X, Settings2, Server, HardDrive, Cpu, Database } from 'lucide-react';
 import DataSourceSelector from './DataSourceSelector';
 import ScenarioResults from './ScenarioResults';

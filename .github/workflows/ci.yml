@@ -1,5 +1,5 @@
 # ABOUTME: CI workflow for Diego Capacity Analyzer
-# ABOUTME: Runs frontend tests/build and backend tests on PRs and main pushes
+# ABOUTME: Runs lint, tests, and build for frontend and backend on PRs and main pushes
 
 name: CI
 
@@ -11,7 +11,7 @@ on:
 
 jobs:
   frontend:
-    name: Frontend Tests & Build
+    name: Frontend Lint, Test & Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Test
         run: npm test
 
@@ -37,7 +40,7 @@ jobs:
         run: npm run build
 
   backend:
-    name: Backend Tests & Build
+    name: Backend Lint, Test & Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -54,6 +57,12 @@ jobs:
 
       - name: Download dependencies
         run: go mod download
+
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@latest
+
+      - name: Lint
+        run: staticcheck ./...
 
       - name: Test
         run: go test -v ./...
