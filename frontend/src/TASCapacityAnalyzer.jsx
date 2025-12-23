@@ -4,6 +4,7 @@ import { Server, Activity, Zap, TrendingUp, AlertTriangle, CheckCircle, Layers, 
 import { useAuth } from './contexts/AuthContext';
 import { cfApi } from './services/cfApi';
 import ScenarioAnalyzer from './components/ScenarioAnalyzer';
+import InfrastructurePlanning from './components/InfrastructurePlanning';
 import Tooltip from './components/Tooltip';
 
 const DASHBOARD_TOOLTIPS = {
@@ -342,6 +343,17 @@ Check browser console (F12) for details.`;
           >
             <Zap className="w-4 h-4 inline mr-2" />
             Scenario Analysis
+          </button>
+          <button
+            onClick={() => setActiveTab('planning')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === 'planning'
+                ? 'bg-blue-500 text-white'
+                : 'bg-slate-800/50 text-slate-300 border border-slate-700 hover:border-blue-500'
+            }`}
+          >
+            <Server className="w-4 h-4 inline mr-2" />
+            Infrastructure Planning
           </button>
         </div>
 
@@ -743,6 +755,13 @@ Check browser console (F12) for details.`;
       {activeTab === 'scenarios' && (
         <div className="mt-8">
           <ScenarioAnalyzer />
+        </div>
+      )}
+
+      {/* Infrastructure Planning Tab Content */}
+      {activeTab === 'planning' && (
+        <div className="mt-8">
+          <InfrastructurePlanning />
         </div>
       )}
 

@@ -71,4 +71,22 @@ export const scenarioApi = {
     }
     return response.json();
   },
+
+  /**
+   * Calculate max deployable cells given IaaS capacity
+   * @param {Object} input - PlanningInput with cell_memory_gb, cell_cpu, overhead_pct
+   * @returns {Promise<Object>} PlanningResponse with result and recommendations
+   */
+  async calculatePlanning(input) {
+    const response = await fetch(`${API_URL}/api/infrastructure/planning`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to calculate planning');
+    }
+    return response.json();
+  },
 };

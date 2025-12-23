@@ -54,6 +54,7 @@ func main() {
 	http.HandleFunc("/api/infrastructure", h.EnableCORS(middleware.LogRequest(h.HandleInfrastructure)))
 	http.HandleFunc("/api/infrastructure/manual", h.EnableCORS(middleware.LogRequest(h.HandleManualInfrastructure)))
 	http.HandleFunc("/api/infrastructure/status", h.EnableCORS(middleware.LogRequest(h.HandleInfrastructureStatus)))
+	http.HandleFunc("/api/infrastructure/planning", h.EnableCORS(middleware.LogRequest(h.HandleInfrastructurePlanning)))
 	http.HandleFunc("/api/scenario/compare", h.EnableCORS(middleware.LogRequest(h.HandleScenarioCompare)))
 
 	// Start server
