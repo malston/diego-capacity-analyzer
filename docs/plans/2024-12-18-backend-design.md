@@ -11,6 +11,7 @@ This design adds a Go-based backend API service to the Diego Capacity Analyzer t
 ## Problem Statement
 
 The current React-only implementation cannot:
+
 - Access CF API from browser due to CORS restrictions
 - Fetch Diego cell metrics (not available via CF API)
 - Provide customer self-service deployment (requires backend for BOSH access)
@@ -18,6 +19,7 @@ The current React-only implementation cannot:
 ## Solution
 
 Add a lightweight Go HTTP service that:
+
 - Proxies CF API requests (solves CORS)
 - Queries BOSH API for Diego cell metrics
 - Caches results to reduce API load
@@ -69,6 +71,7 @@ diego-capacity-analyzer/
 ### Endpoints
 
 #### Health Check
+
 ```
 GET /api/health
 ```
@@ -76,6 +79,7 @@ GET /api/health
 Returns CF and BOSH connectivity status.
 
 **Response:**
+
 ```json
 {
   "cf_api": "ok" | "error",
@@ -88,6 +92,7 @@ Returns CF and BOSH connectivity status.
 ```
 
 #### Unified Dashboard Data
+
 ```
 GET /api/dashboard
 ```
@@ -95,6 +100,7 @@ GET /api/dashboard
 Returns all data needed for dashboard in single request.
 
 **Response:**
+
 ```json
 {
   "cells": [...],
@@ -109,6 +115,7 @@ Returns all data needed for dashboard in single request.
 ```
 
 #### Individual Resources
+
 ```
 GET /api/cells       # Diego cell metrics only
 GET /api/apps        # App data only
@@ -284,17 +291,20 @@ func (c *Cache) StartCleanup() // Background goroutine
 ### Cache Behavior
 
 **On cache miss:**
+
 - Fetch from CF API + BOSH API in parallel
 - BOSH retries 3x with exponential backoff
 - If BOSH fails → cache apps/segments only, mark `cells` as unavailable
 - Return data with `cached: false` in metadata
 
 **On cache hit (within TTL):**
+
 - Return immediately from memory
 - No API calls
 - Include `cached: true` in metadata
 
 **Background cleanup:**
+
 - Goroutine runs every 1 minute
 - Removes expired entries from `sync.Map`
 - Prevents memory leak
@@ -423,7 +433,7 @@ export OM_PASSWORD=...
 export OM_SKIP_SSL_VALIDATION=true
 
 # Get BOSH credentials
-om curl -p /api/v0/deployed/director/credentials/bosh_commandline_credentials
+om curl -s -p /api/v0/deployed/director/credentials/bosh_commandline_credentials
 ```
 
 ### Deploy Backend

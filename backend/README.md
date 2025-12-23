@@ -51,7 +51,7 @@ export OM_USERNAME=admin
 export OM_PASSWORD=<password>
 export OM_SKIP_SSL_VALIDATION=true
 
-om curl -p /api/v0/deployed/director/credentials/bosh_commandline_credentials
+om curl -s -p /api/v0/deployed/director/credentials/bosh_commandline_credentials
 ```
 
 ### Deploy Backend
