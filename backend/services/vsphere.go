@@ -181,7 +181,7 @@ func (v *VSphereClient) getClusterInfo(ctx context.Context, cluster *object.Clus
 		info.TotalMemoryMB += hostInfo.MemoryMB
 		info.TotalCPUCores += hostInfo.CPUCores
 	}
-
+	
 	// Get Diego cells in this cluster
 	cells, err := v.getDiegoCellsInCluster(ctx, cluster)
 	if err != nil {
@@ -204,7 +204,7 @@ func (v *VSphereClient) getHostInfo(ctx context.Context, host *object.HostSystem
 	info := HostInfo{
 		Name:        host.Name(),
 		MemoryMB:    hostMo.Summary.Hardware.MemorySize / (1024 * 1024),
-		CPUCores:    int32(hostMo.Summary.Hardware.NumCpuCores),
+		CPUCores:    int32(hostMo.Summary.Hardware.NumCpuThreads), // Logical processors (includes hyperthreading)
 		InCluster:   clusterName,
 		PowerState:  string(hostMo.Runtime.PowerState),
 		Maintenance: hostMo.Runtime.InMaintenanceMode,
@@ -326,6 +326,7 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 	}
 
 	// Calculate totals from all clusters
+	var totalCPUCores int
 	for _, c := range clusters {
 		hostCount := len(c.Hosts)
 		memoryGB := int(c.TotalMemoryMB / 1024)
@@ -337,6 +338,7 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 		state.TotalMemoryGB += memoryGB
 		state.TotalN1MemoryGB += n1MemoryGB
 		state.TotalHostCount += hostCount
+		totalCPUCores += int(c.TotalCPUCores)
 	}
 
 	// Create a single cluster entry with all Diego cells
@@ -349,7 +351,7 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 			Name:              v.creds.Datacenter,
 			HostCount:         state.TotalHostCount,
 			MemoryGB:          state.TotalMemoryGB,
-			CPUCores:          0, // Could aggregate from clusters if needed
+			CPUCores:          totalCPUCores,
 			N1MemoryGB:        state.TotalN1MemoryGB,
 			UsableMemoryGB:    int(float64(state.TotalN1MemoryGB) * 0.9),
 			DiegoCellCount:    len(allCells),

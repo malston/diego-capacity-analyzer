@@ -25,6 +25,7 @@ type Handler struct {
 	vsphereClient       *services.VSphereClient
 	infrastructureState *models.InfrastructureState
 	scenarioCalc        *services.ScenarioCalculator
+	planningCalc        *services.PlanningCalculator
 	infraMutex          sync.RWMutex
 }
 
@@ -33,6 +34,7 @@ func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 		cfg:          cfg,
 		cache:        cache,
 		scenarioCalc: services.NewScenarioCalculator(),
+		planningCalc: services.NewPlanningCalculator(),
 	}
 
 	// CF client is optional (for testing)
@@ -241,6 +243,28 @@ func (h *Handler) HandleManualInfrastructure(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(state)
 }
 
+// HandleSetInfrastructureState accepts an InfrastructureState directly (e.g., from vSphere cache)
+func (h *Handler) HandleSetInfrastructureState(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var state models.InfrastructureState
+	if err := json.NewDecoder(r.Body).Decode(&state); err != nil {
+		writeError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	h.infraMutex.Lock()
+	h.infrastructureState = &state
+	h.infraMutex.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(state)
+}
+
 // HandleInfrastructure returns live infrastructure data from vSphere
 func (h *Handler) HandleInfrastructure(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -351,6 +375,35 @@ func (h *Handler) HandleScenarioCompare(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(comparison)
+}
+
+// HandleInfrastructurePlanning calculates max deployable cells given IaaS capacity
+func (h *Handler) HandleInfrastructurePlanning(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	h.infraMutex.RLock()
+	state := h.infrastructureState
+	h.infraMutex.RUnlock()
+
+	if state == nil {
+		writeError(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
+		return
+	}
+
+	var input models.PlanningInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	response := h.planningCalc.Plan(*state, input)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
 
 func writeError(w http.ResponseWriter, message string, code int) {
