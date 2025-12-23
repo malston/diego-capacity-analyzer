@@ -51,16 +51,27 @@ const InfrastructurePlanning = () => {
   };
 
   // Compute IaaS capacity from loaded data
+  // Handles both manual input (memory_gb_per_host) and vSphere (memory_gb total)
   const iaasCapacity = useMemo(() => {
     if (!infrastructureData?.clusters?.length) return null;
 
     const clusters = infrastructureData.clusters;
     const totalHosts = clusters.reduce((sum, c) => sum + (c.host_count || 0), 0);
-    const totalMemoryGB = clusters.reduce((sum, c) => sum + (c.host_count || 0) * (c.memory_gb_per_host || 0), 0);
-    const totalCPUCores = clusters.reduce((sum, c) => sum + (c.host_count || 0) * (c.cpu_cores_per_host || 64), 0);
 
-    // N-1 memory calculation (matching backend)
+    // Handle both formats: vSphere has memory_gb (total), manual has memory_gb_per_host
+    const totalMemoryGB = clusters.reduce((sum, c) => {
+      if (c.memory_gb) return sum + c.memory_gb;
+      return sum + (c.host_count || 0) * (c.memory_gb_per_host || 0);
+    }, 0);
+
+    const totalCPUCores = clusters.reduce((sum, c) => {
+      if (c.cpu_cores) return sum + c.cpu_cores;
+      return sum + (c.host_count || 0) * (c.cpu_cores_per_host || 64);
+    }, 0);
+
+    // N-1 memory: use n1_memory_gb if available (vSphere), otherwise calculate
     const n1MemoryGB = clusters.reduce((sum, c) => {
+      if (c.n1_memory_gb) return sum + c.n1_memory_gb;
       const hostCount = c.host_count || 0;
       const memPerHost = c.memory_gb_per_host || 0;
       return sum + ((hostCount - 1) * memPerHost);
