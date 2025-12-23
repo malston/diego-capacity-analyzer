@@ -268,6 +268,29 @@ Visual comparison of cell specs (vCPU × GB) between current and proposed, showi
 - Redundancy change indicator (improved/reduced/no change)
 - Capacity change summary in GB
 
+#### Advanced Options
+
+Expandable panel with configuration overrides:
+
+**Memory Overhead**
+- Slider: 1% to 20% (default: 7%)
+- Adjusts the percentage of cell memory reserved for Garden runtime and system processes
+- Formula: `App Capacity = cells × (cell_memory × (1 - overhead%))`
+- The 7% default is an empirical estimate; verify against your actual cell utilization if precision matters
+
+**Add Hypothetical App**
+- Model the impact of deploying a new application before actually deploying it
+- Configure: app name, instance count, memory per instance, disk per instance
+- When enabled, adds to total app memory/disk/instances in calculations
+- Useful for capacity planning: "Can my foundation handle this new workload?"
+
+**TPS Performance Curve**
+- Customize the scheduler throughput benchmark data points
+- Each point maps cell count → expected TPS
+- Default values are baseline estimates from internal benchmarks
+- Add/remove points, adjust values to match your observed scheduler performance
+- See [TPS Performance (Modeled)](#tps-performance-modeled) for details on the curve
+
 ### TPS Performance (Modeled)
 
 TPS is **not a live metric**. It's estimated from Diego benchmark data using linear interpolation:
