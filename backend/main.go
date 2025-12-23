@@ -4,55 +4,63 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/cache"
 	"github.com/markalston/diego-capacity-analyzer/backend/config"
 	"github.com/markalston/diego-capacity-analyzer/backend/handlers"
+	"github.com/markalston/diego-capacity-analyzer/backend/logger"
+	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
 )
 
 func main() {
+	// Initialize structured logging
+	logger.Init()
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		slog.Error("Failed to load configuration", "error", err)
+		os.Exit(1)
 	}
 
-	log.Printf("Starting Diego Capacity Analyzer Backend")
-	log.Printf("CF API: %s", cfg.CFAPIUrl)
+	slog.Info("Starting Diego Capacity Analyzer Backend")
+	slog.Info("CF API configured", "url", cfg.CFAPIUrl)
 	if cfg.BOSHEnvironment != "" {
-		log.Printf("BOSH: %s", cfg.BOSHEnvironment)
+		slog.Info("BOSH configured", "environment", cfg.BOSHEnvironment)
 	} else {
-		log.Printf("BOSH: not configured (degraded mode)")
+		slog.Warn("BOSH not configured, running in degraded mode")
 	}
 	if cfg.VSphereConfigured() {
-		log.Printf("vSphere: %s (datacenter: %s)", cfg.VSphereHost, cfg.VSphereDatacenter)
+		slog.Info("vSphere configured", "host", cfg.VSphereHost, "datacenter", cfg.VSphereDatacenter)
 	} else {
-		log.Printf("vSphere: not configured (manual mode only)")
+		slog.Info("vSphere not configured, manual mode only")
 	}
 
 	// Initialize cache
 	cacheTTL := time.Duration(cfg.CacheTTL) * time.Second
 	c := cache.New(cacheTTL)
-	log.Printf("Cache TTL: %v", cacheTTL)
+	slog.Info("Cache initialized", "ttl", cacheTTL)
 
 	// Initialize handlers
 	h := handlers.NewHandler(cfg, c)
 
-	// Register routes
-	http.HandleFunc("/api/health", h.EnableCORS(h.Health))
-	http.HandleFunc("/api/dashboard", h.EnableCORS(h.Dashboard))
-	http.HandleFunc("/api/infrastructure", h.EnableCORS(h.HandleInfrastructure))
-	http.HandleFunc("/api/infrastructure/manual", h.EnableCORS(h.HandleManualInfrastructure))
-	http.HandleFunc("/api/infrastructure/status", h.EnableCORS(h.HandleInfrastructureStatus))
-	http.HandleFunc("/api/scenario/compare", h.EnableCORS(h.HandleScenarioCompare))
+	// Register routes with logging middleware
+	http.HandleFunc("/api/health", h.EnableCORS(middleware.LogRequest(h.Health)))
+	http.HandleFunc("/api/dashboard", h.EnableCORS(middleware.LogRequest(h.Dashboard)))
+	http.HandleFunc("/api/infrastructure", h.EnableCORS(middleware.LogRequest(h.HandleInfrastructure)))
+	http.HandleFunc("/api/infrastructure/manual", h.EnableCORS(middleware.LogRequest(h.HandleManualInfrastructure)))
+	http.HandleFunc("/api/infrastructure/status", h.EnableCORS(middleware.LogRequest(h.HandleInfrastructureStatus)))
+	http.HandleFunc("/api/scenario/compare", h.EnableCORS(middleware.LogRequest(h.HandleScenarioCompare)))
 
 	// Start server
 	addr := ":" + cfg.Port
-	log.Printf("Server listening on %s", addr)
+	slog.Info("Server listening", "addr", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {
-		log.Fatalf("Server failed: %v", err)
+		slog.Error("Server failed", "error", err)
+		os.Exit(1)
 	}
 }
