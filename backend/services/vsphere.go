@@ -6,7 +6,7 @@ package services
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -92,6 +92,7 @@ func (v *VSphereClient) Connect(ctx context.Context) error {
 	v.datacenter = dc
 	v.finder.SetDatacenter(dc)
 
+	slog.Info("vSphere connected", "host", v.creds.Host, "datacenter", v.creds.Datacenter)
 	return nil
 }
 
@@ -314,7 +315,7 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 		return models.InfrastructureState{}, fmt.Errorf("getting Diego cells: %w", err)
 	}
 
-	log.Printf("[vSphere] Found %d Diego cells total in datacenter", len(allCells))
+	slog.Info("vSphere Diego cell discovery complete", "cell_count", len(allCells), "datacenter", v.creds.Datacenter)
 
 	state := models.InfrastructureState{
 		Source:    "vsphere",

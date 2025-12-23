@@ -6,7 +6,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -86,7 +86,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	// Check cache
 	if cached, found := h.cache.Get("dashboard:all"); found {
-		log.Println("Serving from cache")
+		slog.Debug("Dashboard cache hit")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(cached)
@@ -94,7 +94,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch fresh data
-	log.Println("Fetching fresh data")
+	slog.Debug("Dashboard cache miss, fetching fresh data")
 
 	resp := models.DashboardResponse{
 		Cells:    []models.DiegoCell{},
@@ -109,7 +109,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 
 	// Authenticate with CF API
 	if err := h.cfClient.Authenticate(); err != nil {
-		log.Printf("CF API authentication error: %v", err)
+		slog.Error("CF API authentication failed", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(models.ErrorResponse{
@@ -123,7 +123,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	// Fetch apps from CF API
 	apps, err := h.cfClient.GetApps()
 	if err != nil {
-		log.Printf("CF API GetApps error: %v", err)
+		slog.Error("CF API GetApps failed", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(models.ErrorResponse{
@@ -138,7 +138,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	// Fetch isolation segments from CF API
 	segments, err := h.cfClient.GetIsolationSegments()
 	if err != nil {
-		log.Printf("CF API GetIsolationSegments error: %v", err)
+		slog.Error("CF API GetIsolationSegments failed", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(models.ErrorResponse{
@@ -154,7 +154,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	if h.boshClient != nil {
 		cells, err := h.boshClient.GetDiegoCells()
 		if err != nil {
-			log.Printf("BOSH API error (degraded mode): %v", err)
+			slog.Warn("BOSH API error, entering degraded mode", "error", err)
 			resp.Metadata.BOSHAvailable = false
 		} else {
 			resp.Cells = cells
@@ -257,7 +257,7 @@ func (h *Handler) HandleInfrastructure(w http.ResponseWriter, r *http.Request) {
 	// Check cache first
 	cacheKey := "infrastructure:vsphere"
 	if cached, found := h.cache.Get(cacheKey); found {
-		log.Println("Serving infrastructure from cache")
+		slog.Debug("Infrastructure cache hit")
 		state := cached.(models.InfrastructureState)
 		state.Cached = true
 		w.Header().Set("Content-Type", "application/json")
@@ -270,7 +270,7 @@ func (h *Handler) HandleInfrastructure(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	if err := h.vsphereClient.Connect(ctx); err != nil {
-		log.Printf("vSphere connection error: %v", err)
+		slog.Error("vSphere connection failed", "error", err)
 		writeError(w, "Failed to connect to vSphere: "+err.Error(), http.StatusServiceUnavailable)
 		return
 	}
@@ -279,7 +279,7 @@ func (h *Handler) HandleInfrastructure(w http.ResponseWriter, r *http.Request) {
 	// Get infrastructure state
 	state, err := h.vsphereClient.GetInfrastructureState(ctx)
 	if err != nil {
-		log.Printf("vSphere inventory error: %v", err)
+		slog.Error("vSphere inventory fetch failed", "error", err)
 		writeError(w, "Failed to get vSphere inventory: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
