@@ -46,39 +46,6 @@ npm run dev
 - **[UI Guide](docs/UI-GUIDE.md)** - Understanding the dashboard metrics and visualizations
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Complete deployment instructions for Cloud Foundry
 
-## Deployment to Cloud Foundry
-
-### Quick Deploy
-
-1. **Deploy Backend**
-
-```bash
-cd backend
-# Update manifest.yml with your values
-cf push
-cf set-env capacity-backend CF_USERNAME admin
-cf set-env capacity-backend CF_PASSWORD <password>
-# ... set other env vars (see deployment guide)
-cf restage capacity-backend
-```
-
-1. **Deploy Frontend**
-
-```bash
-cd frontend
-# Update .env with backend URL
-echo "VITE_API_URL=https://capacity-backend.apps.example.com" > .env
-npm run build
-cf push
-```
-
-1. **Access UI**
-
-```bash
-cf app capacity-ui  # Get URL
-open https://capacity-ui.apps.example.com
-```
-
 ## Architecture Diagram
 
 ```console
@@ -109,34 +76,3 @@ Frontend (React)  →  Backend (Go)  →  CF API v3
 │
 └── docs/                # Documentation
 ```
-
-## Contributing
-
-This tool was built for TAS platform engineers to help optimize diego cell capacity and reduce infrastructure costs.
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Author
-
-**Mark Alston**
-Broadcom/VMware Tanzu Platform Consultant
-
-## Support
-
-For issues or questions:
-
-- Open an issue in this repository
-- Contact your Broadcom/VMware representative
-
-## Roadmap
-
-- [ ] Direct CF API integration with authentication
-- [ ] Historical trend analysis
-- [ ] Cost estimation based on IaaS pricing
-- [ ] Export reports to PDF/Excel
-- [ ] Multi-foundation support
-- [ ] BOSH director integration
-- [ ] Slack/email alerts for capacity thresholds
-- [ ] Terraform/Platform Automation recommendations
