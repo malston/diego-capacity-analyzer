@@ -35,6 +35,17 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
     checkVsphereStatus();
   }, []);
 
+  // Handle mode selection - auto-fetch for live mode
+  const handleModeSelect = async (newMode) => {
+    setMode(newMode);
+    setError(null);
+
+    // Auto-fetch when selecting live mode
+    if (newMode === 'live') {
+      await handleFetchLive();
+    }
+  };
+
   // Manual entry form state
   const [formData, setFormData] = useState({
     name: '',
@@ -190,19 +201,24 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
       <div className="flex gap-3 mb-4 flex-wrap">
         {vsphereConfigured && (
           <button
-            onClick={() => setMode('live')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors ${
+            onClick={() => handleModeSelect('live')}
+            disabled={loading && mode === 'live'}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors disabled:opacity-70 ${
               mode === 'live'
                 ? 'bg-emerald-600 text-white'
                 : 'bg-slate-700 text-gray-300 hover:bg-slate-600 border border-slate-600'
             }`}
           >
-            <Server size={16} />
-            Live (vSphere)
+            {loading && mode === 'live' ? (
+              <RefreshCw size={16} className="animate-spin" />
+            ) : (
+              <Server size={16} />
+            )}
+            {loading && mode === 'live' ? 'Connecting...' : 'Live (vSphere)'}
           </button>
         )}
         <button
-          onClick={() => setMode('upload')}
+          onClick={() => handleModeSelect('upload')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors ${
             mode === 'upload'
               ? 'bg-cyan-600 text-white'
@@ -213,7 +229,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
           Upload JSON
         </button>
         <button
-          onClick={() => setMode('manual')}
+          onClick={() => handleModeSelect('manual')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors ${
             mode === 'manual'
               ? 'bg-cyan-600 text-white'
@@ -234,28 +250,15 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
         )}
       </div>
 
-      {mode === 'live' && (
+      {mode === 'live' && loading && (
         <div className="border border-emerald-700/30 bg-emerald-900/20 rounded-lg p-6">
-          <div className="text-center">
-            <p className="text-gray-300 mb-4">
-              Fetch infrastructure data directly from vSphere
-            </p>
-            <button
-              onClick={handleFetchLive}
-              disabled={loading}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg mx-auto transition-colors ${
-                loading
-                  ? 'bg-slate-600 cursor-not-allowed text-gray-400'
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-              }`}
-            >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-              {loading ? 'Fetching...' : 'Fetch from vSphere'}
-            </button>
-            <p className="text-sm text-gray-500 mt-3">
-              Connects to vCenter to discover clusters, hosts, and Diego cells
-            </p>
+          <div className="flex items-center justify-center gap-3 text-emerald-300">
+            <RefreshCw size={20} className="animate-spin" />
+            <span>Connecting to vSphere...</span>
           </div>
+          <p className="text-sm text-gray-500 mt-2 text-center">
+            Discovering clusters, hosts, and Diego cells
+          </p>
         </div>
       )}
 
