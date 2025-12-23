@@ -205,6 +205,58 @@ Available 4GB chunks for `cf push` staging operations.
 
 # Reference
 
+## How Metrics Are Calculated
+
+### Dashboard Tab (Live Data)
+
+| Metric | Formula | Data Source |
+|--------|---------|-------------|
+| **Total Cells** | Count of Diego cell VMs | BOSH API: `bosh vms` |
+| **Utilization %** | `(Total Used Memory / Total Cell Capacity) × 100` | BOSH vitals + Log Cache |
+| **Avg CPU %** | `Sum(cell.cpu_percent) / cell_count` | BOSH API: VM vitals |
+| **Unused Memory** | `Sum(app.requested_mb × instances) - Sum(app.actual_mb × instances)` | CF API + Log Cache |
+
+**Data flow:** BOSH Director → Backend → Frontend
+
+- Cell capacity: BOSH deployment manifest (VM type memory)
+- Cell vitals: BOSH `/vms?vitals=true` endpoint
+- App quotas: CF API `/v3/apps` and `/v3/processes`
+- Actual memory: Log Cache gauge metrics (`memory_bytes`)
+
+### Scenario Analysis Tab (Calculated)
+
+| Metric | Formula | Notes |
+|--------|---------|-------|
+| **N-1 Utilization** | `(Cell Memory + Platform VMs) / N-1 Host Capacity × 100` | N-1 Host Capacity = total cluster memory minus one host |
+| **Memory Utilization** | `App Memory / App Capacity × 100` | App Capacity = cells × (memory - 7% overhead) |
+| **Free Chunks** | `(App Capacity - App Memory) / 4 GB` | 4 GB = staging chunk size |
+| **Fault Impact** | `Total App Instances / Cell Count` | Apps displaced if one cell fails |
+| **Instances/Cell** | `Total App Instances / Cell Count` | Distribution density |
+
+### TPS Performance (Modeled)
+
+TPS is **not a live metric**. It's estimated from Diego benchmark data using linear interpolation:
+
+```text
+Benchmark curve (default):
+  1 cell   →    284 TPS
+  3 cells  →  1,964 TPS (peak)
+  9 cells  →  1,932 TPS
+  100 cells → 1,389 TPS
+  210 cells →   104 TPS
+```
+
+The curve models BBS scheduler coordination overhead as cell count increases. Values between points are interpolated. Beyond the curve, TPS degrades proportionally.
+
+**Source:** Diego team benchmark data. Users can customize the curve in Advanced Options if their environment differs.
+
+**Status thresholds:**
+- Optimal: ≥80% of peak TPS
+- Degraded: 50-79% of peak TPS
+- Critical: <50% of peak TPS
+
+---
+
 ## Data Sources
 
 | Source | Description |
