@@ -36,3 +36,4 @@ dist-ssr
 cf.yml
 bosh-*.yml.envrc
 bosh-*.yml
+settings.local.json
