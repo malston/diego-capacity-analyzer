@@ -569,7 +569,7 @@ const ScenarioAnalyzer = () => {
                 {showTPSEditor && (
                   <div className="mt-4">
                     <p className="text-xs text-gray-400 mb-3">
-                      Configure the TPS performance curve for your environment. Higher cell counts can cause scheduling degradation.
+                      Default values are baseline estimates. Actual TPS varies by infrastructure, network, and database backend. Customize to match your observed scheduler performance.
                     </p>
 
                     <div className="space-y-2 mb-3">

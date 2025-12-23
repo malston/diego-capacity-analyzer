@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	// DefaultMemoryOverheadPct is the default memory overhead percentage (7% from spreadsheet)
+	// DefaultMemoryOverheadPct is the default memory overhead percentage (7% for Garden/system)
 	DefaultMemoryOverheadPct = 7.0
-	// DefaultDiskOverheadPct is the default disk overhead percentage (0.01% from spreadsheet)
+	// DefaultDiskOverheadPct is the default disk overhead percentage (negligible)
 	DefaultDiskOverheadPct = 0.01
 	// ChunkSizeGB is the size of a free chunk for staging
 	ChunkSizeGB = 4
@@ -21,7 +21,7 @@ const (
 	PeakTPS = 1964
 )
 
-// DefaultTPSCurve is the default TPS curve from the spreadsheet
+// DefaultTPSCurve is the default TPS curve - baseline estimates, user can override
 var DefaultTPSCurve = []models.TPSPt{
 	{Cells: 1, TPS: 284},
 	{Cells: 3, TPS: 1964},
@@ -49,7 +49,7 @@ func EstimateTPS(cellCount int, curve []models.TPSPt) (tps int, status string) {
 	}
 
 	// Use default curve if none provided
-	if curve == nil || len(curve) == 0 {
+	if len(curve) == 0 {
 		curve = DefaultTPSCurve
 	}
 
@@ -309,12 +309,13 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 	}
 
 	// TPS degradation warnings
-	if proposed.TPSStatus == "critical" {
+	switch proposed.TPSStatus {
+	case "critical":
 		warnings = append(warnings, models.ScenarioWarning{
 			Severity: "critical",
 			Message:  fmt.Sprintf("Cell count (%d) causes severe scheduling degradation (~%d TPS)", proposed.CellCount, proposed.EstimatedTPS),
 		})
-	} else if proposed.TPSStatus == "degraded" {
+	case "degraded":
 		warnings = append(warnings, models.ScenarioWarning{
 			Severity: "warning",
 			Message:  fmt.Sprintf("Cell count (%d) may cause scheduling latency (~%d TPS)", proposed.CellCount, proposed.EstimatedTPS),

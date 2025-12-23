@@ -180,6 +180,8 @@ Available 4GB chunks for `cf push` staging operations.
 
 **Why it matters:** More cells = more coordination overhead. If you need more capacity, consider larger cells instead of more cells to avoid scheduler bottlenecks.
 
+> **Note:** These values are modeled estimates, not live measurements. See [TPS Performance (Modeled)](#tps-performance-modeled) for methodology and customization options.
+
 ---
 
 ## Results: Metric Scorecards
@@ -248,7 +250,11 @@ Benchmark curve (default):
 
 The curve models BBS scheduler coordination overhead as cell count increases. Values between points are interpolated. Beyond the curve, TPS degrades proportionally.
 
-**Source:** Diego team benchmark data. Users can customize the curve in Advanced Options if their environment differs.
+**Important:** The default curve is a baseline estimate derived from internal platform engineering benchmarks. Actual TPS varies significantly based on infrastructure, network latency, database backend, and workload characteristics. **We recommend validating against your own environment** and customizing the curve in Advanced Options to match observed performance.
+
+**References:**
+- [Diego Scaling & Performance Tuning](https://github.com/cloudfoundry/diego-release/blob/develop/docs/030-scaling-and-performance-tuning.md) - Official guidance on benchmarking methodology and VM sizing
+- [Diego Performance Measurement Proposal](https://github.com/cloudfoundry/diego-notes/blob/main/proposals/measuring_performance.md) - Explains how Diego performance benchmarks are structured
 
 **Status thresholds:**
 - Optimal: ≥80% of peak TPS

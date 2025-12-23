@@ -346,7 +346,7 @@ func TestPercentageOverhead(t *testing.T) {
 }
 
 func TestTPSEstimation(t *testing.T) {
-	// Test TPS estimation using default curve data from spreadsheet
+	// Test TPS estimation using default curve
 	tests := []struct {
 		cellCount     int
 		expectedTPS   int
