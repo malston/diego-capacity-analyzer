@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Server, Activity, Zap, TrendingUp, AlertTriangle, CheckCircle, Settings, Layers, LogOut, User, RefreshCw, Database } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Server, Activity, Zap, TrendingUp, AlertTriangle, CheckCircle, Layers, LogOut, User, RefreshCw, Database } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { cfApi } from './services/cfApi';
 import ScenarioAnalyzer from './components/ScenarioAnalyzer';

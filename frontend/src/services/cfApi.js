@@ -145,8 +145,8 @@ class CFApiService {
   async getDiegoCells() {
     try {
       // Try to get cell info from internal endpoint (requires cloud_controller.admin scope)
-      const data = await this.request('/v3/info');
-      
+      await this.request('/v3/info');
+
       // CF v3 API doesn't directly expose diego cell info
       // You'll need to get this from BOSH or a custom metrics endpoint
       console.warn('Diego cell info not available via standard CF API');
@@ -262,7 +262,7 @@ class CFApiService {
                 const segment = await this.request(`/v3/isolation_segments/${segmentGuid}`);
                 segmentMap[spaceGuid] = segment.name;
               }
-            } catch (e) {
+            } catch {
               console.warn(`Could not fetch segment for space ${spaceGuid}`);
             }
           }

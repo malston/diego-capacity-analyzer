@@ -3,7 +3,7 @@
  * Provides authentication state and methods to React components
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { cfAuth } from '../services/cfAuth';
 import { cfApi } from '../services/cfApi';
 

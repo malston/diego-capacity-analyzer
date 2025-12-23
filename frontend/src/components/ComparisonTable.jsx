@@ -2,7 +2,6 @@
 // ABOUTME: Side-by-side comparison table for current vs proposed scenarios
 // ABOUTME: Shows metrics with change indicators
 
-import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 const formatNumber = (num) => {
@@ -37,7 +36,7 @@ const ChangeIndicator = ({ current, proposed, inverse = false }) => {
 const ComparisonTable = ({ comparison }) => {
   if (!comparison) return null;
 
-  const { current, proposed, delta } = comparison;
+  const { current, proposed } = comparison;
 
   const metrics = [
     {

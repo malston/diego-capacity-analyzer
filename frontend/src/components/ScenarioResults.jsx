@@ -1,8 +1,7 @@
 // ABOUTME: Complete scenario results dashboard with scorecards and gauges
 // ABOUTME: Replaces basic ComparisonTable with visual capacity analysis
 
-import React from 'react';
-import { CheckCircle2, XCircle, AlertTriangle, Zap, HardDrive, Cpu, Server, Shield, Activity, Database, Gauge } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Zap, Cpu, Server, Shield, Activity, Database, Gauge } from 'lucide-react';
 import CapacityGauge from './CapacityGauge';
 import MetricScorecard from './MetricScorecard';
 import Tooltip from './Tooltip';
