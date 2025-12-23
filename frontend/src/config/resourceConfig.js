@@ -20,13 +20,13 @@ export const UTILIZATION_THRESHOLDS = {
   disk: { warning: 80, critical: 90 },
 };
 
-// Default overhead percentages (from spreadsheet)
+// Default overhead percentages
 export const OVERHEAD_DEFAULTS = {
   memoryPct: 7.0,   // 7% memory overhead for Garden/system
   diskPct: 0.01,    // 0.01% disk overhead (negligible)
 };
 
-// Default TPS curve data from spreadsheet - user can override
+// Default TPS curve - baseline estimates, user can override in Advanced Options
 export const DEFAULT_TPS_CURVE = [
   { cells: 1, tps: 284 },
   { cells: 3, tps: 1964 },    // Peak efficiency

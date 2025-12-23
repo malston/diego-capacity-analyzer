@@ -13,7 +13,7 @@ const TOOLTIPS = {
   memoryUtilization: "App memory divided by total cell capacity. Below 80% = healthy headroom. Above 90% = near capacity exhaustion.",
   diskUtilization: "App disk usage divided by total cell disk capacity. Same thresholds as memory.",
   stagingCapacity: "Available 4GB chunks for staging new apps. When you cf push, Diego needs a 4GB chunk to build your app. Low chunks = deployment queues.",
-  tps: "Tasks Per Second - how fast Diego's scheduler can place app instances. Higher = faster deploys and scaling.",
+  tps: "Tasks Per Second - modeled estimate of scheduler throughput based on cell count. Not a live measurement. Actual TPS varies by infrastructure. Customize curve in Advanced Options.",
   tpsStatus: "Optimal (≥80% of peak): scheduler performing well. Degraded (50-79%): noticeable slowdown. Critical (<50%): severe delays.",
   cellCount: "Number of Diego cell VMs running your apps.",
   appCapacity: "Total memory available for apps after system overhead.",
