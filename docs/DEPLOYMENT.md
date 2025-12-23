@@ -7,16 +7,19 @@ Complete guide for deploying the TAS Capacity Analyzer to Cloud Foundry.
 ### Required Tools
 
 - **CF CLI** - Cloud Foundry command-line interface (v8+)
+
   ```bash
   cf version
   ```
 
 - **om CLI** - Ops Manager CLI for retrieving BOSH credentials
+
   ```bash
   om version
   ```
 
 - **Node.js & npm** - For building the frontend (v18+)
+
   ```bash
   node --version
   npm --version
@@ -58,7 +61,7 @@ export OM_SKIP_SSL_VALIDATION=true
 ### Retrieve BOSH Credentials
 
 ```bash
-om curl -p /api/v0/deployed/director/credentials/bosh_commandline_credentials
+om curl -s -p /api/v0/deployed/director/credentials/bosh_commandline_credentials
 ```
 
 This returns JSON with credentials. Extract the values:
@@ -73,16 +76,16 @@ This returns JSON with credentials. Extract the values:
 
 ```bash
 # Get BOSH client ID (typically "ops_manager")
-BOSH_CLIENT=$(om curl -p /api/v0/deployed/director/credentials/bosh_commandline_credentials | jq -r '.credential' | grep BOSH_CLIENT= | head -1 | cut -d= -f2)
+BOSH_CLIENT=$(om curl -s -p /api/v0/deployed/director/credentials/bosh_commandline_credentials | jq -r '.credential' | awk '{print $1}' | cut -d= -f2)
 
 # Get BOSH client secret
-BOSH_CLIENT_SECRET=$(om curl -p /api/v0/deployed/director/credentials/bosh_commandline_credentials | jq -r '.credential' | grep BOSH_CLIENT_SECRET= | cut -d= -f2)
+BOSH_CLIENT_SECRET=$(om curl -s -p /api/v0/deployed/director/credentials/bosh_commandline_credentials | jq -r '.credential' | awk '{print $2}' | cut -d= -f2)
 
-# Get BOSH CA certificate
-om curl -p /api/v0/deployed/director/credentials/bosh_commandline_credentials | jq -r '.credential' | grep -A 50 "BEGIN CERTIFICATE" | sed "s/.*BOSH_CA_CERT='//" | sed "s/' bosh//" > bosh-ca.crt
+# Get BOSH CA certificate (the active one -- in case its been rotated)
+om certificate-authorities -f json | jq -r '.[] | select(.active==true) | .cert_pem' > bosh-ca.crt
 
 # Get BOSH Director IP
-BOSH_ENVIRONMENT=$(om curl -p /api/v0/deployed/director/credentials/bosh_commandline_credentials | jq -r '.credential' | grep BOSH_ENVIRONMENT= | cut -d= -f2 | awk '{print $1}')
+BOSH_ENVIRONMENT=$(om curl -s -p /api/v0/deployed/director/credentials/bosh_commandline_credentials | jq -r '.credential' | awk '{print $4}' | cut -d= -f2)
 ```
 
 ### Get BOSH Deployment Name
@@ -100,12 +103,13 @@ export BOSH_ENVIRONMENT=https://$BOSH_ENVIRONMENT:25555
 bosh deployments
 
 # Look for deployment starting with "cf-" (e.g., "cf-abc123def456")
+bosh deployments --json | jq -r '.Tables[0].Rows[] | select(.name | startswith("cf-")) | .name'
 ```
 
 Save the deployment name:
 
 ```bash
-export BOSH_DEPLOYMENT=cf-abc123def456  # Replace with your actual deployment name
+export BOSH_DEPLOYMENT=$(bosh deployments --json | jq -r '.Tables[0].Rows[] | select(.name | startswith("cf-")) | .name')
 ```
 
 ---
@@ -268,6 +272,7 @@ https://capacity-ui.apps.your-domain.com
 ```
 
 You should see:
+
 - Diego cell capacity metrics
 - Application memory usage
 - Isolation segment filtering
@@ -293,16 +298,19 @@ You should see:
 **Symptom**: `cf app capacity-backend` shows crashed status
 
 **Check logs**:
+
 ```bash
 cf logs capacity-backend --recent
 ```
 
 **Common issues**:
+
 - Missing required environment variables (CF_API_URL, CF_USERNAME, CF_PASSWORD)
 - Invalid CF credentials
 - Go buildpack compilation errors
 
 **Solution**:
+
 ```bash
 # Verify all environment variables are set
 cf env capacity-backend
@@ -319,17 +327,20 @@ cf restage capacity-backend
 **Symptom**: Backend runs but `bosh_api: "not_configured"` or errors in logs about BOSH
 
 **Check logs**:
+
 ```bash
 cf logs capacity-backend --recent | grep -i bosh
 ```
 
 **Common issues**:
+
 - BOSH Director IP not accessible from CF network
 - Incorrect BOSH credentials
 - Missing or invalid CA certificate
 - Wrong BOSH deployment name
 
 **Solution**:
+
 ```bash
 # Verify BOSH credentials
 cf env capacity-backend | grep BOSH
@@ -349,15 +360,18 @@ $ curl -k https://10.0.0.6:25555/info
 **Symptom**: Dashboard displays, but metadata shows `cached: false` and generic data
 
 **Check browser console**:
+
 - Open Developer Tools (F12)
 - Look for CORS errors or fetch failures
 
 **Common issues**:
+
 - VITE_API_URL points to wrong backend URL
 - Backend is down or unreachable
 - CORS not enabled (should be enabled by default)
 
 **Solution**:
+
 ```bash
 # Verify backend is running
 cf app capacity-backend
@@ -379,6 +393,7 @@ cf push
 **Check**: Backend CORS headers should be enabled by default in the `handlers.go` file.
 
 **Verify CORS**:
+
 ```bash
 BACKEND_URL=$(cf app capacity-backend | grep routes: | awk '{print $2}')
 curl -i -X OPTIONS https://$BACKEND_URL/api/dashboard
@@ -395,16 +410,19 @@ curl -i -X OPTIONS https://$BACKEND_URL/api/dashboard
 **Symptom**: Backend app restarts frequently due to memory limits
 
 **Check**:
+
 ```bash
 cf app capacity-backend  # Look at memory usage
 ```
 
 **Solution**: Increase memory allocation in `backend/manifest.yml`:
+
 ```yaml
 memory: 512M  # Increase from 256M
 ```
 
 Then:
+
 ```bash
 cf push
 ```
@@ -416,6 +434,7 @@ cf push
 **Check**: Cache may not be working, or CF/BOSH APIs are slow
 
 **Verify cache**:
+
 ```bash
 # First request (cache miss)
 time curl https://$BACKEND_URL/api/dashboard
@@ -425,6 +444,7 @@ time curl https://$BACKEND_URL/api/dashboard
 ```
 
 **Solution**:
+
 - First load will be slow (fetching from CF + BOSH)
 - Subsequent loads within 5 minutes should be instant (cached)
 - Increase `CACHE_TTL` if needed: `cf set-env capacity-backend CACHE_TTL 600`
@@ -520,6 +540,7 @@ cf bind-service capacity-backend <credhub-service-instance>
 **Current state**: No authentication on frontend
 
 **Production recommendation**: Add authentication via:
+
 - OAuth2/OIDC integration
 - CF SSO tile
 - Custom authentication layer
@@ -588,6 +609,7 @@ cf app capacity-ui
 ### Common Log Messages
 
 **Backend**:
+
 ```
 Starting Diego Capacity Analyzer Backend
 CF API: https://api.sys.example.com
@@ -597,6 +619,7 @@ Server listening on :8080
 ```
 
 **Expected in logs**:
+
 - `Fetching fresh data` - Cache miss, querying APIs
 - `Serving from cache` - Cache hit, returning cached data
 - `BOSH API error (degraded mode)` - BOSH unavailable, running without cell metrics
@@ -628,8 +651,8 @@ Server listening on :8080
 │  │              (5 minute TTL)                          │   │
 │  └──────────────────────────────────────────────────────┘   │
 └────────┬──────────────────────────────────┬─────────────────┘
-         │ HTTPS                             │ HTTPS
-         ▼                                   ▼
+         │ HTTPS                            │ HTTPS
+         ▼                                  ▼
 ┌─────────────────────┐          ┌─────────────────────────┐
 │    CF API v3        │          │    BOSH Director        │
 │  (Apps, Segments)   │          │   (Diego Cell VMs)      │
@@ -637,6 +660,7 @@ Server listening on :8080
 ```
 
 **Data Flow**:
+
 1. User opens frontend in browser
 2. Frontend fetches `/api/dashboard` from backend
 3. Backend checks cache (5min TTL)
@@ -652,6 +676,7 @@ Server listening on :8080
 ## Support
 
 For issues or questions:
+
 - Check application logs: `cf logs <app-name> --recent`
 - Review this troubleshooting guide
 - Check backend health: `curl https://$BACKEND_URL/api/health`
