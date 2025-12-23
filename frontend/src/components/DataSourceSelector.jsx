@@ -35,14 +35,16 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
     checkVsphereStatus();
   }, []);
 
-  // Handle mode selection - auto-fetch for live mode
+  // Handle mode selection - auto-trigger actions for live and upload modes
   const handleModeSelect = async (newMode) => {
     setMode(newMode);
     setError(null);
 
-    // Auto-fetch when selecting live mode
     if (newMode === 'live') {
       await handleFetchLive();
+    } else if (newMode === 'upload') {
+      // Trigger file picker immediately
+      setTimeout(() => fileInputRef.current?.click(), 0);
     }
   };
 
@@ -262,44 +264,40 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
         </div>
       )}
 
+      {/* Hidden file input - triggered by Upload JSON button */}
+      <input
+        type="file"
+        accept=".json"
+        onChange={handleFileUpload}
+        ref={fileInputRef}
+        className="hidden"
+      />
+
       {mode === 'upload' && (
         <div className="space-y-4">
-          <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center bg-slate-700/30">
-            <input
-              type="file"
-              accept=".json"
-              onChange={handleFileUpload}
-              ref={fileInputRef}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="text-cyan-400 hover:text-cyan-300 font-medium"
-            >
-              Click to upload JSON file
-            </button>
-            <p className="text-sm text-gray-500 mt-2">
-              or drag and drop
-            </p>
-          </div>
-
-          <div className="border-t border-slate-700 pt-4">
-            <p className="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-400 flex items-center gap-2">
               <FolderOpen size={16} />
               Or load a sample configuration:
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              {SAMPLE_FILES.map((sample) => (
-                <button
-                  key={sample.file}
-                  onClick={() => handleLoadSample(sample.file)}
-                  disabled={loading}
-                  className="text-left px-3 py-2 text-sm bg-slate-700/50 text-gray-300 hover:bg-slate-600/50 rounded border border-slate-600 disabled:opacity-50 transition-colors"
-                >
-                  {sample.name}
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="text-sm text-cyan-400 hover:text-cyan-300"
+            >
+              Choose different file...
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {SAMPLE_FILES.map((sample) => (
+              <button
+                key={sample.file}
+                onClick={() => handleLoadSample(sample.file)}
+                disabled={loading}
+                className="text-left px-3 py-2 text-sm bg-slate-700/50 text-gray-300 hover:bg-slate-600/50 rounded border border-slate-600 disabled:opacity-50 transition-colors"
+              >
+                {sample.name}
+              </button>
+            ))}
           </div>
         </div>
       )}
