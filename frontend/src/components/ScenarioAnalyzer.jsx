@@ -3,7 +3,7 @@
 // ABOUTME: Combines data source, comparison table, and warnings
 
 import { useState, useEffect, useMemo } from 'react';
-import { Calculator, RefreshCw, FileDown, Sparkles, ChevronDown, ChevronUp, Plus, X, Settings2, Server, HardDrive, Cpu, Database } from 'lucide-react';
+import { Calculator, RefreshCw, FileDown, Sparkles, ChevronDown, ChevronUp, Plus, X, Settings2, Server, HardDrive, Cpu, Database, AlertCircle } from 'lucide-react';
 import DataSourceSelector from './DataSourceSelector';
 import ScenarioResults from './ScenarioResults';
 import { scenarioApi } from '../services/scenarioApi';
@@ -129,6 +129,7 @@ const ScenarioAnalyzer = () => {
   }, [infrastructureData]);
 
   // Calculate equivalent cell count suggestion when VM size changes
+  // Only show when user might accidentally reduce capacity
   const equivalentCellSuggestion = useMemo(() => {
     if (!currentConfig || currentConfig.totalMemoryGB === 0) return null;
 
@@ -141,8 +142,9 @@ const ScenarioAnalyzer = () => {
     // Calculate equivalent cells to maintain same total capacity
     const equivalentCells = Math.round(currentConfig.totalMemoryGB / proposedMemoryGB);
 
-    // Only show if different from current cell count
-    if (equivalentCells === cellCount) return null;
+    // Only show if user's cell count is BELOW equivalent (might be reducing capacity)
+    // Don't show if user is clearly expanding (cellCount >= equivalentCells)
+    if (cellCount >= equivalentCells) return null;
 
     return {
       equivalentCells,
@@ -150,6 +152,66 @@ const ScenarioAnalyzer = () => {
       currentTotalGB: currentConfig.totalMemoryGB,
     };
   }, [currentConfig, selectedPreset, customMemory, cellCount]);
+
+  // Compute IaaS capacity from loaded data (if available)
+  const iaasCapacity = useMemo(() => {
+    if (!infrastructureData?.clusters?.length) return null;
+
+    const clusters = infrastructureData.clusters;
+    const totalHosts = clusters.reduce((sum, c) => sum + (c.host_count || 0), 0);
+
+    // Only show if we have IaaS-level data (hosts with memory)
+    if (totalHosts === 0) return null;
+
+    // Handle both formats: vSphere has memory_gb (total), manual has memory_gb_per_host
+    const totalMemoryGB = clusters.reduce((sum, c) => {
+      if (c.memory_gb) return sum + c.memory_gb;
+      return sum + (c.host_count || 0) * (c.memory_gb_per_host || 0);
+    }, 0);
+
+    if (totalMemoryGB === 0) return null;
+
+    const totalCPUCores = clusters.reduce((sum, c) => {
+      if (c.cpu_cores) return sum + c.cpu_cores;
+      return sum + (c.host_count || 0) * (c.cpu_cores_per_host || 64);
+    }, 0);
+
+    // N-1 memory for HA
+    const n1MemoryGB = clusters.reduce((sum, c) => {
+      if (c.n1_memory_gb) return sum + c.n1_memory_gb;
+      const hostCount = c.host_count || 0;
+      const memPerHost = c.memory_gb_per_host || (c.memory_gb / hostCount) || 0;
+      return sum + ((hostCount - 1) * memPerHost);
+    }, 0);
+
+    return {
+      totalHosts,
+      totalMemoryGB,
+      totalCPUCores,
+      n1MemoryGB,
+    };
+  }, [infrastructureData]);
+
+  // Compute max deployable cells based on proposed cell size and IaaS capacity
+  const maxCellsEstimate = useMemo(() => {
+    if (!iaasCapacity) return null;
+
+    const preset = VM_SIZE_PRESETS[selectedPreset];
+    const proposedMemoryGB = preset.memoryGB || customMemory;
+    const proposedCPU = preset.cpu || customCPU;
+
+    const byMemory = Math.floor(iaasCapacity.n1MemoryGB / proposedMemoryGB);
+    const byCPU = Math.floor(iaasCapacity.totalCPUCores / proposedCPU);
+    const maxCells = Math.min(byMemory, byCPU);
+    const bottleneck = byMemory <= byCPU ? 'memory' : 'cpu';
+
+    return {
+      maxCells,
+      byMemory,
+      byCPU,
+      bottleneck,
+    };
+  }, [iaasCapacity, selectedPreset, customMemory, customCPU]);
 
   const handleCompare = async () => {
     if (!infrastructureState) return;
@@ -314,6 +376,29 @@ const ScenarioAnalyzer = () => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* IaaS Quick Reference - only shows when IaaS data is available */}
+      {maxCellsEstimate && infrastructureState && (
+        <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-600/30 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Server size={18} className="text-teal-400" />
+            <div>
+              <span className="text-gray-400 text-sm">IaaS Capacity:</span>
+              <span className="ml-2 text-teal-400 font-mono font-bold">{maxCellsEstimate.maxCells}</span>
+              <span className="text-gray-400 text-sm ml-1">max cells</span>
+              <span className="text-gray-500 text-xs ml-2">
+                ({maxCellsEstimate.bottleneck}-limited)
+              </span>
+            </div>
+          </div>
+          {cellCount > maxCellsEstimate.maxCells && (
+            <div className="flex items-center gap-2 text-amber-400 text-sm">
+              <AlertCircle size={16} />
+              <span>Exceeds IaaS capacity by {cellCount - maxCellsEstimate.maxCells} cells</span>
+            </div>
+          )}
         </div>
       )}
 
