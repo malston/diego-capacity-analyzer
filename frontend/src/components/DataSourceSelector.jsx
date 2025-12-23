@@ -11,6 +11,8 @@ const SAMPLE_FILES = [
   { name: 'Medium Foundation (Staging)', file: 'medium-foundation.json' },
   { name: 'Large Foundation (Production)', file: 'large-foundation.json' },
   { name: 'Enterprise Multi-Cluster', file: 'multi-cluster-enterprise.json' },
+  { name: 'Diego Benchmark 50K', file: 'diego-benchmark-50k.json' },
+  { name: 'Diego Benchmark 250K', file: 'diego-benchmark-250k.json' },
 ];
 
 const DataSourceSelector = ({ onDataLoaded, currentData }) => {

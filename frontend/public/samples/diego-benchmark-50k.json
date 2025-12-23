@@ -1,0 +1,21 @@
+{
+  "name": "Diego Benchmark 50K (GCP)",
+  "description": "Based on Cloud Foundry Diego performance benchmark for 50K LRP instances",
+  "source": "https://github.com/cloudfoundry/diego-notes/blob/main/proposals/measuring_performance.md",
+  "clusters": [
+    {
+      "name": "diego-benchmark-cluster",
+      "host_count": 20,
+      "memory_gb_per_host": 512,
+      "cpu_cores_per_host": 32,
+      "diego_cell_count": 250,
+      "diego_cell_memory_gb": 32,
+      "diego_cell_cpu": 2,
+      "diego_cell_disk_gb": 64
+    }
+  ],
+  "platform_vms_gb": 1200,
+  "total_app_memory_gb": 7120,
+  "total_app_disk_gb": 10000,
+  "total_app_instances": 62500
+}
