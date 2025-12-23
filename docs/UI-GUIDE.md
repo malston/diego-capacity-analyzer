@@ -88,14 +88,16 @@ Toggle via the **What-If Mode** button. Explores: "What if I enabled memory over
 
 ### Overcommit Risk Levels
 
-| Ratio | Risk | When to Use |
+| Ratio | Risk | Typical Use |
 |-------|------|-------------|
-| **1.0x** | None | Mission-critical workloads, compliance requirements |
-| **1.2-1.3x** | Low | Well-understood workloads with predictable memory |
-| **1.5x** | Medium | Dev/test environments, stateless apps |
-| **2.0x** | High | Only with robust monitoring; expect occasional OOM |
+| **1.0-1.3x** | Low | Production, mission-critical |
+| **1.5-2.0x** | Medium | Dev/test, well-understood workloads |
+| **2.0-3.0x** | High | Labs, demos, low-traffic environments |
+| **3.0x+** | Very High | Labs with minimal app utilization |
 
 **Warning:** Overcommit lets you pack more apps, but if apps spike memory simultaneously, you risk OOM kills. Use cautiously and monitor closely.
+
+**Real-world example:** A Small Footprint TPCF lab might run 3.75x overcommit (61 GB advertised on a 16 GB cell) because lab apps have minimal utilization. This would cause OOM kills under production traffic.
 
 ---
 
