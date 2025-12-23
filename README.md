@@ -41,9 +41,12 @@ npm install
 npm run dev
 ```
 
-## Deployment to Cloud Foundry
+## Documentation
 
-For complete deployment instructions, see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+- **[UI Guide](docs/UI-GUIDE.md)** - Understanding the dashboard metrics and visualizations
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Complete deployment instructions for Cloud Foundry
+
+## Deployment to Cloud Foundry
 
 ### Quick Deploy
 
