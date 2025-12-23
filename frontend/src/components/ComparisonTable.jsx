@@ -17,16 +17,16 @@ const formatGB = (gb) => {
 const ChangeIndicator = ({ current, proposed, inverse = false }) => {
   const diff = proposed - current;
   if (Math.abs(diff) < 0.1) {
-    return <span className="text-gray-400"><Minus size={16} /></span>;
+    return <span className="text-slate-500"><Minus size={16} /></span>;
   }
   const isPositive = inverse ? diff < 0 : diff > 0;
   return isPositive ? (
-    <span className="text-green-600 flex items-center gap-1">
+    <span className="text-emerald-400 flex items-center gap-1">
       <TrendingUp size={16} />
       {diff > 0 ? '+' : ''}{formatNumber(diff)}
     </span>
   ) : (
-    <span className="text-red-600 flex items-center gap-1">
+    <span className="text-red-400 flex items-center gap-1">
       <TrendingDown size={16} />
       {diff > 0 ? '+' : ''}{formatNumber(diff)}
     </span>
@@ -90,37 +90,37 @@ const ComparisonTable = ({ comparison }) => {
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-slate-900/50 rounded-lg border border-slate-700/50 overflow-hidden">
       <table className="w-full">
-        <thead className="bg-gray-50">
+        <thead className="bg-slate-800/50">
           <tr>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300">
               Metric
             </th>
-            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+            <th className="px-4 py-3 text-right text-sm font-semibold text-slate-300">
               Current ({current.cell_cpu}×{current.cell_memory_gb})
             </th>
-            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+            <th className="px-4 py-3 text-right text-sm font-semibold text-slate-300">
               Proposed ({proposed.cell_cpu}×{proposed.cell_memory_gb})
             </th>
-            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+            <th className="px-4 py-3 text-right text-sm font-semibold text-slate-300">
               Change
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200">
+        <tbody className="divide-y divide-slate-700/50">
           {metrics.map((m) => (
-            <tr key={m.label} className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-sm text-gray-900">{m.label}</td>
-              <td className="px-4 py-3 text-sm text-right text-gray-900">
+            <tr key={m.label} className="hover:bg-slate-800/30 transition-colors">
+              <td className="px-4 py-3 text-sm text-slate-200">{m.label}</td>
+              <td className="px-4 py-3 text-sm text-right text-slate-200">
                 {m.format ? m.format(m.current) : m.current}
               </td>
-              <td className="px-4 py-3 text-sm text-right text-gray-900">
+              <td className="px-4 py-3 text-sm text-right text-slate-200">
                 {m.format ? m.format(m.proposed) : m.proposed}
               </td>
               <td className="px-4 py-3 text-sm text-right">
                 {m.noChange ? (
-                  <span className="text-gray-400">—</span>
+                  <span className="text-slate-500">—</span>
                 ) : (
                   <ChangeIndicator
                     current={m.current}

@@ -3,7 +3,7 @@
 // ABOUTME: Supports live vSphere, JSON upload, and manual form entry
 
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, Edit3, RefreshCw, Server, FolderOpen } from 'lucide-react';
+import { Upload, FileText, Edit3, RefreshCw, Server, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { scenarioApi } from '../services/scenarioApi';
 
 const SAMPLE_FILES = [
@@ -20,7 +20,15 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [vsphereConfigured, setVsphereConfigured] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(!currentData); // Collapsed when data exists
   const fileInputRef = useRef(null);
+
+  // Auto-collapse when data is loaded
+  useEffect(() => {
+    if (currentData && !loading) {
+      setIsExpanded(false);
+    }
+  }, [currentData, loading]);
 
   // Check if vSphere is configured on mount
   useEffect(() => {
@@ -34,6 +42,19 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
     };
     checkVsphereStatus();
   }, []);
+
+  // Handle mode selection - auto-trigger actions for live and upload modes
+  const handleModeSelect = async (newMode) => {
+    setMode(newMode);
+    setError(null);
+
+    if (newMode === 'live') {
+      await handleFetchLive();
+    } else if (newMode === 'upload') {
+      // Trigger file picker immediately
+      setTimeout(() => fileInputRef.current?.click(), 0);
+    }
+  };
 
   // Manual entry form state
   const [formData, setFormData] = useState({
@@ -183,26 +204,73 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
     }
   };
 
+  // Collapsed view - just shows current data summary with expand option
+  if (!isExpanded && currentData) {
+    const clusterCount = currentData.clusters?.length || 0;
+    const hostCount = currentData.clusters?.reduce((sum, c) => sum + c.host_count, 0) || 0;
+    const cellCount = currentData.clusters?.reduce((sum, c) => sum + c.diego_cell_count, 0) || 0;
+
+    return (
+      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 mb-4">
+        <button
+          onClick={() => setIsExpanded(true)}
+          className="w-full p-4 flex items-center justify-between hover:bg-slate-700/30 transition-colors rounded-xl"
+        >
+          <div className="flex items-center gap-3">
+            <ChevronRight size={18} className="text-gray-500" />
+            <span className="font-medium text-gray-200">{currentData.name}</span>
+            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+              currentData.source === 'vsphere'
+                ? 'bg-emerald-900/50 text-emerald-400'
+                : 'bg-cyan-900/50 text-cyan-400'
+            }`}>
+              {currentData.source === 'vsphere' ? 'Live' : 'Manual'}
+            </span>
+          </div>
+          <span className="text-sm text-gray-400">
+            {clusterCount} cluster{clusterCount !== 1 ? 's' : ''} · {hostCount} host{hostCount !== 1 ? 's' : ''} · {cellCount} cell{cellCount !== 1 ? 's' : ''}
+          </span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 mb-4">
-      <h3 className="text-lg font-semibold mb-4 text-gray-200">Infrastructure Data Source</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-200">Infrastructure Data Source</h3>
+        {currentData && (
+          <button
+            onClick={() => setIsExpanded(false)}
+            className="text-sm text-gray-400 hover:text-gray-300 flex items-center gap-1"
+          >
+            <ChevronDown size={16} />
+            Collapse
+          </button>
+        )}
+      </div>
 
       <div className="flex gap-3 mb-4 flex-wrap">
         {vsphereConfigured && (
           <button
-            onClick={() => setMode('live')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors ${
+            onClick={() => handleModeSelect('live')}
+            disabled={loading && mode === 'live'}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors disabled:opacity-70 ${
               mode === 'live'
                 ? 'bg-emerald-600 text-white'
                 : 'bg-slate-700 text-gray-300 hover:bg-slate-600 border border-slate-600'
             }`}
           >
-            <Server size={16} />
-            Live (vSphere)
+            {loading && mode === 'live' ? (
+              <RefreshCw size={16} className="animate-spin" />
+            ) : (
+              <Server size={16} />
+            )}
+            {loading && mode === 'live' ? 'Connecting...' : 'Live (vSphere)'}
           </button>
         )}
         <button
-          onClick={() => setMode('upload')}
+          onClick={() => handleModeSelect('upload')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors ${
             mode === 'upload'
               ? 'bg-cyan-600 text-white'
@@ -213,7 +281,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
           Upload JSON
         </button>
         <button
-          onClick={() => setMode('manual')}
+          onClick={() => handleModeSelect('manual')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors ${
             mode === 'manual'
               ? 'bg-cyan-600 text-white'
@@ -234,69 +302,52 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
         )}
       </div>
 
-      {mode === 'live' && (
+      {mode === 'live' && loading && (
         <div className="border border-emerald-700/30 bg-emerald-900/20 rounded-lg p-6">
-          <div className="text-center">
-            <p className="text-gray-300 mb-4">
-              Fetch infrastructure data directly from vSphere
-            </p>
-            <button
-              onClick={handleFetchLive}
-              disabled={loading}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg mx-auto transition-colors ${
-                loading
-                  ? 'bg-slate-600 cursor-not-allowed text-gray-400'
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-              }`}
-            >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-              {loading ? 'Fetching...' : 'Fetch from vSphere'}
-            </button>
-            <p className="text-sm text-gray-500 mt-3">
-              Connects to vCenter to discover clusters, hosts, and Diego cells
-            </p>
+          <div className="flex items-center justify-center gap-3 text-emerald-300">
+            <RefreshCw size={20} className="animate-spin" />
+            <span>Connecting to vSphere...</span>
           </div>
+          <p className="text-sm text-gray-500 mt-2 text-center">
+            Discovering clusters, hosts, and Diego cells
+          </p>
         </div>
       )}
 
+      {/* Hidden file input - triggered by Upload JSON button */}
+      <input
+        type="file"
+        accept=".json"
+        onChange={handleFileUpload}
+        ref={fileInputRef}
+        className="hidden"
+      />
+
       {mode === 'upload' && (
         <div className="space-y-4">
-          <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center bg-slate-700/30">
-            <input
-              type="file"
-              accept=".json"
-              onChange={handleFileUpload}
-              ref={fileInputRef}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="text-cyan-400 hover:text-cyan-300 font-medium"
-            >
-              Click to upload JSON file
-            </button>
-            <p className="text-sm text-gray-500 mt-2">
-              or drag and drop
-            </p>
-          </div>
-
-          <div className="border-t border-slate-700 pt-4">
-            <p className="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-gray-400 flex items-center gap-2">
               <FolderOpen size={16} />
               Or load a sample configuration:
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              {SAMPLE_FILES.map((sample) => (
-                <button
-                  key={sample.file}
-                  onClick={() => handleLoadSample(sample.file)}
-                  disabled={loading}
-                  className="text-left px-3 py-2 text-sm bg-slate-700/50 text-gray-300 hover:bg-slate-600/50 rounded border border-slate-600 disabled:opacity-50 transition-colors"
-                >
-                  {sample.name}
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="text-sm text-cyan-400 hover:text-cyan-300"
+            >
+              Choose different file...
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {SAMPLE_FILES.map((sample) => (
+              <button
+                key={sample.file}
+                onClick={() => handleLoadSample(sample.file)}
+                disabled={loading}
+                className="text-left px-3 py-2 text-sm bg-slate-700/50 text-gray-300 hover:bg-slate-600/50 rounded border border-slate-600 disabled:opacity-50 transition-colors"
+              >
+                {sample.name}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -478,31 +529,6 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
 
       {error && (
         <p className="text-red-400 text-sm mt-2">{error}</p>
-      )}
-
-      {currentData && (
-        <div className="mt-4 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
-          <div className="flex items-center justify-between">
-            <p className="font-medium text-gray-200">{currentData.name}</p>
-            {currentData.source && (
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                currentData.source === 'vsphere'
-                  ? 'bg-emerald-900/50 text-emerald-400'
-                  : 'bg-cyan-900/50 text-cyan-400'
-              }`}>
-                {currentData.source === 'vsphere' ? 'Live' : 'Manual'}
-              </span>
-            )}
-          </div>
-          <p className="text-gray-400 text-sm mt-1">
-            {currentData.clusters?.length || 0} clusters, {' '}
-            {currentData.clusters?.reduce((sum, c) => sum + c.host_count, 0) || 0} hosts, {' '}
-            {currentData.clusters?.reduce((sum, c) => sum + c.diego_cell_count, 0) || 0} cells
-          </p>
-          {currentData.cached && (
-            <p className="text-xs text-gray-500 mt-1">Cached data</p>
-          )}
-        </div>
       )}
     </div>
   );
