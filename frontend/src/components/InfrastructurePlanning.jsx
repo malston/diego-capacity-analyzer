@@ -41,8 +41,17 @@ const InfrastructurePlanning = () => {
     setPlanningResult(null);
 
     try {
-      const state = await scenarioApi.setManualInfrastructure(data);
-      setInfrastructureState(state);
+      // If data is already InfrastructureState (from vSphere), use the state endpoint
+      // For manual input, use the manual endpoint which converts to state
+      if (data.source === 'vsphere' || data.source === 'manual') {
+        // Data is already InfrastructureState format
+        const state = await scenarioApi.setInfrastructureState(data);
+        setInfrastructureState(state);
+      } else {
+        // Data is ManualInput format, convert to state on backend
+        const state = await scenarioApi.setManualInfrastructure(data);
+        setInfrastructureState(state);
+      }
     } catch (err) {
       setError(err.message);
     } finally {

@@ -243,6 +243,28 @@ func (h *Handler) HandleManualInfrastructure(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(state)
 }
 
+// HandleSetInfrastructureState accepts an InfrastructureState directly (e.g., from vSphere cache)
+func (h *Handler) HandleSetInfrastructureState(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var state models.InfrastructureState
+	if err := json.NewDecoder(r.Body).Decode(&state); err != nil {
+		writeError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	h.infraMutex.Lock()
+	h.infrastructureState = &state
+	h.infraMutex.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(state)
+}
+
 // HandleInfrastructure returns live infrastructure data from vSphere
 func (h *Handler) HandleInfrastructure(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
