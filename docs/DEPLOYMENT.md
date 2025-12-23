@@ -267,7 +267,7 @@ echo "Open this URL in your browser: https://$UI_URL"
 
 Navigate to the frontend URL in your browser:
 
-```
+```text
 https://capacity-ui.apps.your-domain.com
 ```
 
@@ -549,6 +549,36 @@ cf bind-service capacity-backend <credhub-service-instance>
 
 ## Advanced Configuration
 
+### Logging Configuration
+
+The backend uses structured logging with Go's `log/slog` package.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, `error` |
+| `LOG_FORMAT` | `text` | Output format: `text` (human-readable) or `json` (machine-parseable) |
+
+```bash
+# Enable debug logging for troubleshooting
+cf set-env capacity-backend LOG_LEVEL debug
+cf restage capacity-backend
+
+# Use JSON format for log aggregation systems
+cf set-env capacity-backend LOG_FORMAT json
+cf restage capacity-backend
+```
+
+**Example output (text format):**
+```text
+time=2025-12-23T10:00:00Z level=INFO msg="Starting server" port=8080
+time=2025-12-23T10:00:01Z level=INFO msg="CF API authenticated" api_url=https://api.sys.example.com
+```
+
+**Example output (JSON format):**
+```json
+{"time":"2025-12-23T10:00:00Z","level":"INFO","msg":"Starting server","port":8080}
+```
+
 ### Adjust Cache TTL
 
 Default: 5 minutes (300 seconds)
@@ -610,7 +640,7 @@ cf app capacity-ui
 
 **Backend**:
 
-```
+```text
 Starting Diego Capacity Analyzer Backend
 CF API: https://api.sys.example.com
 BOSH: https://10.0.0.6:25555
@@ -628,7 +658,7 @@ Server listening on :8080
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                        Browser                              │
 │                     (User Interface)                        │
