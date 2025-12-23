@@ -2,7 +2,7 @@
 # ABOUTME: Includes backend (Go) and frontend (React) commands
 
 .PHONY: help all build test lint check clean
-.PHONY: backend-build backend-test backend-lint backend-clean backend-run
+.PHONY: backend-build backend-test backend-lint backend-clean backend-run backend-dev backend-air
 .PHONY: frontend-build frontend-test frontend-lint frontend-dev frontend-clean
 
 .DEFAULT_GOAL := help
@@ -50,6 +50,12 @@ backend-clean: ## Remove backend build artifacts
 
 backend-run: backend-build ## Build and run the backend server
 	cd backend && ./capacity-backend
+
+backend-dev: ## Run backend with auto-reload (requires watchexec)
+	cd backend && watchexec -r -e go -- go run .
+
+backend-air: ## Run backend with auto-reload (requires air)
+	cd backend && air
 
 #
 # Frontend targets (React/Vite)
