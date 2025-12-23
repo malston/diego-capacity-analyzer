@@ -204,7 +204,7 @@ func (v *VSphereClient) getHostInfo(ctx context.Context, host *object.HostSystem
 	info := HostInfo{
 		Name:        host.Name(),
 		MemoryMB:    hostMo.Summary.Hardware.MemorySize / (1024 * 1024),
-		CPUCores:    int32(hostMo.Summary.Hardware.NumCpuCores),
+		CPUCores:    int32(hostMo.Summary.Hardware.NumCpuThreads), // Logical processors (includes hyperthreading)
 		InCluster:   clusterName,
 		PowerState:  string(hostMo.Runtime.PowerState),
 		Maintenance: hostMo.Runtime.InMaintenanceMode,
