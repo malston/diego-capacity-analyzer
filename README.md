@@ -6,19 +6,12 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 ![React](https://img.shields.io/badge/react-18.2-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-## Architecture
-
-- **Backend:** Go HTTP service (CF app) - proxies CF API, queries BOSH for cell metrics
-- **Frontend:** React SPA (CF app with static buildpack) - dashboard UI
-
 ## Features
 
 - **Real-time Capacity Monitoring** - Track diego cell memory, CPU, and utilization across all cells
 - **Isolation Segment Filtering** - View metrics by isolation segment (default, production, development)
 - **What-If Scenario Modeling** - Simulate memory overcommit changes to see potential capacity gains
 - **Right-Sizing Recommendations** - Identify over-provisioned apps with specific memory recommendations
-- **Interactive Visualizations** - Bar charts, pie charts, and detailed tables with live data
-- **Professional UI** - Dark theme with technical typography and smooth animations
 
 ## Quick Start (Local Development)
 
@@ -46,20 +39,10 @@ npm run dev
 - **[UI Guide](docs/UI-GUIDE.md)** - Understanding the dashboard metrics and visualizations
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Complete deployment instructions for Cloud Foundry
 
-## Architecture Diagram
-
-```console
-Frontend (React)  →  Backend (Go)  →  CF API v3
-                             ↓
-                          BOSH API (Diego cells)
-                             ↓
-                      In-Memory Cache (5min TTL)
-```
-
 ## Project Structure
 
 ```sh
-├── backend/              # Go HTTP service
+├── backend/             # Go HTTP service
 │   ├── main.go
 │   ├── config/          # Configuration loader
 │   ├── models/          # Data models
