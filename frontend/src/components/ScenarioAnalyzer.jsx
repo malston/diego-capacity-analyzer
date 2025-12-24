@@ -291,7 +291,7 @@ const ScenarioAnalyzer = () => {
           <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg">
             <Sparkles className="text-white" size={20} />
           </div>
-          What-If Scenario Analysis
+          Capacity Planning
         </h2>
       </div>
 
@@ -379,26 +379,80 @@ const ScenarioAnalyzer = () => {
         </div>
       )}
 
-      {/* IaaS Quick Reference - only shows when IaaS data is available */}
-      {maxCellsEstimate && infrastructureState && (
-        <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-600/30 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Server size={18} className="text-teal-400" />
-            <div>
-              <span className="text-gray-400 text-sm">IaaS Capacity:</span>
-              <span className="ml-2 text-teal-400 font-mono font-bold">{maxCellsEstimate.maxCells}</span>
-              <span className="text-gray-400 text-sm ml-1">max cells</span>
-              <span className="text-gray-500 text-xs ml-2">
-                ({maxCellsEstimate.bottleneck}-limited)
+      {/* IaaS Capacity Section */}
+      {iaasCapacity && infrastructureState && (
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 mb-6">
+          <h3 className="text-lg font-semibold mb-4 text-gray-200 flex items-center gap-2">
+            <Server size={18} className="text-cyan-400" />
+            IaaS Capacity
+            {maxCellsEstimate && (
+              <span className="ml-auto text-sm font-normal">
+                <span className="text-gray-400">Max Cells:</span>
+                <span className="ml-2 text-cyan-400 font-mono font-bold">{maxCellsEstimate.maxCells}</span>
+                <span className="text-gray-500 text-xs ml-1">({maxCellsEstimate.bottleneck}-limited)</span>
               </span>
+            )}
+          </h3>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                <Server size={14} />
+                Hosts
+              </div>
+              <div className="text-2xl font-mono font-bold text-cyan-400">
+                {iaasCapacity.totalHosts}
+              </div>
+              {infrastructureData?.clusters?.length > 1 && (
+                <div className="text-xs text-gray-500 mt-1">
+                  across {infrastructureData.clusters.length} clusters
+                </div>
+              )}
+            </div>
+
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                <HardDrive size={14} />
+                Total Memory
+              </div>
+              <div className="text-2xl font-mono font-bold text-cyan-400">
+                {iaasCapacity.totalMemoryGB >= 1000
+                  ? `${(iaasCapacity.totalMemoryGB / 1000).toFixed(1)}T`
+                  : `${iaasCapacity.totalMemoryGB}G`}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                N-1: {iaasCapacity.n1MemoryGB >= 1000
+                  ? `${(iaasCapacity.n1MemoryGB / 1000).toFixed(1)}T`
+                  : `${iaasCapacity.n1MemoryGB}G`}
+              </div>
+            </div>
+
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                <Cpu size={14} />
+                Total vCPUs
+              </div>
+              <div className="text-2xl font-mono font-bold text-cyan-400">
+                {iaasCapacity.totalCPUCores}
+              </div>
+            </div>
+
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                <Calculator size={14} />
+                Max Cells
+              </div>
+              <div className="text-2xl font-mono font-bold text-cyan-400">
+                {maxCellsEstimate?.maxCells || '—'}
+              </div>
+              {maxCellsEstimate && cellCount > maxCellsEstimate.maxCells && (
+                <div className="text-xs text-amber-400 mt-1 flex items-center gap-1">
+                  <AlertCircle size={12} />
+                  Proposed exceeds by {cellCount - maxCellsEstimate.maxCells}
+                </div>
+              )}
             </div>
           </div>
-          {cellCount > maxCellsEstimate.maxCells && (
-            <div className="flex items-center gap-2 text-amber-400 text-sm">
-              <AlertCircle size={16} />
-              <span>Exceeds IaaS capacity by {cellCount - maxCellsEstimate.maxCells} cells</span>
-            </div>
-          )}
         </div>
       )}
 

@@ -11,6 +11,7 @@ const SettingsPanel = ({
   onToggleDataSource,
   onTestConnection,
   onRefresh,
+  devMode = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef(null);
@@ -66,13 +67,15 @@ const SettingsPanel = ({
         <Settings className="w-5 h-5" aria-hidden="true" />
       </button>
 
-      {/* Status indicator dot */}
-      <span
-        className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-slate-950 ${
-          useMockData ? 'bg-amber-400' : 'bg-emerald-400'
-        }`}
-        aria-hidden="true"
-      />
+      {/* Status indicator dot - only show in dev mode */}
+      {devMode && (
+        <span
+          className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-slate-950 ${
+            useMockData ? 'bg-amber-400' : 'bg-emerald-400'
+          }`}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Dropdown panel */}
       {isOpen && (
@@ -95,55 +98,59 @@ const SettingsPanel = ({
 
           {/* Content */}
           <div className="p-4 space-y-4">
-            {/* Data Source Status */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-slate-400" aria-hidden="true" />
-                <span className="text-sm text-slate-300">Data Source</span>
+            {/* Data Source Status - dev mode only */}
+            {devMode && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-slate-400" aria-hidden="true" />
+                  <span className="text-sm text-slate-300">Data Source</span>
+                </div>
+                <span
+                  className={`text-xs font-semibold px-2 py-1 rounded ${
+                    useMockData
+                      ? 'bg-amber-500/20 text-amber-300'
+                      : 'bg-emerald-500/20 text-emerald-300'
+                  }`}
+                >
+                  {useMockData ? 'Mock' : 'Live'}
+                </span>
               </div>
-              <span
-                className={`text-xs font-semibold px-2 py-1 rounded ${
+            )}
+
+            {/* Toggle Button - dev mode only */}
+            {devMode && (
+              <button
+                onClick={() => {
+                  onToggleDataSource();
+                  if (useMockData) {
+                    // Keep panel open when switching to live to show loading state
+                  } else {
+                    setIsOpen(false);
+                  }
+                }}
+                disabled={loading}
+                className={`w-full px-4 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
                   useMockData
-                    ? 'bg-amber-500/20 text-amber-300'
-                    : 'bg-emerald-500/20 text-emerald-300'
-                }`}
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                aria-label={useMockData ? 'Switch to live CF data' : 'Switch to mock data'}
               >
-                {useMockData ? 'Mock' : 'Live'}
-              </span>
-            </div>
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" />
+                    Connecting...
+                  </>
+                ) : useMockData ? (
+                  'Connect to Live CF Data'
+                ) : (
+                  'Switch to Mock Data'
+                )}
+              </button>
+            )}
 
-            {/* Toggle Button */}
-            <button
-              onClick={() => {
-                onToggleDataSource();
-                if (useMockData) {
-                  // Keep panel open when switching to live to show loading state
-                } else {
-                  setIsOpen(false);
-                }
-              }}
-              disabled={loading}
-              className={`w-full px-4 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-                useMockData
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
-                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-              aria-label={useMockData ? 'Switch to live CF data' : 'Switch to mock data'}
-            >
-              {loading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" />
-                  Connecting...
-                </>
-              ) : useMockData ? (
-                'Connect to Live CF Data'
-              ) : (
-                'Switch to Mock Data'
-              )}
-            </button>
-
-            {/* Test Connection (only when using mock) */}
-            {useMockData && (
+            {/* Test Connection - dev mode only, when using mock */}
+            {devMode && useMockData && (
               <button
                 onClick={onTestConnection}
                 disabled={loading}
@@ -155,7 +162,7 @@ const SettingsPanel = ({
               </button>
             )}
 
-            {/* Refresh (only when using live data) */}
+            {/* Refresh - always available when using live data */}
             {!useMockData && (
               <button
                 onClick={onRefresh}
