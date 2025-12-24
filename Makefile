@@ -3,7 +3,7 @@
 
 .PHONY: help all build test lint check clean
 .PHONY: backend-build backend-test backend-lint backend-clean backend-run backend-dev backend-air
-.PHONY: frontend-build frontend-test frontend-lint frontend-dev frontend-clean
+.PHONY: frontend-build frontend-test frontend-lint frontend-dev frontend-preview frontend-clean
 
 .DEFAULT_GOAL := help
 
@@ -78,6 +78,9 @@ frontend-lint: ## Run ESLint on frontend
 
 frontend-dev: ## Start frontend dev server
 	cd frontend && npm run dev
+
+frontend-preview: frontend-build ## Build and preview production build locally
+	cd frontend && npm run preview
 
 frontend-clean: ## Remove frontend build artifacts
 	rm -rf frontend/dist
