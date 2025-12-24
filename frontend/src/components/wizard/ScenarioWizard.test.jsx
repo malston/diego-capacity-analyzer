@@ -37,27 +37,27 @@ describe('ScenarioWizard', () => {
 
   it('renders step indicator', () => {
     render(<ScenarioWizard {...defaultProps} />);
-    expect(screen.getByText('Cell Config')).toBeInTheDocument();
     expect(screen.getByText('Resources')).toBeInTheDocument();
+    expect(screen.getByText('Cell Config')).toBeInTheDocument();
     expect(screen.getByText('Advanced')).toBeInTheDocument();
   });
 
-  it('shows CellConfigStep initially', () => {
+  it('shows ResourceTypesStep initially', () => {
     render(<ScenarioWizard {...defaultProps} />);
-    expect(screen.getByLabelText(/vm size/i)).toBeInTheDocument();
+    expect(screen.getByText(/which resources to analyze/i)).toBeInTheDocument();
   });
 
-  it('advances to ResourceTypesStep after continuing from Step 1', async () => {
+  it('advances to CellConfigStep after continuing from Step 1', async () => {
     render(<ScenarioWizard {...defaultProps} />);
     await userEvent.click(screen.getByRole('button', { name: /continue/i }));
-    expect(screen.getByText(/which resources to analyze/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/vm size/i)).toBeInTheDocument();
   });
 
   it('advances to AdvancedStep after continuing from Step 2', async () => {
     render(<ScenarioWizard {...defaultProps} />);
-    // Step 1 -> Step 2
+    // Step 1 (Resources) -> Step 2 (Cell Config)
     await userEvent.click(screen.getByRole('button', { name: /continue/i }));
-    // Step 2 -> Step 3
+    // Step 2 (Cell Config) -> Step 3 (Advanced)
     await userEvent.click(screen.getByRole('button', { name: /continue/i }));
     expect(screen.getByLabelText(/memory overhead/i)).toBeInTheDocument();
   });
@@ -69,20 +69,19 @@ describe('ScenarioWizard', () => {
     expect(onStepComplete).toHaveBeenCalledWith(0);
   });
 
-  it('allows skipping optional steps', async () => {
+  it('does not show Skip button on required steps', () => {
     render(<ScenarioWizard {...defaultProps} />);
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }));
-    await userEvent.click(screen.getByRole('button', { name: /skip/i }));
-    expect(screen.getByLabelText(/memory overhead/i)).toBeInTheDocument();
+    // Resources step is required, no Skip button
+    expect(screen.queryByRole('button', { name: /skip/i })).not.toBeInTheDocument();
   });
 
   it('allows clicking on completed steps to navigate back', async () => {
     render(<ScenarioWizard {...defaultProps} />);
-    // Go to step 2
+    // Go to step 2 (Cell Config)
     await userEvent.click(screen.getByRole('button', { name: /continue/i }));
-    // Click on step 1 in indicator
-    await userEvent.click(screen.getByText('Cell Config'));
+    // Click on step 1 (Resources) in indicator
+    await userEvent.click(screen.getByText('Resources'));
     // Should show step 1 content
-    expect(screen.getByLabelText(/vm size/i)).toBeInTheDocument();
+    expect(screen.getByText(/which resources to analyze/i)).toBeInTheDocument();
   });
 });

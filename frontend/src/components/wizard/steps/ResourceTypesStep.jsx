@@ -64,13 +64,15 @@ const ResourceTypesStep = ({
       )}
 
       <div className="flex justify-end gap-3 pt-4">
-        <button
-          type="button"
-          onClick={onSkip}
-          className="px-6 py-2.5 text-gray-400 hover:text-gray-300 transition-colors font-medium"
-        >
-          Skip
-        </button>
+        {onSkip && (
+          <button
+            type="button"
+            onClick={onSkip}
+            className="px-6 py-2.5 text-gray-400 hover:text-gray-300 transition-colors font-medium"
+          >
+            Skip
+          </button>
+        )}
         <button
           type="button"
           onClick={onContinue}

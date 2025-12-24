@@ -8,8 +8,8 @@ import ResourceTypesStep from './steps/ResourceTypesStep';
 import AdvancedStep from './steps/AdvancedStep';
 
 const STEPS = [
+  { id: 'resources', label: 'Resources', required: true },
   { id: 'cell-config', label: 'Cell Config', required: true },
-  { id: 'resources', label: 'Resources', required: false },
   { id: 'advanced', label: 'Advanced', required: false },
 ];
 
@@ -61,12 +61,6 @@ const ScenarioWizard = ({
     }
   }, [currentStep, markStepComplete]);
 
-  const handleSkip = useCallback(() => {
-    if (currentStep < STEPS.length - 1) {
-      setCurrentStep(currentStep + 1);
-    }
-  }, [currentStep]);
-
   const handleStepClick = useCallback((stepIndex) => {
     setCurrentStep(stepIndex);
   }, []);
@@ -74,6 +68,16 @@ const ScenarioWizard = ({
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
+        return (
+          <ResourceTypesStep
+            selectedResources={selectedResources}
+            toggleResource={toggleResource}
+            customDisk={customDisk}
+            setCustomDisk={setCustomDisk}
+            onContinue={handleContinue}
+          />
+        );
+      case 1:
         return (
           <CellConfigStep
             selectedPreset={selectedPreset}
@@ -86,17 +90,6 @@ const ScenarioWizard = ({
             setCellCount={setCellCount}
             equivalentCellSuggestion={equivalentCellSuggestion}
             onContinue={handleContinue}
-          />
-        );
-      case 1:
-        return (
-          <ResourceTypesStep
-            selectedResources={selectedResources}
-            toggleResource={toggleResource}
-            customDisk={customDisk}
-            setCustomDisk={setCustomDisk}
-            onContinue={handleContinue}
-            onSkip={handleSkip}
           />
         );
       case 2:
