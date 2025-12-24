@@ -134,22 +134,31 @@ const ScenarioAnalyzer = () => {
     };
   }, [infrastructureData]);
 
-  // Calculate equivalent cell count suggestion when VM size changes
-  // Only show when user might accidentally reduce capacity
+  // Auto-update cell count to equivalent capacity when VM size changes
+  useEffect(() => {
+    if (!currentConfig || currentConfig.totalMemoryGB === 0) return;
+
+    const preset = VM_SIZE_PRESETS[selectedPreset];
+    const proposedMemoryGB = preset.memoryGB || customMemory;
+
+    // Calculate equivalent cells to maintain same total capacity
+    const equivalentCells = Math.round(currentConfig.totalMemoryGB / proposedMemoryGB);
+
+    // Auto-set cell count to equivalent capacity
+    setCellCount(equivalentCells);
+  }, [selectedPreset, customMemory, currentConfig]);
+
+  // Show suggestion when user manually reduces cell count below equivalent capacity
   const equivalentCellSuggestion = useMemo(() => {
     if (!currentConfig || currentConfig.totalMemoryGB === 0) return null;
 
     const preset = VM_SIZE_PRESETS[selectedPreset];
     const proposedMemoryGB = preset.memoryGB || customMemory;
 
-    // If proposed memory is same as current, no suggestion needed
-    if (proposedMemoryGB === currentConfig.cellMemoryGB) return null;
-
     // Calculate equivalent cells to maintain same total capacity
     const equivalentCells = Math.round(currentConfig.totalMemoryGB / proposedMemoryGB);
 
-    // Only show if user's cell count is BELOW equivalent (might be reducing capacity)
-    // Don't show if user is clearly expanding (cellCount >= equivalentCells)
+    // Only show if user's cell count is BELOW equivalent (manually reduced)
     if (cellCount >= equivalentCells) return null;
 
     return {
