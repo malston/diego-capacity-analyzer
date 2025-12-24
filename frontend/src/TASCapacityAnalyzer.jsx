@@ -1,13 +1,12 @@
 // ABOUTME: Main TAS Capacity Analyzer dashboard component
 // ABOUTME: Orchestrates header, metrics, charts, and tabbed content views
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Server, Zap, TrendingUp, AlertTriangle, Layers } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { cfApi } from './services/cfApi';
 import ScenarioAnalyzer from './components/ScenarioAnalyzer';
-import InfrastructurePlanning from './components/InfrastructurePlanning';
 import Header from './components/Header';
 import MetricCards from './components/MetricCards';
 import WhatIfPanel from './components/WhatIfPanel';
@@ -15,17 +14,25 @@ import CellDetailTable from './components/CellDetailTable';
 import { mockData } from './data/mockData';
 import './TASCapacityAnalyzer.css';
 
+// Dev mode: enabled via ?dev=true query param or Vite dev server
+const isDevMode = () => {
+  if (import.meta.env.DEV) return true;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('dev') === 'true';
+};
+
 const TASCapacityAnalyzer = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [overcommitRatio, setOvercommitRatio] = useState(1.0);
   const [selectedSegment, setSelectedSegment] = useState('all');
   const [showWhatIf, setShowWhatIf] = useState(false);
-  const [useMockData, setUseMockData] = useState(true);
+  const [useMockData, setUseMockData] = useState(isDevMode());
   const [data, setData] = useState(mockData);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!isDevMode());
   const [error, setError] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
+  const devMode = isDevMode();
 
   // Load real CF data from backend
   const loadCFData = async () => {
@@ -97,6 +104,13 @@ Check browser console (F12) for details.`;
       setError(null);
     }
   };
+
+  // Auto-load live data on mount in production mode
+  useEffect(() => {
+    if (!devMode) {
+      loadCFData();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate metrics
   const metrics = useMemo(() => {
@@ -195,6 +209,7 @@ Check browser console (F12) for details.`;
         onToggleDataSource={toggleDataSource}
         onTestConnection={testConnection}
         onRefresh={loadCFData}
+        devMode={devMode}
       />
 
       {/* Dashboard Controls (segment filter and What-If toggle) */}
@@ -383,14 +398,7 @@ Check browser console (F12) for details.`;
         </div>
       )}
 
-      {/* Infrastructure Planning Tab Content */}
-      {activeTab === 'planning' && (
-        <div role="tabpanel" id="planning-panel" aria-labelledby="planning-tab" className="mt-8">
-          <InfrastructurePlanning />
-        </div>
-      )}
-
-      {/* Scenario Analysis Tab Content */}
+      {/* Capacity Planning Tab Content */}
       {activeTab === 'scenarios' && (
         <div role="tabpanel" id="scenarios-panel" aria-labelledby="scenarios-tab" className="mt-8">
           <ScenarioAnalyzer />
@@ -399,7 +407,10 @@ Check browser console (F12) for details.`;
 
       {/* Footer */}
       <footer className="mt-8 text-center text-slate-500 text-xs">
-        <p>TAS Capacity Analyzer v1.0 | {useMockData ? 'Mock Data Mode' : 'Live CF API Data'}</p>
+        <p>
+          TAS Capacity Analyzer v1.0
+          {devMode && ` | ${useMockData ? 'Mock Data Mode' : 'Live CF API Data'}`}
+        </p>
         <p className="mt-1">Built for platform engineers by platform engineers</p>
       </footer>
     </div>
