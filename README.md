@@ -9,12 +9,14 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 ## Features
 
 ### Dashboard
+
 - **Real-time Capacity Monitoring** - Track Diego cell memory, CPU, and utilization across all cells
 - **Isolation Segment Filtering** - View metrics by isolation segment
 - **What-If Overcommit Modeling** - Simulate memory overcommit changes to see potential capacity gains
 - **Right-Sizing Recommendations** - Identify over-provisioned apps with specific memory recommendations
 
 ### Capacity Planning
+
 - **Scenario Analysis Wizard** - Step-based configuration: Resources → Cell Config → Advanced
 - **vSphere Infrastructure Discovery** - Live infrastructure data from vCenter
 - **N-1 HA Calculations** - Ensure capacity survives host failure
@@ -23,6 +25,7 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 - **Markdown Export** - Generate analysis reports for stakeholders
 
 ### Data Sources
+
 - **Live vSphere** - Connect to vCenter for real infrastructure data
 - **JSON Upload** - Import infrastructure configurations
 - **Manual Entry** - Define infrastructure manually
@@ -138,7 +141,7 @@ GitHub Actions workflows run automatically:
 
 - **[UI Guide](docs/UI-GUIDE.md)** - Dashboard metrics and visualizations
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Cloud Foundry deployment
-- **[Authentication](AUTHENTICATION.md)** - OAuth2/UAA authentication flow
+- **[Authentication](docs/AUTHENTICATION.md)** - OAuth2/UAA authentication flow
 - **[Backend README](backend/README.md)** - Backend-specific documentation
 
 ## Project Structure
@@ -180,11 +183,13 @@ GitHub Actions workflows run automatically:
 ## Technology Stack
 
 ### Backend
+
 - **Go 1.23** - HTTP server with standard library
 - **govmomi** - vSphere/vCenter API client
 - **socks5-proxy** - SSH tunneling for BOSH
 
 ### Frontend
+
 - **React 18** - UI framework
 - **Vite 5** - Build tool and dev server
 - **Tailwind CSS** - Utility-first styling
