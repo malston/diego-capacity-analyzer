@@ -299,79 +299,6 @@ const ScenarioAnalyzer = () => {
         </div>
       )}
 
-      {/* Current Configuration Summary */}
-      {currentConfig && infrastructureState && (
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 mb-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-200 flex items-center gap-2">
-            <Server size={18} className="text-emerald-400" />
-            Current Configuration
-            <span className="text-xs font-normal text-gray-500 ml-2">
-              (from loaded data)
-            </span>
-          </h3>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
-                <Server size={14} />
-                Cells
-              </div>
-              <div className="text-2xl font-mono font-bold text-emerald-400">
-                {currentConfig.totalCells}
-              </div>
-              {currentConfig.clusterCount > 1 && (
-                <div className="text-xs text-gray-500 mt-1">
-                  across {currentConfig.clusterCount} clusters
-                </div>
-              )}
-            </div>
-
-            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
-                <Cpu size={14} />
-                Cell Size
-              </div>
-              <div className="text-2xl font-mono font-bold text-emerald-400">
-                {currentConfig.cellCpu} <span className="text-gray-500">×</span> {currentConfig.cellMemoryGB}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">vCPU × GB</div>
-            </div>
-
-            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
-                <HardDrive size={14} />
-                Total Memory
-              </div>
-              <div className="text-2xl font-mono font-bold text-emerald-400">
-                {currentConfig.totalMemoryGB >= 1000
-                  ? `${(currentConfig.totalMemoryGB / 1000).toFixed(1)}T`
-                  : `${currentConfig.totalMemoryGB}G`}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {currentConfig.totalCells} × {currentConfig.cellMemoryGB}GB
-              </div>
-            </div>
-
-            {currentConfig.cellDiskGB > 0 && (
-              <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-                <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
-                  <Database size={14} />
-                  Total Disk
-                </div>
-                <div className="text-2xl font-mono font-bold text-emerald-400">
-                  {currentConfig.totalDiskGB >= 1000
-                    ? `${(currentConfig.totalDiskGB / 1000).toFixed(1)}T`
-                    : `${currentConfig.totalDiskGB}G`}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {currentConfig.totalCells} × {currentConfig.cellDiskGB}GB
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* IaaS Capacity Section */}
       {iaasCapacity && infrastructureState && (
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 mb-6">
@@ -445,6 +372,79 @@ const ScenarioAnalyzer = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Current Configuration Summary */}
+      {currentConfig && infrastructureState && (
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 mb-6">
+          <h3 className="text-lg font-semibold mb-4 text-gray-200 flex items-center gap-2">
+            <Server size={18} className="text-emerald-400" />
+            Current Configuration
+            <span className="text-xs font-normal text-gray-500 ml-2">
+              (from loaded data)
+            </span>
+          </h3>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                <Server size={14} />
+                Cells
+              </div>
+              <div className="text-2xl font-mono font-bold text-emerald-400">
+                {currentConfig.totalCells}
+              </div>
+              {currentConfig.clusterCount > 1 && (
+                <div className="text-xs text-gray-500 mt-1">
+                  across {currentConfig.clusterCount} clusters
+                </div>
+              )}
+            </div>
+
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                <Cpu size={14} />
+                Cell Size
+              </div>
+              <div className="text-2xl font-mono font-bold text-emerald-400">
+                {currentConfig.cellCpu} <span className="text-gray-500">×</span> {currentConfig.cellMemoryGB}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">vCPU × GB</div>
+            </div>
+
+            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+              <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                <HardDrive size={14} />
+                Total Memory
+              </div>
+              <div className="text-2xl font-mono font-bold text-emerald-400">
+                {currentConfig.totalMemoryGB >= 1000
+                  ? `${(currentConfig.totalMemoryGB / 1000).toFixed(1)}T`
+                  : `${currentConfig.totalMemoryGB}G`}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {currentConfig.totalCells} × {currentConfig.cellMemoryGB}GB
+              </div>
+            </div>
+
+            {currentConfig.cellDiskGB > 0 && (
+              <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+                <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
+                  <Database size={14} />
+                  Total Disk
+                </div>
+                <div className="text-2xl font-mono font-bold text-emerald-400">
+                  {currentConfig.totalDiskGB >= 1000
+                    ? `${(currentConfig.totalDiskGB / 1000).toFixed(1)}T`
+                    : `${currentConfig.totalDiskGB}G`}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {currentConfig.totalCells} × {currentConfig.cellDiskGB}GB
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
