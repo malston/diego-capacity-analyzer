@@ -53,7 +53,7 @@ describe('StepIndicator', () => {
     expect(onStepClick).toHaveBeenCalledWith(0);
   });
 
-  it('does not call onStepClick when clicking locked step', async () => {
+  it('calls onStepClick when clicking any step (free navigation)', async () => {
     const onStepClick = vi.fn();
     render(
       <StepIndicator
@@ -64,6 +64,6 @@ describe('StepIndicator', () => {
       />
     );
     await userEvent.click(screen.getByText('Advanced'));
-    expect(onStepClick).not.toHaveBeenCalled();
+    expect(onStepClick).toHaveBeenCalledWith(2);
   });
 });

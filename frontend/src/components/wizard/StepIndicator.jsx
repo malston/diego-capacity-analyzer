@@ -1,12 +1,11 @@
 // ABOUTME: Clickable step progress indicator for wizard navigation
-// ABOUTME: Shows completed, current, and locked states for each step
+// ABOUTME: Shows completed and current states - all steps are navigable
 
 import { Check } from 'lucide-react';
 
 const StepIndicator = ({ steps, currentStep, completedSteps, onStepClick }) => {
   const isCompleted = (index) => completedSteps.includes(index);
   const isCurrent = (index) => index === currentStep;
-  const isClickable = (index) => isCompleted(index) || index <= currentStep;
 
   return (
     <nav aria-label="Progress" className="mb-6">
@@ -14,25 +13,22 @@ const StepIndicator = ({ steps, currentStep, completedSteps, onStepClick }) => {
         {steps.map((step, index) => {
           const completed = isCompleted(index);
           const current = isCurrent(index);
-          const clickable = isClickable(index);
 
           return (
             <li key={step.id} className="flex-1 flex items-center">
               <button
                 type="button"
-                onClick={() => clickable && onStepClick(index)}
-                disabled={!clickable}
+                onClick={() => onStepClick(index)}
                 aria-current={current ? 'step' : undefined}
                 data-completed={completed ? 'true' : undefined}
                 className={`
                   flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all
+                  hover:bg-slate-700/50 cursor-pointer
                   ${current
                     ? 'text-cyan-400 bg-cyan-500/10 ring-2 ring-cyan-500/50'
                     : completed
-                      ? 'text-cyan-400 hover:bg-slate-700/50 cursor-pointer'
-                      : clickable
-                        ? 'text-gray-400 hover:bg-slate-700/50 cursor-pointer'
-                        : 'text-gray-600 cursor-not-allowed'
+                      ? 'text-cyan-400'
+                      : 'text-gray-400'
                   }
                 `}
               >
