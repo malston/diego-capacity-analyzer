@@ -72,17 +72,11 @@ const ScenarioAnalyzer = () => {
       const state = await scenarioApi.setManualInfrastructure(data);
       setInfrastructureState(state);
 
-      // Set initial cell count from data
-      const totalCells = data.clusters.reduce(
-        (sum, c) => sum + c.diego_cell_count,
-        0
-      );
-      setCellCount(totalCells);
-
       // Set initial disk from first cluster if available
       if (data.clusters[0]?.diego_cell_disk_gb) {
         setCustomDisk(data.clusters[0].diego_cell_disk_gb);
       }
+      // Note: cellCount is auto-set by the useEffect that calculates equivalent capacity
     } catch (err) {
       setError(err.message);
     } finally {
