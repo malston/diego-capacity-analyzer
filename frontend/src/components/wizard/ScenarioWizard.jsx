@@ -110,8 +110,7 @@ const ScenarioWizard = ({
             setAdditionalApp={setAdditionalApp}
             tpsCurve={tpsCurve}
             setTPSCurve={setTPSCurve}
-            onContinue={handleContinue}
-            onSkip={handleSkip}
+            isLastStep={true}
           />
         );
       default:

@@ -1,7 +1,7 @@
 // ABOUTME: Step 3 of scenario wizard - advanced configuration options
 // ABOUTME: Handles memory overhead, hypothetical app, and TPS curve
 
-import { ArrowRight, Plus, X } from 'lucide-react';
+import { ArrowRight, Plus, X, CheckCircle2 } from 'lucide-react';
 import { DEFAULT_TPS_CURVE } from '../../../config/resourceConfig';
 
 const AdvancedStep = ({
@@ -15,6 +15,7 @@ const AdvancedStep = ({
   setTPSCurve,
   onContinue,
   onSkip,
+  isLastStep = false,
 }) => {
   const updateTPSPoint = (index, field, value) => {
     setTPSCurve((prev) =>
@@ -201,23 +202,32 @@ const AdvancedStep = ({
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 pt-4">
-        <button
-          type="button"
-          onClick={onSkip}
-          className="px-6 py-2.5 text-gray-400 hover:text-gray-300 transition-colors font-medium"
-        >
-          Skip
-        </button>
-        <button
-          type="button"
-          onClick={onContinue}
-          className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 transition-colors font-medium"
-        >
-          Continue
-          <ArrowRight size={16} />
-        </button>
-      </div>
+      {isLastStep ? (
+        <div className="flex items-center gap-3 pt-4 text-emerald-400">
+          <CheckCircle2 size={20} />
+          <span className="text-sm font-medium">
+            Configuration complete — click Run Analysis below
+          </span>
+        </div>
+      ) : (
+        <div className="flex justify-end gap-3 pt-4">
+          <button
+            type="button"
+            onClick={onSkip}
+            className="px-6 py-2.5 text-gray-400 hover:text-gray-300 transition-colors font-medium"
+          >
+            Skip
+          </button>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 transition-colors font-medium"
+          >
+            Continue
+            <ArrowRight size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
