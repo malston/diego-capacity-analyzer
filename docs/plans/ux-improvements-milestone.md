@@ -28,9 +28,9 @@ The Mock Data / Live API toggle and "Test Connection" button are developer debug
 - `frontend/src/TASCapacityAnalyzer.jsx`
 
 ### Acceptance Criteria
-- [ ] Dev tools hidden by default in production builds
-- [ ] `?dev=true` enables data source controls for debugging
-- [ ] Clean loading state when connecting to backend
+- [x] Dev tools hidden by default in production builds
+- [x] `?dev=true` enables data source controls for debugging
+- [x] Clean loading state when connecting to backend
 
 ---
 
@@ -58,9 +58,9 @@ Establish a consistent color system:
 - `frontend/src/TASCapacityAnalyzer.css`
 
 ### Acceptance Criteria
-- [ ] All focus states use `cyan-500`
-- [ ] Primary CTAs use consistent cyan-to-blue gradient
-- [ ] Color usage follows documented system
+- [x] All focus states use `cyan-500`
+- [x] Primary CTAs use consistent cyan-to-blue gradient
+- [x] Color usage follows documented system
 
 ---
 
@@ -96,9 +96,9 @@ Establish a consistent color system:
 - `frontend/src/TASCapacityAnalyzer.jsx`
 
 ### Acceptance Criteria
-- [ ] User understands which tab to use without guessing
-- [ ] No redundant data loading across tabs
-- [ ] Clear workflow from infrastructure → scenarios
+- [x] User understands which tab to use without guessing
+- [x] No redundant data loading across tabs
+- [x] Clear workflow from infrastructure → scenarios
 
 ---
 
