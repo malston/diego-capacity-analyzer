@@ -383,10 +383,10 @@ const ScenarioAnalyzer = () => {
       {maxCellsEstimate && infrastructureState && (
         <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-600/30 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Server size={18} className="text-teal-400" />
+            <Server size={18} className="text-cyan-400" />
             <div>
               <span className="text-gray-400 text-sm">IaaS Capacity:</span>
-              <span className="ml-2 text-teal-400 font-mono font-bold">{maxCellsEstimate.maxCells}</span>
+              <span className="ml-2 text-cyan-400 font-mono font-bold">{maxCellsEstimate.maxCells}</span>
               <span className="text-gray-400 text-sm ml-1">max cells</span>
               <span className="text-gray-500 text-xs ml-2">
                 ({maxCellsEstimate.bottleneck}-limited)
