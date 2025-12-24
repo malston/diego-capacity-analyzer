@@ -65,18 +65,13 @@
     "full-stack-orchestration@claude-code-workflows",
     "git-pr-workflows@claude-code-workflows",
     "javascript-typescript@claude-code-workflows",
-    "multi-platform-apps@claude-code-workflows",
-    "nextjs-vercel-pro@claude-code-templates",
     "performance-testing-review@claude-code-workflows",
-    "python-development@claude-code-workflows",
     "security-compliance@claude-code-workflows",
     "security-scanning@claude-code-workflows",
     "shell-scripting@claude-code-workflows",
     "superpowers@superpowers-marketplace",
-    "systems-programming@claude-code-workflows",
     "tdd-workflows@claude-code-workflows",
-    "unit-testing@claude-code-workflows",
-    "web-scripting@claude-code-workflows"
+    "unit-testing@claude-code-workflows"
   ],
   "appliedAt": "2025-12-22T10:11:02.482263-07:00"
 }
