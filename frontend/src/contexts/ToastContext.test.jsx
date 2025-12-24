@@ -2,7 +2,7 @@
 // ABOUTME: Covers showing, auto-dismissing, and managing toast state
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { ToastProvider, useToast } from './ToastContext';
 
 // Test component that uses the hook
