@@ -5,7 +5,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ScenarioAnalyzer from './ScenarioAnalyzer';
+import { ToastProvider } from '../contexts/ToastContext';
 import { scenarioApi } from '../services/scenarioApi';
+
+// Helper to render with providers
+const renderWithProviders = (ui) => {
+  return render(<ToastProvider>{ui}</ToastProvider>);
+};
 
 // Mock the API
 vi.mock('../services/scenarioApi', () => ({
@@ -41,7 +47,7 @@ describe('ScenarioAnalyzer', () => {
     mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockData));
     scenarioApi.setManualInfrastructure.mockResolvedValue({ ready: true });
 
-    render(<ScenarioAnalyzer />);
+    renderWithProviders(<ScenarioAnalyzer />);
 
     await waitFor(() => {
       expect(screen.getByText('Cell Config')).toBeInTheDocument();
@@ -56,7 +62,7 @@ describe('ScenarioAnalyzer', () => {
     mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockData));
     scenarioApi.setManualInfrastructure.mockResolvedValue({ ready: true });
 
-    render(<ScenarioAnalyzer />);
+    renderWithProviders(<ScenarioAnalyzer />);
 
     await waitFor(() => {
       expect(screen.getByText('Cell Config')).toBeInTheDocument();
@@ -78,7 +84,7 @@ describe('ScenarioAnalyzer', () => {
     mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockData));
     scenarioApi.setManualInfrastructure.mockResolvedValue({ ready: true });
 
-    render(<ScenarioAnalyzer />);
+    renderWithProviders(<ScenarioAnalyzer />);
 
     await waitFor(() => {
       expect(screen.getByText('Cell Config')).toBeInTheDocument();
