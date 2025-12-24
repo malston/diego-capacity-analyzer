@@ -7,7 +7,6 @@ import { Server, Zap, TrendingUp, AlertTriangle, Layers } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { cfApi } from './services/cfApi';
 import ScenarioAnalyzer from './components/ScenarioAnalyzer';
-import InfrastructurePlanning from './components/InfrastructurePlanning';
 import Header from './components/Header';
 import MetricCards from './components/MetricCards';
 import WhatIfPanel from './components/WhatIfPanel';
@@ -399,14 +398,7 @@ Check browser console (F12) for details.`;
         </div>
       )}
 
-      {/* Infrastructure Planning Tab Content */}
-      {activeTab === 'planning' && (
-        <div role="tabpanel" id="planning-panel" aria-labelledby="planning-tab" className="mt-8">
-          <InfrastructurePlanning />
-        </div>
-      )}
-
-      {/* Scenario Analysis Tab Content */}
+      {/* Capacity Planning Tab Content */}
       {activeTab === 'scenarios' && (
         <div role="tabpanel" id="scenarios-panel" aria-labelledby="scenarios-tab" className="mt-8">
           <ScenarioAnalyzer />

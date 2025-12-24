@@ -19,8 +19,7 @@ const Header = ({
 }) => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Activity },
-    { id: 'planning', label: 'Infrastructure Planning', icon: Server },
-    { id: 'scenarios', label: 'Scenario Analysis', icon: Zap },
+    { id: 'scenarios', label: 'Capacity Planning', icon: Zap },
   ];
 
   return (
