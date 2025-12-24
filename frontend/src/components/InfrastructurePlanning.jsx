@@ -143,7 +143,7 @@ const InfrastructurePlanning = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-100 flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg">
+          <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg">
             <Server className="text-white" size={20} />
           </div>
           Infrastructure Planning
@@ -229,7 +229,7 @@ const InfrastructurePlanning = () => {
       {infrastructureState && (
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
           <h3 className="text-lg font-semibold mb-4 text-gray-200 flex items-center gap-2">
-            <Calculator size={18} className="text-teal-400" />
+            <Calculator size={18} className="text-cyan-400" />
             Cell Configuration
           </h3>
 
@@ -241,7 +241,7 @@ const InfrastructurePlanning = () => {
               <select
                 value={selectedPreset}
                 onChange={(e) => setSelectedPreset(Number(e.target.value))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
               >
                 {VM_SIZE_PRESETS.map((p, i) => (
                   <option key={i} value={i}>
@@ -262,7 +262,7 @@ const InfrastructurePlanning = () => {
                     value={customCPU}
                     onChange={(e) => setCustomCPU(Number(e.target.value))}
                     min={1}
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors"
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
                   />
                 </div>
                 <div>
@@ -274,7 +274,7 @@ const InfrastructurePlanning = () => {
                     value={customMemory}
                     onChange={(e) => setCustomMemory(Number(e.target.value))}
                     min={8}
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors"
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
                   />
                 </div>
               </>
@@ -284,7 +284,7 @@ const InfrastructurePlanning = () => {
           <button
             onClick={handleCalculate}
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 transition-all font-medium shadow-lg shadow-emerald-500/20"
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 transition-all font-medium shadow-lg shadow-cyan-500/20"
           >
             {loading ? (
               <RefreshCw className="animate-spin" size={18} />
