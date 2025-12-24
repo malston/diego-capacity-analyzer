@@ -8,6 +8,7 @@ import DataSourceSelector from './DataSourceSelector';
 import ScenarioResults from './ScenarioResults';
 import ScenarioWizard from './wizard/ScenarioWizard';
 import { scenarioApi } from '../services/scenarioApi';
+import { useToast } from '../contexts/ToastContext';
 import { VM_SIZE_PRESETS, DEFAULT_PRESET_INDEX } from '../config/vmPresets';
 import { generateMarkdownReport, downloadMarkdown } from '../utils/exportMarkdown';
 import {
@@ -17,6 +18,7 @@ import {
 } from '../config/resourceConfig';
 
 const ScenarioAnalyzer = () => {
+  const { showToast } = useToast();
   const [infrastructureData, setInfrastructureData] = useState(null);
   const [infrastructureState, setInfrastructureState] = useState(null);
   const [comparison, setComparison] = useState(null);
@@ -255,8 +257,10 @@ const ScenarioAnalyzer = () => {
 
       const result = await scenarioApi.compareScenario(scenarioInput);
       setComparison(result);
+      showToast('Analysis complete', 'success');
     } catch (err) {
       setError(err.message);
+      showToast(`Analysis failed: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
