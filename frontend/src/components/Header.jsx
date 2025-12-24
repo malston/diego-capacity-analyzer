@@ -15,6 +15,7 @@ const Header = ({
   onToggleDataSource,
   onTestConnection,
   onRefresh,
+  devMode = false,
 }) => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Activity },
@@ -46,6 +47,7 @@ const Header = ({
             onToggleDataSource={onToggleDataSource}
             onTestConnection={onTestConnection}
             onRefresh={onRefresh}
+            devMode={devMode}
           />
 
           {/* User Info */}
