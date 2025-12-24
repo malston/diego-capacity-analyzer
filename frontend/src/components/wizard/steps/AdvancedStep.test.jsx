@@ -59,4 +59,11 @@ describe('AdvancedStep', () => {
     await userEvent.click(screen.getByRole('button', { name: /continue/i }));
     expect(onContinue).toHaveBeenCalled();
   });
+
+  it('shows completion message instead of buttons when isLastStep is true', () => {
+    render(<AdvancedStep {...defaultProps} isLastStep={true} />);
+    expect(screen.getByText(/configuration complete/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /continue/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /skip/i })).not.toBeInTheDocument();
+  });
 });
