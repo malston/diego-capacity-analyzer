@@ -28,19 +28,10 @@ const MetricScorecard = ({
   let statusColor = '#06b6d4'; // cyan
   let barColor = 'bg-cyan-500';
 
-  const checkValue = inverse ? proposedValue : proposedValue;
-  if (checkValue >= thresholds.critical) {
-    status = 'critical';
-    statusColor = '#ef4444';
-    barColor = 'bg-red-500';
-  } else if (checkValue >= thresholds.warning) {
-    status = 'warning';
-    statusColor = '#f59e0b';
-    barColor = 'bg-amber-500';
-  }
+  // Only apply threshold-based status when thresholds are meaningful (> 0)
+  const hasThresholds = thresholds.warning > 0 || thresholds.critical > 0;
 
-  // For utilization metrics, we need to invert the threshold check
-  if (inverse) {
+  if (hasThresholds) {
     if (proposedValue >= thresholds.critical) {
       status = 'critical';
       statusColor = '#ef4444';

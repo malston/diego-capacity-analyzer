@@ -2,7 +2,7 @@
 // ABOUTME: Main what-if scenario analyzer component
 // ABOUTME: Combines data source, comparison table, and warnings
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Calculator, RefreshCw, FileDown, Sparkles, Server, HardDrive, Cpu, Database, AlertCircle } from 'lucide-react';
 import DataSourceSelector from './DataSourceSelector';
 import ScenarioResults from './ScenarioResults';
@@ -60,25 +60,7 @@ const ScenarioAnalyzer = () => {
   // TPS curve state
   const [tpsCurve, setTPSCurve] = useState(DEFAULT_TPS_CURVE);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('scenario-infrastructure');
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        const totalCells = data.clusters?.reduce((sum, c) => sum + (c.diego_cell_count || 0), 0) || 0;
-        console.log(`[ScenarioAnalyzer] Loading from localStorage: "${data.name}" with ${totalCells} cells`);
-        setInfrastructureData(data);
-        handleDataLoaded(data);
-      } catch (e) {
-        console.error('[ScenarioAnalyzer] Failed to load saved infrastructure:', e);
-      }
-    } else {
-      console.log('[ScenarioAnalyzer] No saved infrastructure in localStorage');
-    }
-  }, []);
-
-  const handleDataLoaded = async (data) => {
+  const handleDataLoaded = useCallback(async (data) => {
     console.log('[ScenarioAnalyzer] handleDataLoaded called with:', data.name);
     setInfrastructureData(data);
     setLoading(true);
@@ -105,7 +87,25 @@ const ScenarioAnalyzer = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('scenario-infrastructure');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        const totalCells = data.clusters?.reduce((sum, c) => sum + (c.diego_cell_count || 0), 0) || 0;
+        console.log(`[ScenarioAnalyzer] Loading from localStorage: "${data.name}" with ${totalCells} cells`);
+        setInfrastructureData(data);
+        handleDataLoaded(data);
+      } catch (e) {
+        console.error('[ScenarioAnalyzer] Failed to load saved infrastructure:', e);
+      }
+    } else {
+      console.log('[ScenarioAnalyzer] No saved infrastructure in localStorage');
+    }
+  }, [handleDataLoaded]);
 
   const toggleResource = (resourceId) => {
     setSelectedResources(prev =>
