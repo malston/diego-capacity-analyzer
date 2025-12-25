@@ -204,13 +204,35 @@ const ScenarioAnalyzer = () => {
       return sum + ((hostCount - 1) * memPerHost);
     }, 0);
 
+    // Also compute per-host values for CPU config defaults
+    const coresPerHost = totalHosts > 0 ? Math.round(totalCPUCores / totalHosts) : 64;
+    const memoryGBPerHost = totalHosts > 0 ? Math.round(totalMemoryGB / totalHosts) : 512;
+
     return {
       totalHosts,
       totalMemoryGB,
       totalCPUCores,
       n1MemoryGB,
+      coresPerHost,
+      memoryGBPerHost,
     };
   }, [infrastructureData]);
+
+  // Auto-populate CPU config from IaaS capacity when infrastructure is loaded
+  useEffect(() => {
+    if (!iaasCapacity) return;
+
+    // Set host count and cores per host from loaded infrastructure
+    if (iaasCapacity.totalHosts > 0) {
+      setHostCount(iaasCapacity.totalHosts);
+    }
+    if (iaasCapacity.coresPerHost > 0) {
+      setPhysicalCoresPerHost(iaasCapacity.coresPerHost);
+    }
+    if (iaasCapacity.memoryGBPerHost > 0) {
+      setMemoryPerHost(iaasCapacity.memoryGBPerHost);
+    }
+  }, [iaasCapacity]);
 
   // Compute max deployable cells based on proposed cell size and IaaS capacity
   const maxCellsEstimate = useMemo(() => {
