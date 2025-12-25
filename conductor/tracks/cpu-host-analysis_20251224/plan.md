@@ -122,7 +122,7 @@
 - [x] Write E2E tests for CPU analysis flow [f85d4f3]
 - [x] Write E2E tests for host-level analysis flow [f85d4f3]
 - [x] Write E2E tests for bottleneck and recommendations flow [f85d4f3]
-- [~] Verify all data flows correctly from vSphere to UI
+- [x] Verify all data flows correctly from vSphere to UI [e5c21f9]
 
 ### Task 5.2: Update sample scenarios
 - [ ] Add CPU and host data to existing sample files
