@@ -7,14 +7,15 @@ import "time"
 
 // ClusterInput represents user-provided cluster configuration
 type ClusterInput struct {
-	Name              string `json:"name"`
-	HostCount         int    `json:"host_count"`
-	MemoryGBPerHost   int    `json:"memory_gb_per_host"`
-	CPUCoresPerHost   int    `json:"cpu_cores_per_host"`
-	DiegoCellCount    int    `json:"diego_cell_count"`
-	DiegoCellMemoryGB int    `json:"diego_cell_memory_gb"`
-	DiegoCellCPU      int    `json:"diego_cell_cpu"`
-	DiegoCellDiskGB   int    `json:"diego_cell_disk_gb"`
+	Name                         string `json:"name"`
+	HostCount                    int    `json:"host_count"`
+	MemoryGBPerHost              int    `json:"memory_gb_per_host"`
+	CPUCoresPerHost              int    `json:"cpu_cores_per_host"`
+	HAAdmissionControlPercentage int    `json:"ha_admission_control_percentage"`
+	DiegoCellCount               int    `json:"diego_cell_count"`
+	DiegoCellMemoryGB            int    `json:"diego_cell_memory_gb"`
+	DiegoCellCPU                 int    `json:"diego_cell_cpu"`
+	DiegoCellDiskGB              int    `json:"diego_cell_disk_gb"`
 }
 
 // ManualInput represents user-provided infrastructure data
@@ -29,39 +30,47 @@ type ManualInput struct {
 
 // ClusterState represents computed cluster metrics
 type ClusterState struct {
-	Name              string  `json:"name"`
-	HostCount         int     `json:"host_count"`
-	MemoryGB          int     `json:"memory_gb"`
-	CPUCores          int     `json:"cpu_cores"`
-	N1MemoryGB        int     `json:"n1_memory_gb"`
-	UsableMemoryGB    int     `json:"usable_memory_gb"`
-	DiegoCellCount    int     `json:"diego_cell_count"`
-	DiegoCellMemoryGB int     `json:"diego_cell_memory_gb"`
-	DiegoCellCPU      int     `json:"diego_cell_cpu"`
-	DiegoCellDiskGB   int     `json:"diego_cell_disk_gb"`
-	TotalVCPUs        int     `json:"total_vcpus"`
-	VCPURatio         float64 `json:"vcpu_ratio"`
+	Name                         string  `json:"name"`
+	HostCount                    int     `json:"host_count"`
+	MemoryGB                     int     `json:"memory_gb"`
+	CPUCores                     int     `json:"cpu_cores"`
+	MemoryGBPerHost              int     `json:"memory_gb_per_host"`
+	CPUCoresPerHost              int     `json:"cpu_cores_per_host"`
+	HAAdmissionControlPercentage int     `json:"ha_admission_control_percentage"`
+	HAUsableMemoryGB             int     `json:"ha_usable_memory_gb"`
+	HAUsableCPUCores             int     `json:"ha_usable_cpu_cores"`
+	VMsPerHost                   float64 `json:"vms_per_host"`
+	N1MemoryGB                   int     `json:"n1_memory_gb"`
+	UsableMemoryGB               int     `json:"usable_memory_gb"`
+	DiegoCellCount               int     `json:"diego_cell_count"`
+	DiegoCellMemoryGB            int     `json:"diego_cell_memory_gb"`
+	DiegoCellCPU                 int     `json:"diego_cell_cpu"`
+	DiegoCellDiskGB              int     `json:"diego_cell_disk_gb"`
+	TotalVCPUs                   int     `json:"total_vcpus"`
+	VCPURatio                    float64 `json:"vcpu_ratio"`
 }
 
 // InfrastructureState represents computed infrastructure metrics
 type InfrastructureState struct {
-	Source            string         `json:"source"` // "manual" or "vsphere"
-	Name              string         `json:"name"`
-	Clusters          []ClusterState `json:"clusters"`
-	TotalMemoryGB     int            `json:"total_memory_gb"`
-	TotalN1MemoryGB   int            `json:"total_n1_memory_gb"`
-	TotalHostCount    int            `json:"total_host_count"`
-	TotalCellCount    int            `json:"total_cell_count"`
-	TotalCPUCores     int            `json:"total_cpu_cores"`
-	TotalVCPUs        int            `json:"total_vcpus"`
-	VCPURatio         float64        `json:"vcpu_ratio"`
-	CPURiskLevel      string         `json:"cpu_risk_level"`
-	PlatformVMsGB     int            `json:"platform_vms_gb"`
-	TotalAppMemoryGB  int            `json:"total_app_memory_gb"`
-	TotalAppDiskGB    int            `json:"total_app_disk_gb"`
-	TotalAppInstances int            `json:"total_app_instances"`
-	Timestamp         time.Time      `json:"timestamp"`
-	Cached            bool           `json:"cached"`
+	Source                string         `json:"source"` // "manual" or "vsphere"
+	Name                  string         `json:"name"`
+	Clusters              []ClusterState `json:"clusters"`
+	TotalMemoryGB         int            `json:"total_memory_gb"`
+	TotalN1MemoryGB       int            `json:"total_n1_memory_gb"`
+	TotalHAUsableMemoryGB int            `json:"total_ha_usable_memory_gb"`
+	TotalHAUsableCPUCores int            `json:"total_ha_usable_cpu_cores"`
+	TotalHostCount        int            `json:"total_host_count"`
+	TotalCellCount        int            `json:"total_cell_count"`
+	TotalCPUCores         int            `json:"total_cpu_cores"`
+	TotalVCPUs            int            `json:"total_vcpus"`
+	VCPURatio             float64        `json:"vcpu_ratio"`
+	CPURiskLevel          string         `json:"cpu_risk_level"`
+	PlatformVMsGB         int            `json:"platform_vms_gb"`
+	TotalAppMemoryGB      int            `json:"total_app_memory_gb"`
+	TotalAppDiskGB        int            `json:"total_app_disk_gb"`
+	TotalAppInstances     int            `json:"total_app_instances"`
+	Timestamp             time.Time      `json:"timestamp"`
+	Cached                bool           `json:"cached"`
 }
 
 // CPURiskLevel returns the risk level based on vCPU:pCPU ratio
@@ -97,28 +106,47 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 		n1Memory := (c.HostCount - 1) * c.MemoryGBPerHost
 		usableMemory := int(float64(n1Memory) * 0.9) // 10% overhead
 
+		// Calculate HA-aware usable capacity
+		haMultiplier := float64(100-c.HAAdmissionControlPercentage) / 100.0
+		haUsableMemory := int(float64(clusterMemory) * haMultiplier)
+		haUsableCPU := int(float64(clusterCPU) * haMultiplier)
+
+		// Calculate VMs per host
+		var vmsPerHost float64
+		if c.HostCount > 0 {
+			vmsPerHost = float64(c.DiegoCellCount) / float64(c.HostCount)
+		}
+
 		var clusterVCPURatio float64
 		if clusterCPU > 0 {
 			clusterVCPURatio = float64(clusterVCPUs) / float64(clusterCPU)
 		}
 
 		state.Clusters[i] = ClusterState{
-			Name:              c.Name,
-			HostCount:         c.HostCount,
-			MemoryGB:          clusterMemory,
-			CPUCores:          clusterCPU,
-			N1MemoryGB:        n1Memory,
-			UsableMemoryGB:    usableMemory,
-			DiegoCellCount:    c.DiegoCellCount,
-			DiegoCellMemoryGB: c.DiegoCellMemoryGB,
-			DiegoCellCPU:      c.DiegoCellCPU,
-			DiegoCellDiskGB:   c.DiegoCellDiskGB,
-			TotalVCPUs:        clusterVCPUs,
-			VCPURatio:         clusterVCPURatio,
+			Name:                         c.Name,
+			HostCount:                    c.HostCount,
+			MemoryGB:                     clusterMemory,
+			CPUCores:                     clusterCPU,
+			MemoryGBPerHost:              c.MemoryGBPerHost,
+			CPUCoresPerHost:              c.CPUCoresPerHost,
+			HAAdmissionControlPercentage: c.HAAdmissionControlPercentage,
+			HAUsableMemoryGB:             haUsableMemory,
+			HAUsableCPUCores:             haUsableCPU,
+			VMsPerHost:                   vmsPerHost,
+			N1MemoryGB:                   n1Memory,
+			UsableMemoryGB:               usableMemory,
+			DiegoCellCount:               c.DiegoCellCount,
+			DiegoCellMemoryGB:            c.DiegoCellMemoryGB,
+			DiegoCellCPU:                 c.DiegoCellCPU,
+			DiegoCellDiskGB:              c.DiegoCellDiskGB,
+			TotalVCPUs:                   clusterVCPUs,
+			VCPURatio:                    clusterVCPURatio,
 		}
 
 		state.TotalMemoryGB += clusterMemory
 		state.TotalN1MemoryGB += n1Memory
+		state.TotalHAUsableMemoryGB += haUsableMemory
+		state.TotalHAUsableCPUCores += haUsableCPU
 		state.TotalHostCount += c.HostCount
 		state.TotalCellCount += c.DiegoCellCount
 		state.TotalCPUCores += clusterCPU
