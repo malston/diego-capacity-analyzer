@@ -170,30 +170,61 @@ func TestGenerateWarnings_LowFreeChunks(t *testing.T) {
 	}
 }
 
-func TestGenerateWarnings_RedundancyReduction(t *testing.T) {
-	current := models.ScenarioResult{
-		N1UtilizationPct: 70,
-		FreeChunks:       500,
-		CellCount:        100,
-	}
-	proposed := models.ScenarioResult{
-		N1UtilizationPct: 70,
-		FreeChunks:       500,
-		CellCount:        40, // 60% reduction
+func TestGenerateWarnings_BlastRadius(t *testing.T) {
+	// Test that blast radius warnings fire based on ABSOLUTE impact, not relative change
+	tests := []struct {
+		name            string
+		proposedCells   int
+		blastRadiusPct  float64
+		expectWarning   bool
+		expectCritical  bool
+	}{
+		{"Large foundation (100 cells)", 100, 1.0, false, false},
+		{"Medium foundation (20 cells)", 20, 5.0, false, false},
+		{"Small foundation (8 cells)", 8, 12.5, true, false},  // >10% triggers warning
+		{"Very small foundation (4 cells)", 4, 25.0, true, true}, // >20% triggers critical
 	}
 
-	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			current := models.ScenarioResult{
+				N1UtilizationPct: 70,
+				FreeChunks:       500,
+				CellCount:        200,
+				BlastRadiusPct:   0.5,
+			}
+			proposed := models.ScenarioResult{
+				N1UtilizationPct: 70,
+				FreeChunks:       500,
+				CellCount:        tt.proposedCells,
+				BlastRadiusPct:   tt.blastRadiusPct,
+			}
 
-	found := false
-	for _, w := range warnings {
-		if w.Severity == "warning" && w.Message == "Significant redundancy reduction" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Expected warning for > 50% cell count reduction")
+			calc := NewScenarioCalculator()
+			warnings := calc.GenerateWarnings(current, proposed)
+
+			foundWarning := false
+			foundCritical := false
+			for _, w := range warnings {
+				if contains(w.Message, "cell failure impact") {
+					if w.Severity == "critical" {
+						foundCritical = true
+					} else {
+						foundWarning = true
+					}
+				}
+			}
+
+			if tt.expectCritical && !foundCritical {
+				t.Errorf("Expected critical blast radius warning for %d cells (%.1f%% impact)", tt.proposedCells, tt.blastRadiusPct)
+			}
+			if tt.expectWarning && !foundWarning && !foundCritical {
+				t.Errorf("Expected blast radius warning for %d cells (%.1f%% impact)", tt.proposedCells, tt.blastRadiusPct)
+			}
+			if !tt.expectWarning && !tt.expectCritical && (foundWarning || foundCritical) {
+				t.Errorf("Did not expect blast radius warning for %d cells (%.1f%% impact)", tt.proposedCells, tt.blastRadiusPct)
+			}
+		})
 	}
 }
 
@@ -213,8 +244,8 @@ func TestCompare(t *testing.T) {
 		},
 	}
 
-	// Proposing 64GB cells with 230 cells (enough to increase capacity AND trigger redundancy warning)
-	// 470 -> 230 = 51% reduction (>= 50% threshold)
+	// Proposing 64GB cells with 230 cells
+	// 470 -> 230 cells: blast radius goes from 0.21% -> 0.43% (both "low")
 	input := models.ScenarioInput{
 		ProposedCellMemoryGB: 64,
 		ProposedCellCPU:      4,
@@ -243,23 +274,24 @@ func TestCompare(t *testing.T) {
 			comparison.Delta.CapacityChangeGB, comparison.Current.AppCapacityGB, comparison.Proposed.AppCapacityGB)
 	}
 
-	// Delta - redundancy reduced (fewer cells)
-	if comparison.Delta.RedundancyChange != "reduced" {
-		t.Errorf("Expected RedundancyChange 'reduced', got '%s'", comparison.Delta.RedundancyChange)
+	// ResilienceChange should be "low" - both current and proposed have tiny blast radius
+	// 470 cells = 0.21% blast radius, 230 cells = 0.43% blast radius (both ≤ 5%)
+	if comparison.Delta.ResilienceChange != "low" {
+		t.Errorf("Expected ResilienceChange 'low' for large foundation, got '%s'", comparison.Delta.ResilienceChange)
 	}
 
-	// Should have warning about redundancy (>46% reduction)
-	foundRedundancyWarning := false
-	for _, w := range comparison.Warnings {
-		if w.Message == "Significant redundancy reduction" {
-			foundRedundancyWarning = true
-			break
-		}
+	// BlastRadiusPct should be calculated
+	expectedBlastRadius := 100.0 / 230.0 // ~0.43%
+	if comparison.Proposed.BlastRadiusPct < 0.4 || comparison.Proposed.BlastRadiusPct > 0.5 {
+		t.Errorf("Expected Proposed.BlastRadiusPct ~%.2f%%, got %.2f%%",
+			expectedBlastRadius, comparison.Proposed.BlastRadiusPct)
 	}
-	if !foundRedundancyWarning {
-		t.Errorf("Expected redundancy reduction warning. Current cells: %d, Proposed cells: %d, Reduction: %.1f%%",
-			comparison.Current.CellCount, comparison.Proposed.CellCount,
-			float64(comparison.Current.CellCount-comparison.Proposed.CellCount)/float64(comparison.Current.CellCount)*100)
+
+	// No blast radius warning expected - 230 cells is plenty resilient
+	for _, w := range comparison.Warnings {
+		if contains(w.Message, "cell failure impact") {
+			t.Errorf("Did not expect blast radius warning for 230 cells, got: %s", w.Message)
+		}
 	}
 }
 
@@ -556,6 +588,143 @@ func TestCompareWithDiskAndTPS(t *testing.T) {
 	}
 	if comparison.Proposed.EstimatedTPS == 0 {
 		t.Error("Expected Proposed.EstimatedTPS to be set")
+	}
+}
+
+// ============================================================================
+// BLAST RADIUS TESTS: Smarter resilience assessment
+// ============================================================================
+
+func TestBlastRadiusPct(t *testing.T) {
+	// Blast radius = 100 / cellCount (% of capacity lost per cell failure)
+	tests := []struct {
+		name           string
+		cellCount      int
+		expectedRadius float64
+	}{
+		{"Large foundation (500 cells)", 500, 0.2},
+		{"Medium foundation (50 cells)", 50, 2.0},
+		{"Small foundation (10 cells)", 10, 10.0},
+		{"Very small foundation (5 cells)", 5, 20.0},
+		{"Minimal foundation (2 cells)", 2, 50.0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state := models.InfrastructureState{
+				TotalN1MemoryGB:   100000,
+				TotalCellCount:    tt.cellCount,
+				PlatformVMsGB:     1000,
+				TotalAppMemoryGB:  5000,
+				TotalAppInstances: 1000,
+				Clusters: []models.ClusterState{
+					{
+						DiegoCellCount:    tt.cellCount,
+						DiegoCellMemoryGB: 32,
+						DiegoCellCPU:      4,
+					},
+				},
+			}
+
+			calc := NewScenarioCalculator()
+			result := calc.CalculateCurrent(state)
+
+			if result.BlastRadiusPct != tt.expectedRadius {
+				t.Errorf("Expected BlastRadiusPct %.1f%%, got %.1f%%",
+					tt.expectedRadius, result.BlastRadiusPct)
+			}
+		})
+	}
+}
+
+func TestResilienceWarning_LargeFoundation_NoWarning(t *testing.T) {
+	// 500 → 250 cells is a 50% reduction, but blast radius only goes from 0.2% → 0.4%
+	// This should NOT trigger a resilience warning - it's still very safe
+	current := models.ScenarioResult{
+		CellCount:       500,
+		BlastRadiusPct:  0.2,
+		UtilizationPct:  50,
+		N1UtilizationPct: 55,
+	}
+	proposed := models.ScenarioResult{
+		CellCount:       250,
+		BlastRadiusPct:  0.4,
+		UtilizationPct:  50,
+		N1UtilizationPct: 55,
+	}
+
+	calc := NewScenarioCalculator()
+	warnings := calc.GenerateWarnings(current, proposed)
+
+	for _, w := range warnings {
+		if contains(w.Message, "resilience") || contains(w.Message, "redundancy") || contains(w.Message, "blast") {
+			t.Errorf("Large foundation reduction should not trigger resilience warning, got: %s", w.Message)
+		}
+	}
+}
+
+func TestResilienceWarning_SmallFoundation_Warning(t *testing.T) {
+	// 10 → 5 cells means blast radius goes from 10% → 20%
+	// This SHOULD trigger a warning - losing one cell loses 20% of capacity
+	current := models.ScenarioResult{
+		CellCount:       10,
+		BlastRadiusPct:  10.0,
+		UtilizationPct:  50,
+		N1UtilizationPct: 55,
+	}
+	proposed := models.ScenarioResult{
+		CellCount:       5,
+		BlastRadiusPct:  20.0,
+		UtilizationPct:  50,
+		N1UtilizationPct: 55,
+	}
+
+	calc := NewScenarioCalculator()
+	warnings := calc.GenerateWarnings(current, proposed)
+
+	found := false
+	for _, w := range warnings {
+		if contains(w.Message, "cell failure") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Small foundation with high blast radius should trigger cell failure impact warning")
+	}
+}
+
+func TestResilienceChange_UsesBlastRadius(t *testing.T) {
+	// ResilienceChange should reflect the actual blast radius impact, not just cell count
+	state := models.InfrastructureState{
+		TotalN1MemoryGB:   100000,
+		TotalCellCount:    500,
+		PlatformVMsGB:     1000,
+		TotalAppMemoryGB:  5000,
+		TotalAppInstances: 1000,
+		Clusters: []models.ClusterState{
+			{
+				DiegoCellCount:    500,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+		},
+	}
+
+	// 500 → 250 cells: blast radius 0.2% → 0.4% (both low, should be "unchanged" or at worst "minimal")
+	input := models.ScenarioInput{
+		ProposedCellMemoryGB: 64,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    250,
+	}
+
+	calc := NewScenarioCalculator()
+	comparison := calc.Compare(state, input)
+
+	// With smarter logic, this should NOT say "reduced" since blast radius is still tiny
+	if comparison.Delta.ResilienceChange == "reduced" {
+		t.Errorf("Large foundation reduction (0.2%% → 0.4%% blast radius) should not be 'reduced', got: %s",
+			comparison.Delta.ResilienceChange)
 	}
 }
 

@@ -47,7 +47,8 @@ type ScenarioResult struct {
 	FaultImpact        int     `json:"fault_impact"`
 	InstancesPerCell   float64 `json:"instances_per_cell"`
 	EstimatedTPS       int     `json:"estimated_tps"`
-	TPSStatus          string  `json:"tps_status"` // "optimal", "degraded", "critical"
+	TPSStatus          string  `json:"tps_status"`      // "optimal", "degraded", "critical"
+	BlastRadiusPct     float64 `json:"blast_radius_pct"` // % of capacity lost per single cell failure
 }
 
 // CellSize returns formatted cell size string like "4×32"
@@ -67,7 +68,7 @@ type ScenarioDelta struct {
 	DiskCapacityChangeGB     int     `json:"disk_capacity_change_gb"`
 	UtilizationChangePct     float64 `json:"utilization_change_pct"`
 	DiskUtilizationChangePct float64 `json:"disk_utilization_change_pct"`
-	RedundancyChange         string  `json:"redundancy_change"` // "improved", "reduced", "unchanged"
+	ResilienceChange         string  `json:"resilience_change"` // "low", "moderate", "high" based on blast radius
 }
 
 // ScenarioComparison represents full comparison response
