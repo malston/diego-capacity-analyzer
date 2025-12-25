@@ -62,10 +62,10 @@
 - [x] Implement resource exhaustion ordering logic [470d9de]
 
 ### Task 3.2: Implement upgrade path recommendations
-- [ ] Write tests for "add cells" recommendation logic
-- [ ] Write tests for "resize cells" recommendation logic
-- [ ] Write tests for "add hosts" recommendation logic
-- [ ] Implement recommendation engine with priority ordering
+- [x] Write tests for "add cells" recommendation logic [26b393f]
+- [x] Write tests for "resize cells" recommendation logic [26b393f]
+- [x] Write tests for "add hosts" recommendation logic [26b393f]
+- [x] Implement recommendation engine with priority ordering [26b393f]
 
 ### Task 3.3: Add recommendations to API
 - [ ] Write tests for recommendations in API response
