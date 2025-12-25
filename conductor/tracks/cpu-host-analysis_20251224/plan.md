@@ -79,10 +79,10 @@
 ## Phase 4: Frontend - CPU and Host UI Components
 
 ### Task 4.1: Add CPU inputs to scenario wizard
-- [ ] Write tests for CPU input fields in wizard
-- [ ] Add physical cores per host input
-- [ ] Add number of hosts input
-- [ ] Add target vCPU:pCPU ratio input
+- [x] Write tests for CPU input fields in wizard [5e31ebe]
+- [x] Add physical cores per host input [5e31ebe]
+- [x] Add number of hosts input [5e31ebe]
+- [x] Add target vCPU:pCPU ratio input [5e31ebe]
 
 ### Task 4.2: Create CPU utilization gauge component
 - [ ] Write tests for CPU gauge rendering
