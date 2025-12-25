@@ -135,9 +135,9 @@
 - [x] Add inline help text for new wizard inputs [de3618d]
 
 ### Task 5.4: Final polish and edge cases
-- [ ] Handle missing host data gracefully (show N/A, not errors)
-- [ ] Ensure backward compatibility with existing infrastructure JSON
-- [ ] Verify tooltips and hover states on new components
+- [x] Handle missing host data gracefully (show N/A, not errors) [8fbbac2]
+- [x] Ensure backward compatibility with existing infrastructure JSON [8fbbac2]
+- [x] Verify tooltips and hover states on new components [8fbbac2]
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 5: Integration and Polish' (Protocol in workflow.md)
 
