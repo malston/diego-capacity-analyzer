@@ -153,6 +153,13 @@ const HostConfigSection = ({
               </div>
             </div>
           </div>
+
+          {/* Help text */}
+          <div className="text-xs text-gray-500 bg-slate-700/20 rounded p-3 border border-slate-600/20">
+            <strong className="text-gray-400">Tip:</strong> Host configuration enables HA capacity analysis.
+            These values should match your vSphere cluster configuration. The HA admission control percentage
+            determines how much capacity is reserved for VM failover in case of host failure.
+          </div>
         </div>
       )}
     </div>
