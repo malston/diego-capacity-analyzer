@@ -561,3 +561,214 @@ func TestHostUtilizationSerialization(t *testing.T) {
 			decoded.HostCPUUtilizationPercent, state.HostCPUUtilizationPercent)
 	}
 }
+
+func TestClusterState_HAHostFailureCapacity(t *testing.T) {
+	tests := []struct {
+		name                         string
+		hostCount                    int
+		memoryPerHost                int
+		cellCount                    int
+		cellMemory                   int
+		haPercentage                 int
+		expectedHostFailuresSurvived int
+		expectedHAStatus             string
+	}{
+		{
+			name:          "Can survive 2 host failures - low utilization",
+			hostCount:     4,
+			memoryPerHost: 1024,
+			cellCount:     48, // 48 * 32 = 1536 GB (37.5% of 4096)
+			cellMemory:    32,
+			haPercentage:  25, // 75% usable = 3072 GB, need 1536 GB
+			// With 3 hosts (one failed), 75% of 3072 = 2304 GB usable >= 1536 GB -> OK
+			// With 2 hosts (two failed), 75% of 2048 = 1536 GB usable >= 1536 GB -> OK
+			expectedHostFailuresSurvived: 2,
+			expectedHAStatus:             "ok",
+		},
+		{
+			name:          "Cannot survive host failure - high utilization",
+			hostCount:     4,
+			memoryPerHost: 1024,
+			cellCount:     96, // 96 * 32 = 3072 GB (75% of 4096)
+			cellMemory:    32,
+			haPercentage:  25, // 75% usable = 3072 GB, need 3072 GB
+			// With 3 hosts (one failed), 75% of 3072 = 2304 GB usable < 3072 GB -> FAIL
+			expectedHostFailuresSurvived: 0,
+			expectedHAStatus:             "at-risk",
+		},
+		{
+			name:          "Can survive 3 host failures - very low utilization",
+			hostCount:     4,
+			memoryPerHost: 1024,
+			cellCount:     24, // 24 * 32 = 768 GB (18.75% of 4096)
+			cellMemory:    32,
+			haPercentage:  25, // 75% usable = 3072 GB, need 768 GB
+			// With 1 host (three failed), 75% of 1024 = 768 GB usable >= 768 GB -> OK
+			expectedHostFailuresSurvived: 3,
+			expectedHAStatus:             "ok",
+		},
+		{
+			name:          "No HA reservation - can survive 2 failures",
+			hostCount:     4,
+			memoryPerHost: 1024,
+			cellCount:     64, // 64 * 32 = 2048 GB (50% of 4096)
+			cellMemory:    32,
+			haPercentage:  0, // 100% usable = 4096 GB, need 2048 GB
+			// With 2 hosts (two failed), 100% of 2048 = 2048 GB usable >= 2048 GB -> OK
+			expectedHostFailuresSurvived: 2,
+			expectedHAStatus:             "ok",
+		},
+		{
+			name:                         "Single host cluster - cannot survive any failure",
+			hostCount:                    1,
+			memoryPerHost:                1024,
+			cellCount:                    16,
+			cellMemory:                   32,
+			haPercentage:                 0,
+			expectedHostFailuresSurvived: 0,
+			expectedHAStatus:             "at-risk",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mi := ManualInput{
+				Name: "HA Capacity Test",
+				Clusters: []ClusterInput{
+					{
+						Name:                         "cluster-01",
+						HostCount:                    tt.hostCount,
+						MemoryGBPerHost:              tt.memoryPerHost,
+						CPUCoresPerHost:              64,
+						HAAdmissionControlPercentage: tt.haPercentage,
+						DiegoCellCount:               tt.cellCount,
+						DiegoCellMemoryGB:            tt.cellMemory,
+						DiegoCellCPU:                 4,
+					},
+				},
+			}
+
+			state := mi.ToInfrastructureState()
+			cluster := state.Clusters[0]
+
+			if cluster.HAHostFailuresSurvived != tt.expectedHostFailuresSurvived {
+				t.Errorf("Expected HAHostFailuresSurvived %d, got %d",
+					tt.expectedHostFailuresSurvived, cluster.HAHostFailuresSurvived)
+			}
+
+			if cluster.HAStatus != tt.expectedHAStatus {
+				t.Errorf("Expected HAStatus '%s', got '%s'",
+					tt.expectedHAStatus, cluster.HAStatus)
+			}
+		})
+	}
+}
+
+func TestInfrastructureState_AggregateHAStatus(t *testing.T) {
+	tests := []struct {
+		name                         string
+		clusters                     []ClusterInput
+		expectedHAStatus             string
+		expectedMinHostFailures      int
+	}{
+		{
+			name: "All clusters healthy - reports minimum failures",
+			clusters: []ClusterInput{
+				{
+					Name:              "cluster-01",
+					HostCount:         4,
+					MemoryGBPerHost:   1024,
+					CPUCoresPerHost:   64,
+					DiegoCellCount:    24, // 768 GB needed, can survive 3 failures
+					DiegoCellMemoryGB: 32,
+					DiegoCellCPU:      4,
+				},
+				{
+					Name:              "cluster-02",
+					HostCount:         3,
+					MemoryGBPerHost:   1024,
+					CPUCoresPerHost:   64,
+					DiegoCellCount:    24, // 768 GB needed, 3 hosts, can survive 2 failures
+					DiegoCellMemoryGB: 32,
+					DiegoCellCPU:      4,
+				},
+			},
+			expectedHAStatus:        "ok",
+			expectedMinHostFailures: 2, // Minimum across clusters (cluster-02)
+		},
+		{
+			name: "One cluster at risk - reports at-risk",
+			clusters: []ClusterInput{
+				{
+					Name:              "cluster-01",
+					HostCount:         4,
+					MemoryGBPerHost:   1024,
+					CPUCoresPerHost:   64,
+					DiegoCellCount:    24,
+					DiegoCellMemoryGB: 32,
+					DiegoCellCPU:      4,
+				},
+				{
+					Name:                         "cluster-02",
+					HostCount:                    4,
+					MemoryGBPerHost:              1024,
+					CPUCoresPerHost:              64,
+					HAAdmissionControlPercentage: 25,
+					DiegoCellCount:               96, // High utilization
+					DiegoCellMemoryGB:            32,
+					DiegoCellCPU:                 4,
+				},
+			},
+			expectedHAStatus:        "at-risk",
+			expectedMinHostFailures: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mi := ManualInput{
+				Name:     "Multi-Cluster HA Test",
+				Clusters: tt.clusters,
+			}
+
+			state := mi.ToInfrastructureState()
+
+			if state.HAStatus != tt.expectedHAStatus {
+				t.Errorf("Expected HAStatus '%s', got '%s'",
+					tt.expectedHAStatus, state.HAStatus)
+			}
+
+			if state.HAMinHostFailuresSurvived != tt.expectedMinHostFailures {
+				t.Errorf("Expected HAMinHostFailuresSurvived %d, got %d",
+					tt.expectedMinHostFailures, state.HAMinHostFailuresSurvived)
+			}
+		})
+	}
+}
+
+func TestHAFieldsSerialization(t *testing.T) {
+	state := ClusterState{
+		Name:                   "HA Serialization Test",
+		HAHostFailuresSurvived: 2,
+		HAStatus:               "ok",
+	}
+
+	data, err := json.Marshal(state)
+	if err != nil {
+		t.Fatalf("Failed to marshal ClusterState: %v", err)
+	}
+
+	var decoded ClusterState
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Failed to unmarshal ClusterState: %v", err)
+	}
+
+	if decoded.HAHostFailuresSurvived != state.HAHostFailuresSurvived {
+		t.Errorf("HAHostFailuresSurvived mismatch: got %d, want %d",
+			decoded.HAHostFailuresSurvived, state.HAHostFailuresSurvived)
+	}
+	if decoded.HAStatus != state.HAStatus {
+		t.Errorf("HAStatus mismatch: got '%s', want '%s'",
+			decoded.HAStatus, state.HAStatus)
+	}
+}
