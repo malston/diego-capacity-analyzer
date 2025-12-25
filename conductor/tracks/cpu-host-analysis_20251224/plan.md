@@ -102,10 +102,10 @@
 - [x] Display VMs per host and HA capacity status [39aef30]
 
 ### Task 4.5: Create multi-resource bottleneck component
-- [ ] Write tests for resource exhaustion ordering display
-- [ ] Write tests for bottleneck highlighting
-- [ ] Implement ranked resource list with visual indicators
-- [ ] Highlight the constraining resource
+- [x] Write tests for resource exhaustion ordering display [694685d]
+- [x] Write tests for bottleneck highlighting [694685d]
+- [x] Implement ranked resource list with visual indicators [694685d]
+- [x] Highlight the constraining resource [694685d]
 
 ### Task 4.6: Create upgrade recommendations component
 - [ ] Write tests for recommendations display
