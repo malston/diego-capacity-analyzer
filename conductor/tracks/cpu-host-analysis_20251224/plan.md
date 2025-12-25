@@ -57,9 +57,9 @@
 ## Phase 3: Backend - Multi-Resource Bottleneck and Recommendations
 
 ### Task 3.1: Implement resource exhaustion ordering
-- [ ] Write tests for ranking resources by utilization percentage
-- [ ] Write tests for identifying the constraining resource
-- [ ] Implement resource exhaustion ordering logic
+- [x] Write tests for ranking resources by utilization percentage [470d9de]
+- [x] Write tests for identifying the constraining resource [470d9de]
+- [x] Implement resource exhaustion ordering logic [470d9de]
 
 ### Task 3.2: Implement upgrade path recommendations
 - [ ] Write tests for "add cells" recommendation logic
