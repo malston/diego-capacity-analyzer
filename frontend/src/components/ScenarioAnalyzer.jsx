@@ -88,8 +88,12 @@ const ScenarioAnalyzer = () => {
         setCustomDisk(data.clusters[0].diego_cell_disk_gb);
       }
       // Note: cellCount is auto-set by the useEffect that calculates equivalent capacity
+
+      // Show confirmation with cell count from backend
+      showToast(`Infrastructure loaded: ${state.total_cell_count} cells`, 'success');
     } catch (err) {
       setError(err.message);
+      showToast(`Failed to load infrastructure: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
