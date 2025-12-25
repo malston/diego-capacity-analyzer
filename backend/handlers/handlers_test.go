@@ -494,6 +494,158 @@ func TestHandleManualInfrastructure(t *testing.T) {
 	}
 }
 
+func TestHandleManualInfrastructure_CPUMetrics(t *testing.T) {
+	// Test that CPU metrics are computed and returned in API response
+	body := `{
+		"name": "CPU Metrics Test",
+		"clusters": [{
+			"name": "cluster-01",
+			"host_count": 4,
+			"memory_gb_per_host": 1024,
+			"cpu_cores_per_host": 64,
+			"diego_cell_count": 100,
+			"diego_cell_memory_gb": 32,
+			"diego_cell_cpu": 4
+		}],
+		"platform_vms_gb": 0,
+		"total_app_memory_gb": 0,
+		"total_app_instances": 0
+	}`
+
+	req := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+	handler.HandleManualInfrastructure(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response models.InfrastructureState
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// Verify CPU metrics are computed
+	// Total pCPU: 4 hosts × 64 cores = 256
+	expectedCPUCores := 256
+	if response.TotalCPUCores != expectedCPUCores {
+		t.Errorf("Expected TotalCPUCores %d, got %d", expectedCPUCores, response.TotalCPUCores)
+	}
+
+	// Total vCPU: 100 cells × 4 vCPU = 400
+	expectedVCPUs := 400
+	if response.TotalVCPUs != expectedVCPUs {
+		t.Errorf("Expected TotalVCPUs %d, got %d", expectedVCPUs, response.TotalVCPUs)
+	}
+
+	// vCPU:pCPU ratio: 400 / 256 = 1.5625
+	expectedRatio := 1.5625
+	if response.VCPURatio != expectedRatio {
+		t.Errorf("Expected VCPURatio %.4f, got %.4f", expectedRatio, response.VCPURatio)
+	}
+
+	// Risk level: 1.5625 ≤ 4.0 = low
+	if response.CPURiskLevel != "low" {
+		t.Errorf("Expected CPURiskLevel 'low', got '%s'", response.CPURiskLevel)
+	}
+
+	// Verify cluster-level CPU metrics
+	if len(response.Clusters) != 1 {
+		t.Fatalf("Expected 1 cluster, got %d", len(response.Clusters))
+	}
+	cluster := response.Clusters[0]
+	if cluster.TotalVCPUs != expectedVCPUs {
+		t.Errorf("Expected cluster TotalVCPUs %d, got %d", expectedVCPUs, cluster.TotalVCPUs)
+	}
+	if cluster.VCPURatio != expectedRatio {
+		t.Errorf("Expected cluster VCPURatio %.4f, got %.4f", expectedRatio, cluster.VCPURatio)
+	}
+}
+
+func TestHandleManualInfrastructure_CPURiskLevels(t *testing.T) {
+	tests := []struct {
+		name            string
+		cellCount       int
+		cellCPU         int
+		hostCount       int
+		cpuCoresPerHost int
+		expectedRisk    string
+	}{
+		{
+			name:            "low risk - ratio under 1:1",
+			cellCount:       50,
+			cellCPU:         4,
+			hostCount:       4,
+			cpuCoresPerHost: 100,
+			expectedRisk:    "low", // 200 vCPU / 400 pCPU = 0.5
+		},
+		{
+			name:            "medium risk - ratio 6:1",
+			cellCount:       150,
+			cellCPU:         4,
+			hostCount:       4,
+			cpuCoresPerHost: 25,
+			expectedRisk:    "medium", // 600 vCPU / 100 pCPU = 6.0
+		},
+		{
+			name:            "high risk - ratio 10:1",
+			cellCount:       100,
+			cellCPU:         10,
+			hostCount:       4,
+			cpuCoresPerHost: 25,
+			expectedRisk:    "high", // 1000 vCPU / 100 pCPU = 10.0
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := models.ManualInput{
+				Name: "Risk Test",
+				Clusters: []models.ClusterInput{
+					{
+						Name:              "cluster-01",
+						HostCount:         tt.hostCount,
+						MemoryGBPerHost:   1024,
+						CPUCoresPerHost:   tt.cpuCoresPerHost,
+						DiegoCellCount:    tt.cellCount,
+						DiegoCellMemoryGB: 32,
+						DiegoCellCPU:      tt.cellCPU,
+					},
+				},
+			}
+
+			body, _ := json.Marshal(input)
+			req := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(string(body)))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			cfg := &config.Config{}
+			c := cache.New(5 * time.Minute)
+			handler := NewHandler(cfg, c)
+			handler.HandleManualInfrastructure(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+			}
+
+			var response models.InfrastructureState
+			if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+				t.Fatalf("Failed to decode response: %v", err)
+			}
+
+			if response.CPURiskLevel != tt.expectedRisk {
+				t.Errorf("Expected CPURiskLevel '%s', got '%s' (ratio: %.2f)",
+					tt.expectedRisk, response.CPURiskLevel, response.VCPURatio)
+			}
+		})
+	}
+}
+
 func TestHandleScenarioCompare(t *testing.T) {
 	// First, set up manual infrastructure
 	manualBody := `{
