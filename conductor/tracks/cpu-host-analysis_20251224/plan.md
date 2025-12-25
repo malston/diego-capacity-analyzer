@@ -35,10 +35,10 @@
 - [x] Extend infrastructure models with host configuration [73decc1]
 
 ### Task 2.2: Implement host utilization calculations
-- [ ] Write tests for host memory utilization calculation
-- [ ] Write tests for host CPU utilization calculation
-- [ ] Write tests for VMs per host calculation
-- [ ] Implement host utilization functions
+- [x] Write tests for host memory utilization calculation [4eb8d94]
+- [x] Write tests for host CPU utilization calculation [4eb8d94]
+- [x] Write tests for VMs per host calculation [73decc1]
+- [x] Implement host utilization functions [4eb8d94]
 
 ### Task 2.3: Implement HA capacity analysis
 - [ ] Write tests for HA headroom calculation (survive N host failures)
