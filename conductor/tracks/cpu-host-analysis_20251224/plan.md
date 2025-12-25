@@ -30,9 +30,9 @@
 ## Phase 2: Backend - Host-Level Analysis
 
 ### Task 2.1: Add host-level model fields
-- [ ] Write tests for host-level fields (host count, cores per host, memory per host)
-- [ ] Add HA admission control percentage field
-- [ ] Extend infrastructure models with host configuration
+- [x] Write tests for host-level fields (host count, cores per host, memory per host) [73decc1]
+- [x] Add HA admission control percentage field [73decc1]
+- [x] Extend infrastructure models with host configuration [73decc1]
 
 ### Task 2.2: Implement host utilization calculations
 - [ ] Write tests for host memory utilization calculation
