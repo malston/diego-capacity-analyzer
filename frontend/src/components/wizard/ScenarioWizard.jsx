@@ -44,6 +44,8 @@ const ScenarioWizard = ({
   setMemoryPerHost,
   haAdmissionPct,
   setHaAdmissionPct,
+  // Infrastructure data for current ratio calculation
+  totalVCPUs,
   // Advanced props
   overheadPct,
   setOverheadPct,
@@ -129,6 +131,7 @@ const ScenarioWizard = ({
             setHostCount={setHostCount}
             targetVCPURatio={targetVCPURatio}
             setTargetVCPURatio={setTargetVCPURatio}
+            totalVCPUs={totalVCPUs}
             onContinue={handleContinue}
             onSkip={handleContinue}
           />

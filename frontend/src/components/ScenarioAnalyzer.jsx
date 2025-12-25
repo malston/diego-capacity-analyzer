@@ -218,20 +218,22 @@ const ScenarioAnalyzer = () => {
     };
   }, [infrastructureData]);
 
-  // Auto-populate CPU config from IaaS capacity when infrastructure is loaded
+  // Auto-populate host config from IaaS capacity when infrastructure is loaded
+  // Note: We only auto-set host count and memory - physical cores must come from
+  // actual host hardware data, not vCPU counts (which are oversubscribed)
   useEffect(() => {
     if (!iaasCapacity) return;
 
-    // Set host count and cores per host from loaded infrastructure
+    // Set host count from loaded infrastructure
     if (iaasCapacity.totalHosts > 0) {
       setHostCount(iaasCapacity.totalHosts);
     }
-    if (iaasCapacity.coresPerHost > 0) {
-      setPhysicalCoresPerHost(iaasCapacity.coresPerHost);
-    }
+    // Set memory per host (this is accurate from infrastructure)
     if (iaasCapacity.memoryGBPerHost > 0) {
       setMemoryPerHost(iaasCapacity.memoryGBPerHost);
     }
+    // Note: We do NOT auto-set physicalCoresPerHost from totalCPUCores
+    // because totalCPUCores represents vCPUs (oversubscribed), not physical cores
   }, [iaasCapacity]);
 
   // Compute max deployable cells based on proposed cell size and IaaS capacity
@@ -513,6 +515,7 @@ const ScenarioAnalyzer = () => {
           setMemoryPerHost={setMemoryPerHost}
           haAdmissionPct={haAdmissionPct}
           setHaAdmissionPct={setHaAdmissionPct}
+          totalVCPUs={iaasCapacity?.totalCPUCores || 0}
           overheadPct={overheadPct}
           setOverheadPct={setOverheadPct}
           useAdditionalApp={useAdditionalApp}

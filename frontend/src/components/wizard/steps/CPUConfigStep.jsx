@@ -39,12 +39,19 @@ const CPUConfigStep = ({
   setHostCount,
   targetVCPURatio,
   setTargetVCPURatio,
+  totalVCPUs, // Total vCPUs from infrastructure (for showing current ratio)
   onContinue,
   onSkip,
 }) => {
   const totalCores = physicalCoresPerHost * hostCount;
   const riskLevel = getRatioRiskLevel(targetVCPURatio);
   const RiskIcon = riskLevel.icon;
+
+  // Calculate current actual ratio if we have vCPU data
+  const currentRatio = totalCores > 0 && totalVCPUs > 0
+    ? (totalVCPUs / totalCores).toFixed(1)
+    : null;
+  const currentRiskLevel = currentRatio ? getRatioRiskLevel(parseFloat(currentRatio)) : null;
 
   const canContinue = hostCount > 0 && physicalCoresPerHost > 0;
 
@@ -92,17 +99,44 @@ const CPUConfigStep = ({
         </div>
       </div>
 
-      {/* Total cores calculation display */}
+      {/* Total cores and current ratio display */}
       <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
         <div className="flex items-center justify-between">
-          <span className="text-gray-400 text-sm">Total Physical Cores</span>
+          <span className="text-gray-400 text-sm">Total Physical Cores (pCPU)</span>
           <span className="text-2xl font-mono font-bold text-cyan-400">
             {totalCores}
           </span>
         </div>
         <div className="text-xs text-gray-500 mt-1">
-          {physicalCoresPerHost} cores × {hostCount} hosts = {totalCores} total cores
+          {physicalCoresPerHost} cores × {hostCount} hosts = {totalCores} pCPU
         </div>
+
+        {/* Show current actual ratio if we have vCPU data */}
+        {currentRatio && currentRiskLevel && (
+          <div className="mt-3 pt-3 border-t border-slate-600/30">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">Current vCPU:pCPU Ratio</span>
+              <div className="flex items-center gap-2">
+                <span className={`text-lg font-mono font-bold ${currentRiskLevel.color}`}>
+                  {currentRatio}:1
+                </span>
+                <span className={`text-xs px-2 py-0.5 rounded ${currentRiskLevel.bgColor} ${currentRiskLevel.color}`}>
+                  {currentRiskLevel.level}
+                </span>
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {totalVCPUs.toLocaleString()} vCPUs ÷ {totalCores.toLocaleString()} pCPU = {currentRatio}:1 actual
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Help text about physical cores */}
+      <div className="text-xs text-gray-500 bg-slate-700/20 rounded p-3 border border-slate-600/20">
+        <strong className="text-gray-400">Note:</strong> Physical cores are the actual CPU cores in your ESXi hosts,
+        not vCPUs. Check vCenter for host hardware specs. The vCPU count shown in IaaS Capacity reflects
+        virtual CPUs assigned to VMs (which are typically oversubscribed).
       </div>
 
       <div>

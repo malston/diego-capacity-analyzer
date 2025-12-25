@@ -116,6 +116,6 @@ describe('CPUConfigStep', () => {
   it('displays total physical CPU cores calculation', () => {
     render(<CPUConfigStep {...defaultProps} physicalCoresPerHost={32} hostCount={4} />);
     // Check that the total cores calculation is displayed (128 = 32 * 4)
-    expect(screen.getByText(/32 cores × 4 hosts = 128 total cores/)).toBeInTheDocument();
+    expect(screen.getByText(/32 cores × 4 hosts = 128 pCPU/)).toBeInTheDocument();
   });
 });
