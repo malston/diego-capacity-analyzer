@@ -38,8 +38,10 @@ const CPUGauge = ({
   vcpuRatio,
   size = 120,
 }) => {
-  const riskLevel = getRatioRiskLevel(vcpuRatio);
-  const RiskIcon = riskLevel.icon;
+  // Handle missing or invalid ratio
+  const hasValidRatio = vcpuRatio != null && vcpuRatio > 0;
+  const riskLevel = hasValidRatio ? getRatioRiskLevel(vcpuRatio) : null;
+  const RiskIcon = riskLevel?.icon || CheckCircle;
 
   // CPU utilization thresholds: warning at 70%, critical at 85%
   const cpuThresholds = { warning: 70, critical: 85 };
@@ -57,17 +59,24 @@ const CPUGauge = ({
       />
 
       {/* vCPU:pCPU Ratio Indicator */}
-      <div
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${riskLevel.bgColor}`}
-      >
-        <RiskIcon size={14} className={riskLevel.color} />
-        <span className={`text-sm font-mono ${riskLevel.color}`}>
-          {vcpuRatio}:1
-        </span>
-        <span className={`text-xs ${riskLevel.color}`}>
-          {riskLevel.label}
-        </span>
-      </div>
+      {hasValidRatio ? (
+        <div
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${riskLevel.bgColor}`}
+        >
+          <RiskIcon size={14} className={riskLevel.color} />
+          <span className={`text-sm font-mono ${riskLevel.color}`}>
+            {vcpuRatio}:1
+          </span>
+          <span className={`text-xs ${riskLevel.color}`}>
+            {riskLevel.label}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-700/30">
+          <span className="text-sm font-mono text-gray-400">N/A</span>
+          <span className="text-xs text-gray-500">ratio</span>
+        </div>
+      )}
     </div>
   );
 };

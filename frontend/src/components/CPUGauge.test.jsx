@@ -121,5 +121,20 @@ describe('CPUGauge', () => {
       expect(screen.getByText(/16:1/)).toBeInTheDocument();
       expect(screen.getByText(/high/i)).toBeInTheDocument();
     });
+
+    it('shows N/A when ratio is 0', () => {
+      render(<CPUGauge {...defaultProps} vcpuRatio={0} />);
+      expect(screen.getByText(/N\/A/)).toBeInTheDocument();
+    });
+
+    it('shows N/A when ratio is null', () => {
+      render(<CPUGauge {...defaultProps} vcpuRatio={null} />);
+      expect(screen.getByText(/N\/A/)).toBeInTheDocument();
+    });
+
+    it('shows N/A when ratio is undefined', () => {
+      render(<CPUGauge cpuUtilization={45} />);
+      expect(screen.getByText(/N\/A/)).toBeInTheDocument();
+    });
   });
 });
