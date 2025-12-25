@@ -465,6 +465,100 @@ func TestRecommendationsE2E(t *testing.T) {
 	}
 }
 
+// TestLargeFoundationCellCount verifies the Large Foundation sample has correct cell count
+// This tests the exact scenario reported as a bug: 500 cells should appear, not 50
+func TestLargeFoundationCellCount(t *testing.T) {
+	handler := handlers.NewHandler(nil, nil)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/infrastructure/manual", handler.HandleManualInfrastructure)
+	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// This matches the Large Foundation (Production) sample exactly
+	manualInput := models.ManualInput{
+		Name: "Large Foundation (Production)",
+		Clusters: []models.ClusterInput{
+			{
+				Name:                         "compute-cluster-01",
+				HostCount:                    8,
+				MemoryGBPerHost:              2048,
+				CPUCoresPerHost:              64,
+				HAAdmissionControlPercentage: 25,
+				DiegoCellCount:               250, // 250 cells in cluster 1
+				DiegoCellMemoryGB:            32,
+				DiegoCellCPU:                 4,
+				DiegoCellDiskGB:              128,
+			},
+			{
+				Name:                         "compute-cluster-02",
+				HostCount:                    7,
+				MemoryGBPerHost:              2048,
+				CPUCoresPerHost:              64,
+				HAAdmissionControlPercentage: 25,
+				DiegoCellCount:               250, // 250 cells in cluster 2
+				DiegoCellMemoryGB:            32,
+				DiegoCellCPU:                 4,
+				DiegoCellDiskGB:              128,
+			},
+		},
+		PlatformVMsGB:     4800,
+		TotalAppMemoryGB:  10500,
+		TotalAppDiskGB:    15000,
+		TotalAppInstances: 7500,
+	}
+
+	// Step 1: Set infrastructure
+	body1, _ := json.Marshal(manualInput)
+	resp1, err := http.Post(server.URL+"/api/infrastructure/manual", "application/json", bytes.NewReader(body1))
+	if err != nil {
+		t.Fatalf("Failed to post infrastructure: %v", err)
+	}
+	defer resp1.Body.Close()
+
+	var infraState models.InfrastructureState
+	json.NewDecoder(resp1.Body).Decode(&infraState)
+
+	// Verify infrastructure has 500 cells (250 + 250)
+	expectedCells := 500
+	if infraState.TotalCellCount != expectedCells {
+		t.Errorf("Infrastructure TotalCellCount: expected %d, got %d", expectedCells, infraState.TotalCellCount)
+	}
+
+	t.Logf("Infrastructure loaded: %d cells across %d clusters", infraState.TotalCellCount, len(infraState.Clusters))
+
+	// Step 2: Run scenario comparison with same cell count
+	scenarioInput := models.ScenarioInput{
+		ProposedCellMemoryGB: 32,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    500, // Same as current
+	}
+
+	body2, _ := json.Marshal(scenarioInput)
+	resp2, err := http.Post(server.URL+"/api/scenario/compare", "application/json", bytes.NewReader(body2))
+	if err != nil {
+		t.Fatalf("Failed to post scenario compare: %v", err)
+	}
+	defer resp2.Body.Close()
+
+	var comparison models.ScenarioComparison
+	json.NewDecoder(resp2.Body).Decode(&comparison)
+
+	// CRITICAL: Verify current cell count is 500, NOT 50
+	if comparison.Current.CellCount != expectedCells {
+		t.Errorf("CURRENT cell count: expected %d, got %d (this is the reported bug!)",
+			expectedCells, comparison.Current.CellCount)
+	}
+
+	if comparison.Proposed.CellCount != expectedCells {
+		t.Errorf("PROPOSED cell count: expected %d, got %d", expectedCells, comparison.Proposed.CellCount)
+	}
+
+	t.Logf("Comparison results: Current=%d cells, Proposed=%d cells",
+		comparison.Current.CellCount, comparison.Proposed.CellCount)
+}
+
 // TestScenarioCompareWithCPUE2E tests scenario comparison including CPU metrics
 func TestScenarioCompareWithCPUE2E(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
