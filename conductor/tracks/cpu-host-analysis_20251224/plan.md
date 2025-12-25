@@ -97,9 +97,9 @@
 - [x] Make section collapsible with sensible defaults [53def53]
 
 ### Task 4.4: Create host analysis display component
-- [ ] Write tests for host metrics display
-- [ ] Implement host utilization cards
-- [ ] Display VMs per host and HA capacity status
+- [x] Write tests for host metrics display [39aef30]
+- [x] Implement host utilization cards [39aef30]
+- [x] Display VMs per host and HA capacity status [39aef30]
 
 ### Task 4.5: Create multi-resource bottleneck component
 - [ ] Write tests for resource exhaustion ordering display
