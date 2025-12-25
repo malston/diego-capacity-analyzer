@@ -41,9 +41,9 @@
 - [x] Implement host utilization functions [4eb8d94]
 
 ### Task 2.3: Implement HA capacity analysis
-- [ ] Write tests for HA headroom calculation (survive N host failures)
-- [ ] Implement HA capacity analysis
-- [ ] Add HA status to API responses
+- [x] Write tests for HA headroom calculation (survive N host failures) [90fe279]
+- [x] Implement HA capacity analysis [90fe279]
+- [x] Add HA status to API responses [90fe279]
 
 ### Task 2.4: Integrate vSphere host data
 - [ ] Write tests for host data extraction from vSphere
