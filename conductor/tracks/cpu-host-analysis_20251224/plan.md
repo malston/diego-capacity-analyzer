@@ -91,10 +91,10 @@
 - [x] Add vCPU:pCPU ratio indicator with color coding [747c125]
 
 ### Task 4.3: Add host-level inputs (optional section)
-- [ ] Write tests for collapsible host configuration section
-- [ ] Add host count, cores per host, memory per host inputs
-- [ ] Add HA admission control percentage input
-- [ ] Make section collapsible with sensible defaults
+- [x] Write tests for collapsible host configuration section [53def53]
+- [x] Add host count, cores per host, memory per host inputs [53def53]
+- [x] Add HA admission control percentage input [53def53]
+- [x] Make section collapsible with sensible defaults [53def53]
 
 ### Task 4.4: Create host analysis display component
 - [ ] Write tests for host metrics display
