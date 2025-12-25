@@ -36,6 +36,11 @@ const ScenarioAnalyzer = () => {
   const [selectedResources, setSelectedResources] = useState(DEFAULT_SELECTED_RESOURCES);
   const [overheadPct, setOverheadPct] = useState(OVERHEAD_DEFAULTS.memoryPct);
 
+  // CPU configuration state
+  const [physicalCoresPerHost, setPhysicalCoresPerHost] = useState(32);
+  const [hostCount, setHostCount] = useState(3);
+  const [targetVCPURatio, setTargetVCPURatio] = useState(4);
+
   // Wizard step completion tracking
   const [step1Completed, setStep1Completed] = useState(false);
 
@@ -243,6 +248,12 @@ const ScenarioAnalyzer = () => {
         selected_resources: selectedResources,
         overhead_pct: overheadPct,
         tps_curve: tpsCurve,
+        // CPU configuration (only included when CPU is selected)
+        ...(selectedResources.includes('cpu') && {
+          physical_cores_per_host: physicalCoresPerHost,
+          host_count: hostCount,
+          target_vcpu_ratio: targetVCPURatio,
+        }),
       };
 
       // Add hypothetical app if enabled
@@ -463,6 +474,12 @@ const ScenarioAnalyzer = () => {
           toggleResource={toggleResource}
           customDisk={customDisk}
           setCustomDisk={setCustomDisk}
+          physicalCoresPerHost={physicalCoresPerHost}
+          setPhysicalCoresPerHost={setPhysicalCoresPerHost}
+          hostCount={hostCount}
+          setHostCount={setHostCount}
+          targetVCPURatio={targetVCPURatio}
+          setTargetVCPURatio={setTargetVCPURatio}
           overheadPct={overheadPct}
           setOverheadPct={setOverheadPct}
           useAdditionalApp={useAdditionalApp}
