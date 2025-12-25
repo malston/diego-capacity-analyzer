@@ -27,7 +27,7 @@
 
 ---
 
-## Phase 2: Backend - Host-Level Analysis
+## Phase 2: Backend - Host-Level Analysis [checkpoint: b8aabf4]
 
 ### Task 2.1: Add host-level model fields
 - [x] Write tests for host-level fields (host count, cores per host, memory per host) [73decc1]
@@ -50,7 +50,7 @@
 - [x] Update vSphere service to fetch host-level metrics [5dba8a6]
 - [x] Map vSphere host data to host analysis models [5dba8a6]
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Backend - Host-Level Analysis' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Backend - Host-Level Analysis' (Protocol in workflow.md) [b8aabf4]
 
 ---
 
