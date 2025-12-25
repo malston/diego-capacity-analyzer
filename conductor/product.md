@@ -19,7 +19,7 @@ Managing Diego cell capacity in production TAS environments requires gathering d
 ## Core Value Proposition
 
 ### Visual Dashboard with Real-Time Metrics
-Aggregates capacity data from BOSH, Cloud Foundry, vSphere, and Log Cache into a unified dashboard. Platform engineers see cell memory, CPU, and application density at a glance rather than querying multiple APIs.
+Aggregates capacity data from BOSH, Cloud Foundry, vSphere, and Log Cache into a unified dashboard. Platform engineers see cell memory utilization, CPU utilization with vCPU:pCPU ratios, host-level metrics, and application density at a glance rather than querying multiple APIs.
 
 ### What-If Scenario Modeling
 Simulate configuration changes—such as memory overcommit ratios or cell sizing—before applying them to production. The scenario wizard lets operators model proposed changes and understand their impact on capacity and application placement.
@@ -42,6 +42,10 @@ Production TAS foundations running real application workloads. The tool integrat
 - Real-time Diego cell capacity monitoring
 - Isolation segment filtering and comparison
 - Memory overcommit modeling
+- CPU utilization analysis with vCPU:pCPU ratio risk assessment
+- Host-level capacity analysis (memory, CPU, VMs per host, HA headroom)
+- Multi-resource bottleneck detection (identifies which resource exhausts first)
+- Upgrade path recommendations (add cells, resize cells, add hosts)
 - Right-sizing recommendations for over-provisioned applications
 - Scenario analysis wizard with step-based configuration
 - vSphere infrastructure discovery
