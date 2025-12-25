@@ -13,10 +13,10 @@
 - [x] Verify model serialization/deserialization [4bd595b]
 
 ### Task 1.2: Implement CPU utilization calculations
-- [ ] Write tests for CPU utilization percentage calculation
-- [ ] Write tests for vCPU:pCPU ratio calculation
-- [ ] Write tests for CPU risk level thresholds (low/medium/high)
-- [ ] Implement CPU calculation functions in planning service
+- [x] Write tests for CPU utilization percentage calculation [d274056]
+- [x] Write tests for vCPU:pCPU ratio calculation [4bd595b]
+- [x] Write tests for CPU risk level thresholds (low/medium/high) [4bd595b]
+- [x] Implement CPU calculation functions in planning service [d274056]
 
 ### Task 1.3: Extend API responses with CPU metrics
 - [ ] Write tests for API response including CPU metrics
