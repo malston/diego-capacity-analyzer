@@ -68,11 +68,11 @@
 - [x] Implement recommendation engine with priority ordering [26b393f]
 
 ### Task 3.3: Add recommendations to API
-- [ ] Write tests for recommendations in API response
-- [ ] Update scenario comparison API to include recommendations
-- [ ] Add bottleneck summary to infrastructure status endpoint
+- [x] Write tests for recommendations in API response [a749d78]
+- [x] Update scenario comparison API to include recommendations [a749d78]
+- [x] Add bottleneck summary to infrastructure status endpoint [a749d78]
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Backend - Multi-Resource Bottleneck and Recommendations' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'Phase 3: Backend - Multi-Resource Bottleneck and Recommendations' (Protocol in workflow.md)
 
 ---
 
