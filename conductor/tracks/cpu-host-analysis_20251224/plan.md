@@ -85,10 +85,10 @@
 - [x] Add target vCPU:pCPU ratio input [5e31ebe]
 
 ### Task 4.2: Create CPU utilization gauge component
-- [ ] Write tests for CPU gauge rendering
-- [ ] Write tests for gauge color based on risk level
-- [ ] Implement CPU utilization gauge (similar to memory gauge)
-- [ ] Add vCPU:pCPU ratio indicator with color coding
+- [x] Write tests for CPU gauge rendering [747c125]
+- [x] Write tests for gauge color based on risk level [747c125]
+- [x] Implement CPU utilization gauge (similar to memory gauge) [747c125]
+- [x] Add vCPU:pCPU ratio indicator with color coding [747c125]
 
 ### Task 4.3: Add host-level inputs (optional section)
 - [ ] Write tests for collapsible host configuration section
