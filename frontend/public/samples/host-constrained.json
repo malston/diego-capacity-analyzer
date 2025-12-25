@@ -1,0 +1,21 @@
+{
+  "name": "Host-Constrained Scenario",
+  "description": "Environment where physical host capacity is the limiting factor with high host utilization",
+  "clusters": [
+    {
+      "name": "host-bound-cluster",
+      "host_count": 3,
+      "memory_gb_per_host": 512,
+      "cpu_cores_per_host": 32,
+      "ha_admission_control_percentage": 25,
+      "diego_cell_count": 30,
+      "diego_cell_memory_gb": 48,
+      "diego_cell_cpu": 8,
+      "diego_cell_disk_gb": 200
+    }
+  ],
+  "platform_vms_gb": 200,
+  "total_app_memory_gb": 1100,
+  "total_app_disk_gb": 4000,
+  "total_app_instances": 600
+}
