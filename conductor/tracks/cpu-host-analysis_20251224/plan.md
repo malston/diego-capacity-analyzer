@@ -19,9 +19,9 @@
 - [x] Implement CPU calculation functions in planning service [d274056]
 
 ### Task 1.3: Extend API responses with CPU metrics
-- [ ] Write tests for API response including CPU metrics
-- [ ] Update infrastructure and scenario API handlers
-- [ ] Verify backward compatibility with existing clients
+- [x] Write tests for API response including CPU metrics [04bfc48]
+- [x] Update infrastructure and scenario API handlers [04bfc48]
+- [x] Verify backward compatibility with existing clients [04bfc48]
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Backend - CPU Analysis Models and Calculations' (Protocol in workflow.md)
 
