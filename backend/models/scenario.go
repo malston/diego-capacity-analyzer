@@ -72,8 +72,9 @@ type ScenarioDelta struct {
 
 // ScenarioComparison represents full comparison response
 type ScenarioComparison struct {
-	Current  ScenarioResult    `json:"current"`
-	Proposed ScenarioResult    `json:"proposed"`
-	Warnings []ScenarioWarning `json:"warnings"`
-	Delta    ScenarioDelta     `json:"delta"`
+	Current         ScenarioResult    `json:"current"`
+	Proposed        ScenarioResult    `json:"proposed"`
+	Warnings        []ScenarioWarning `json:"warnings"`
+	Delta           ScenarioDelta     `json:"delta"`
+	Recommendations []Recommendation  `json:"recommendations,omitempty"`
 }

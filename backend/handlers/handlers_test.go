@@ -1055,3 +1055,251 @@ func TestDashboardHandler_AppMemoryCalculation(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleBottleneckAnalysis(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// First load manual infrastructure with high memory utilization
+	manualBody := `{
+		"name": "Bottleneck Test",
+		"clusters": [{
+			"name": "cluster-01",
+			"host_count": 4,
+			"memory_gb_per_host": 1024,
+			"cpu_cores_per_host": 64,
+			"diego_cell_count": 100,
+			"diego_cell_memory_gb": 32,
+			"diego_cell_cpu": 4,
+			"diego_cell_disk_gb": 100
+		}],
+		"total_app_memory_gb": 2800,
+		"total_app_disk_gb": 4000
+	}`
+
+	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	handler.HandleManualInfrastructure(w1, req1)
+
+	if w1.Code != http.StatusOK {
+		t.Fatalf("Failed to set manual infrastructure: %s", w1.Body.String())
+	}
+
+	// Now get bottleneck analysis
+	req2 := httptest.NewRequest("GET", "/api/bottleneck", nil)
+	w2 := httptest.NewRecorder()
+	handler.HandleBottleneckAnalysis(w2, req2)
+
+	if w2.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())
+	}
+
+	var analysis models.BottleneckAnalysis
+	if err := json.NewDecoder(w2.Body).Decode(&analysis); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if len(analysis.Resources) == 0 {
+		t.Error("Expected resources in bottleneck analysis")
+	}
+
+	if analysis.ConstrainingResource == "" {
+		t.Error("Expected a constraining resource")
+	}
+
+	if analysis.Summary == "" {
+		t.Error("Expected a summary in bottleneck analysis")
+	}
+}
+
+func TestHandleBottleneckAnalysis_NoData(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("GET", "/api/bottleneck", nil)
+	w := httptest.NewRecorder()
+	handler.HandleBottleneckAnalysis(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandleRecommendations(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// First load manual infrastructure
+	manualBody := `{
+		"name": "Recommendations Test",
+		"clusters": [{
+			"name": "cluster-01",
+			"host_count": 4,
+			"memory_gb_per_host": 1024,
+			"cpu_cores_per_host": 64,
+			"diego_cell_count": 100,
+			"diego_cell_memory_gb": 32,
+			"diego_cell_cpu": 4,
+			"diego_cell_disk_gb": 100
+		}],
+		"total_app_memory_gb": 2800,
+		"total_app_disk_gb": 4000
+	}`
+
+	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	handler.HandleManualInfrastructure(w1, req1)
+
+	if w1.Code != http.StatusOK {
+		t.Fatalf("Failed to set manual infrastructure: %s", w1.Body.String())
+	}
+
+	// Now get recommendations
+	req2 := httptest.NewRequest("GET", "/api/recommendations", nil)
+	w2 := httptest.NewRecorder()
+	handler.HandleRecommendations(w2, req2)
+
+	if w2.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())
+	}
+
+	var response models.RecommendationsResponse
+	if err := json.NewDecoder(w2.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if len(response.Recommendations) == 0 {
+		t.Error("Expected at least one recommendation")
+	}
+
+	if response.ConstrainingResource == "" {
+		t.Error("Expected a constraining resource")
+	}
+
+	// Verify recommendations are sorted by priority
+	for i := 0; i < len(response.Recommendations)-1; i++ {
+		if response.Recommendations[i].Priority > response.Recommendations[i+1].Priority {
+			t.Error("Recommendations should be sorted by priority")
+		}
+	}
+}
+
+func TestHandleRecommendations_NoData(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("GET", "/api/recommendations", nil)
+	w := httptest.NewRecorder()
+	handler.HandleRecommendations(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandleInfrastructureStatus_WithBottleneck(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// First load manual infrastructure with high utilization
+	manualBody := `{
+		"name": "Status Test",
+		"clusters": [{
+			"name": "cluster-01",
+			"host_count": 4,
+			"memory_gb_per_host": 1024,
+			"cpu_cores_per_host": 64,
+			"diego_cell_count": 100,
+			"diego_cell_memory_gb": 32,
+			"diego_cell_cpu": 4,
+			"diego_cell_disk_gb": 100
+		}],
+		"total_app_memory_gb": 2800,
+		"total_app_disk_gb": 4000
+	}`
+
+	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	handler.HandleManualInfrastructure(w1, req1)
+
+	// Now check status
+	req2 := httptest.NewRequest("GET", "/api/infrastructure/status", nil)
+	w2 := httptest.NewRecorder()
+	handler.HandleInfrastructureStatus(w2, req2)
+
+	if w2.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w2.Code)
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w2.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// Verify bottleneck info is present
+	if _, ok := resp["constraining_resource"]; !ok {
+		t.Error("Expected constraining_resource in status response")
+	}
+}
+
+func TestHandleScenarioCompare_WithRecommendations(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// First load manual infrastructure
+	manualBody := `{
+		"name": "Scenario Recommendations Test",
+		"clusters": [{
+			"name": "cluster-01",
+			"host_count": 4,
+			"memory_gb_per_host": 1024,
+			"cpu_cores_per_host": 64,
+			"diego_cell_count": 100,
+			"diego_cell_memory_gb": 32,
+			"diego_cell_cpu": 4,
+			"diego_cell_disk_gb": 100
+		}],
+		"total_app_memory_gb": 2800,
+		"total_app_disk_gb": 4000
+	}`
+
+	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	handler.HandleManualInfrastructure(w1, req1)
+
+	// Now compare scenario
+	compareBody := `{
+		"proposed_cell_memory_gb": 64,
+		"proposed_cell_cpu": 4,
+		"proposed_cell_count": 50
+	}`
+
+	req2 := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader(compareBody))
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	handler.HandleScenarioCompare(w2, req2)
+
+	if w2.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())
+	}
+
+	var comparison models.ScenarioComparison
+	if err := json.NewDecoder(w2.Body).Decode(&comparison); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// Verify recommendations are included
+	if len(comparison.Recommendations) == 0 {
+		t.Error("Expected recommendations in scenario comparison")
+	}
+}

@@ -343,6 +343,11 @@ func (h *Handler) HandleInfrastructureStatus(w http.ResponseWriter, r *http.Requ
 		status["host_count"] = state.TotalHostCount
 		status["cell_count"] = state.TotalCellCount
 		status["timestamp"] = state.Timestamp
+
+		// Add bottleneck summary
+		analysis := models.AnalyzeBottleneck(*state)
+		status["constraining_resource"] = analysis.ConstrainingResource
+		status["bottleneck_summary"] = analysis.Summary
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -372,6 +377,9 @@ func (h *Handler) HandleScenarioCompare(w http.ResponseWriter, r *http.Request) 
 
 	comparison := h.scenarioCalc.Compare(*state, input)
 
+	// Add recommendations based on current state
+	comparison.Recommendations = models.GenerateRecommendations(*state)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(comparison)
@@ -400,6 +408,58 @@ func (h *Handler) HandleInfrastructurePlanning(w http.ResponseWriter, r *http.Re
 	}
 
 	response := h.planningCalc.Plan(*state, input)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// HandleBottleneckAnalysis returns multi-resource bottleneck analysis
+func (h *Handler) HandleBottleneckAnalysis(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	h.infraMutex.RLock()
+	state := h.infrastructureState
+	h.infraMutex.RUnlock()
+
+	if state == nil {
+		writeError(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
+		return
+	}
+
+	analysis := models.AnalyzeBottleneck(*state)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(analysis)
+}
+
+// HandleRecommendations returns upgrade path recommendations
+func (h *Handler) HandleRecommendations(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	h.infraMutex.RLock()
+	state := h.infrastructureState
+	h.infraMutex.RUnlock()
+
+	if state == nil {
+		writeError(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
+		return
+	}
+
+	analysis := models.AnalyzeBottleneck(*state)
+	recommendations := models.GenerateRecommendations(*state)
+
+	response := models.RecommendationsResponse{
+		Recommendations:      recommendations,
+		ConstrainingResource: analysis.ConstrainingResource,
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
