@@ -40,6 +40,8 @@ type ClusterState struct {
 	HAUsableMemoryGB             int     `json:"ha_usable_memory_gb"`
 	HAUsableCPUCores             int     `json:"ha_usable_cpu_cores"`
 	VMsPerHost                   float64 `json:"vms_per_host"`
+	HostMemoryUtilizationPercent float64 `json:"host_memory_utilization_percent"`
+	HostCPUUtilizationPercent    float64 `json:"host_cpu_utilization_percent"`
 	N1MemoryGB                   int     `json:"n1_memory_gb"`
 	UsableMemoryGB               int     `json:"usable_memory_gb"`
 	DiegoCellCount               int     `json:"diego_cell_count"`
@@ -47,30 +49,34 @@ type ClusterState struct {
 	DiegoCellCPU                 int     `json:"diego_cell_cpu"`
 	DiegoCellDiskGB              int     `json:"diego_cell_disk_gb"`
 	TotalVCPUs                   int     `json:"total_vcpus"`
+	TotalCellMemoryGB            int     `json:"total_cell_memory_gb"`
 	VCPURatio                    float64 `json:"vcpu_ratio"`
 }
 
 // InfrastructureState represents computed infrastructure metrics
 type InfrastructureState struct {
-	Source                string         `json:"source"` // "manual" or "vsphere"
-	Name                  string         `json:"name"`
-	Clusters              []ClusterState `json:"clusters"`
-	TotalMemoryGB         int            `json:"total_memory_gb"`
-	TotalN1MemoryGB       int            `json:"total_n1_memory_gb"`
-	TotalHAUsableMemoryGB int            `json:"total_ha_usable_memory_gb"`
-	TotalHAUsableCPUCores int            `json:"total_ha_usable_cpu_cores"`
-	TotalHostCount        int            `json:"total_host_count"`
-	TotalCellCount        int            `json:"total_cell_count"`
-	TotalCPUCores         int            `json:"total_cpu_cores"`
-	TotalVCPUs            int            `json:"total_vcpus"`
-	VCPURatio             float64        `json:"vcpu_ratio"`
-	CPURiskLevel          string         `json:"cpu_risk_level"`
-	PlatformVMsGB         int            `json:"platform_vms_gb"`
-	TotalAppMemoryGB      int            `json:"total_app_memory_gb"`
-	TotalAppDiskGB        int            `json:"total_app_disk_gb"`
-	TotalAppInstances     int            `json:"total_app_instances"`
-	Timestamp             time.Time      `json:"timestamp"`
-	Cached                bool           `json:"cached"`
+	Source                       string         `json:"source"` // "manual" or "vsphere"
+	Name                         string         `json:"name"`
+	Clusters                     []ClusterState `json:"clusters"`
+	TotalMemoryGB                int            `json:"total_memory_gb"`
+	TotalN1MemoryGB              int            `json:"total_n1_memory_gb"`
+	TotalHAUsableMemoryGB        int            `json:"total_ha_usable_memory_gb"`
+	TotalHAUsableCPUCores        int            `json:"total_ha_usable_cpu_cores"`
+	TotalCellMemoryGB            int            `json:"total_cell_memory_gb"`
+	HostMemoryUtilizationPercent float64        `json:"host_memory_utilization_percent"`
+	HostCPUUtilizationPercent    float64        `json:"host_cpu_utilization_percent"`
+	TotalHostCount               int            `json:"total_host_count"`
+	TotalCellCount               int            `json:"total_cell_count"`
+	TotalCPUCores                int            `json:"total_cpu_cores"`
+	TotalVCPUs                   int            `json:"total_vcpus"`
+	VCPURatio                    float64        `json:"vcpu_ratio"`
+	CPURiskLevel                 string         `json:"cpu_risk_level"`
+	PlatformVMsGB                int            `json:"platform_vms_gb"`
+	TotalAppMemoryGB             int            `json:"total_app_memory_gb"`
+	TotalAppDiskGB               int            `json:"total_app_disk_gb"`
+	TotalAppInstances            int            `json:"total_app_instances"`
+	Timestamp                    time.Time      `json:"timestamp"`
+	Cached                       bool           `json:"cached"`
 }
 
 // CPURiskLevel returns the risk level based on vCPU:pCPU ratio
@@ -103,6 +109,7 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 		clusterMemory := c.HostCount * c.MemoryGBPerHost
 		clusterCPU := c.HostCount * c.CPUCoresPerHost
 		clusterVCPUs := c.DiegoCellCount * c.DiegoCellCPU
+		clusterCellMemory := c.DiegoCellCount * c.DiegoCellMemoryGB
 		n1Memory := (c.HostCount - 1) * c.MemoryGBPerHost
 		usableMemory := int(float64(n1Memory) * 0.9) // 10% overhead
 
@@ -115,6 +122,15 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 		var vmsPerHost float64
 		if c.HostCount > 0 {
 			vmsPerHost = float64(c.DiegoCellCount) / float64(c.HostCount)
+		}
+
+		// Calculate host utilization percentages
+		var hostMemoryUtil, hostCPUUtil float64
+		if clusterMemory > 0 {
+			hostMemoryUtil = (float64(clusterCellMemory) / float64(clusterMemory)) * 100.0
+		}
+		if clusterCPU > 0 {
+			hostCPUUtil = (float64(clusterVCPUs) / float64(clusterCPU)) * 100.0
 		}
 
 		var clusterVCPURatio float64
@@ -133,6 +149,8 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 			HAUsableMemoryGB:             haUsableMemory,
 			HAUsableCPUCores:             haUsableCPU,
 			VMsPerHost:                   vmsPerHost,
+			HostMemoryUtilizationPercent: hostMemoryUtil,
+			HostCPUUtilizationPercent:    hostCPUUtil,
 			N1MemoryGB:                   n1Memory,
 			UsableMemoryGB:               usableMemory,
 			DiegoCellCount:               c.DiegoCellCount,
@@ -140,6 +158,7 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 			DiegoCellCPU:                 c.DiegoCellCPU,
 			DiegoCellDiskGB:              c.DiegoCellDiskGB,
 			TotalVCPUs:                   clusterVCPUs,
+			TotalCellMemoryGB:            clusterCellMemory,
 			VCPURatio:                    clusterVCPURatio,
 		}
 
@@ -147,6 +166,7 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 		state.TotalN1MemoryGB += n1Memory
 		state.TotalHAUsableMemoryGB += haUsableMemory
 		state.TotalHAUsableCPUCores += haUsableCPU
+		state.TotalCellMemoryGB += clusterCellMemory
 		state.TotalHostCount += c.HostCount
 		state.TotalCellCount += c.DiegoCellCount
 		state.TotalCPUCores += clusterCPU
@@ -158,6 +178,14 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 		state.VCPURatio = float64(state.TotalVCPUs) / float64(state.TotalCPUCores)
 	}
 	state.CPURiskLevel = CPURiskLevel(state.VCPURatio)
+
+	// Calculate aggregate host utilization percentages
+	if state.TotalMemoryGB > 0 {
+		state.HostMemoryUtilizationPercent = (float64(state.TotalCellMemoryGB) / float64(state.TotalMemoryGB)) * 100.0
+	}
+	if state.TotalCPUCores > 0 {
+		state.HostCPUUtilizationPercent = (float64(state.TotalVCPUs) / float64(state.TotalCPUCores)) * 100.0
+	}
 
 	return state
 }

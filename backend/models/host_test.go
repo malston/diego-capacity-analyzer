@@ -290,8 +290,8 @@ func TestHostLevelFieldsSerialization(t *testing.T) {
 
 func TestInfrastructureState_HostLevelSerialization(t *testing.T) {
 	state := InfrastructureState{
-		Source:               "manual",
-		Name:                 "HA Serialization Test",
+		Source:                "manual",
+		Name:                  "HA Serialization Test",
 		TotalHAUsableMemoryGB: 4224,
 		TotalHAUsableCPUCores: 300,
 	}
@@ -311,5 +311,253 @@ func TestInfrastructureState_HostLevelSerialization(t *testing.T) {
 	}
 	if decoded.TotalHAUsableCPUCores != state.TotalHAUsableCPUCores {
 		t.Errorf("TotalHAUsableCPUCores mismatch: got %d, want %d", decoded.TotalHAUsableCPUCores, state.TotalHAUsableCPUCores)
+	}
+}
+
+func TestClusterState_HostMemoryUtilization(t *testing.T) {
+	tests := []struct {
+		name                       string
+		hostCount                  int
+		memoryPerHost              int
+		cellCount                  int
+		cellMemory                 int
+		expectedUtilizationPercent float64
+	}{
+		{
+			name:          "50% memory utilization",
+			hostCount:     4,
+			memoryPerHost: 1024,
+			cellCount:     64,
+			cellMemory:    32,
+			// Total host memory: 4 * 1024 = 4096 GB
+			// Total cell memory: 64 * 32 = 2048 GB
+			// Utilization: 2048 / 4096 = 50%
+			expectedUtilizationPercent: 50.0,
+		},
+		{
+			name:          "75% memory utilization",
+			hostCount:     4,
+			memoryPerHost: 1024,
+			cellCount:     96,
+			cellMemory:    32,
+			// Total host memory: 4096 GB
+			// Total cell memory: 96 * 32 = 3072 GB
+			// Utilization: 3072 / 4096 = 75%
+			expectedUtilizationPercent: 75.0,
+		},
+		{
+			name:          "100% memory utilization",
+			hostCount:     4,
+			memoryPerHost: 1024,
+			cellCount:     128,
+			cellMemory:    32,
+			// Total host memory: 4096 GB
+			// Total cell memory: 128 * 32 = 4096 GB
+			// Utilization: 4096 / 4096 = 100%
+			expectedUtilizationPercent: 100.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mi := ManualInput{
+				Name: "Memory Utilization Test",
+				Clusters: []ClusterInput{
+					{
+						Name:              "cluster-01",
+						HostCount:         tt.hostCount,
+						MemoryGBPerHost:   tt.memoryPerHost,
+						CPUCoresPerHost:   64,
+						DiegoCellCount:    tt.cellCount,
+						DiegoCellMemoryGB: tt.cellMemory,
+						DiegoCellCPU:      4,
+					},
+				},
+			}
+
+			state := mi.ToInfrastructureState()
+			cluster := state.Clusters[0]
+
+			if cluster.HostMemoryUtilizationPercent != tt.expectedUtilizationPercent {
+				t.Errorf("Expected HostMemoryUtilizationPercent %.1f, got %.1f",
+					tt.expectedUtilizationPercent, cluster.HostMemoryUtilizationPercent)
+			}
+		})
+	}
+}
+
+func TestClusterState_HostCPUUtilization(t *testing.T) {
+	tests := []struct {
+		name                       string
+		hostCount                  int
+		coresPerHost               int
+		cellCount                  int
+		cellCPU                    int
+		expectedUtilizationPercent float64
+	}{
+		{
+			name:         "50% CPU utilization (2:1 ratio)",
+			hostCount:    4,
+			coresPerHost: 64,
+			cellCount:    32,
+			cellCPU:      4,
+			// Total host cores: 4 * 64 = 256
+			// Total cell vCPU: 32 * 4 = 128
+			// Utilization: 128 / 256 = 50%
+			expectedUtilizationPercent: 50.0,
+		},
+		{
+			name:         "200% CPU utilization (2:1 overcommit)",
+			hostCount:    4,
+			coresPerHost: 64,
+			cellCount:    128,
+			cellCPU:      4,
+			// Total host cores: 256
+			// Total cell vCPU: 128 * 4 = 512
+			// Utilization: 512 / 256 = 200%
+			expectedUtilizationPercent: 200.0,
+		},
+		{
+			name:         "100% CPU utilization (1:1 ratio)",
+			hostCount:    4,
+			coresPerHost: 64,
+			cellCount:    64,
+			cellCPU:      4,
+			// Total host cores: 256
+			// Total cell vCPU: 64 * 4 = 256
+			// Utilization: 256 / 256 = 100%
+			expectedUtilizationPercent: 100.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mi := ManualInput{
+				Name: "CPU Utilization Test",
+				Clusters: []ClusterInput{
+					{
+						Name:              "cluster-01",
+						HostCount:         tt.hostCount,
+						MemoryGBPerHost:   1024,
+						CPUCoresPerHost:   tt.coresPerHost,
+						DiegoCellCount:    tt.cellCount,
+						DiegoCellMemoryGB: 32,
+						DiegoCellCPU:      tt.cellCPU,
+					},
+				},
+			}
+
+			state := mi.ToInfrastructureState()
+			cluster := state.Clusters[0]
+
+			if cluster.HostCPUUtilizationPercent != tt.expectedUtilizationPercent {
+				t.Errorf("Expected HostCPUUtilizationPercent %.1f, got %.1f",
+					tt.expectedUtilizationPercent, cluster.HostCPUUtilizationPercent)
+			}
+		})
+	}
+}
+
+func TestClusterState_ZeroHostsHandled(t *testing.T) {
+	mi := ManualInput{
+		Name: "Zero Hosts Test",
+		Clusters: []ClusterInput{
+			{
+				Name:              "empty-cluster",
+				HostCount:         0,
+				MemoryGBPerHost:   1024,
+				CPUCoresPerHost:   64,
+				DiegoCellCount:    10,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+		},
+	}
+
+	state := mi.ToInfrastructureState()
+	cluster := state.Clusters[0]
+
+	// Should not panic or have NaN/Inf values
+	if cluster.VMsPerHost != 0 {
+		t.Errorf("Expected VMsPerHost 0 with zero hosts, got %.1f", cluster.VMsPerHost)
+	}
+	if cluster.HostMemoryUtilizationPercent != 0 {
+		t.Errorf("Expected HostMemoryUtilizationPercent 0 with zero hosts, got %.1f", cluster.HostMemoryUtilizationPercent)
+	}
+	if cluster.HostCPUUtilizationPercent != 0 {
+		t.Errorf("Expected HostCPUUtilizationPercent 0 with zero hosts, got %.1f", cluster.HostCPUUtilizationPercent)
+	}
+}
+
+func TestInfrastructureState_AggregateHostUtilization(t *testing.T) {
+	mi := ManualInput{
+		Name: "Multi-Cluster Utilization Test",
+		Clusters: []ClusterInput{
+			{
+				Name:              "cluster-01",
+				HostCount:         4,
+				MemoryGBPerHost:   1024,
+				CPUCoresPerHost:   64,
+				DiegoCellCount:    64, // 50% memory usage (2048/4096), 100% CPU (256/256)
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+			{
+				Name:              "cluster-02",
+				HostCount:         2,
+				MemoryGBPerHost:   512,
+				CPUCoresPerHost:   32,
+				DiegoCellCount:    16, // 50% memory usage (512/1024), 100% CPU (64/64)
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+		},
+	}
+
+	state := mi.ToInfrastructureState()
+
+	// Total host memory: 4*1024 + 2*512 = 5120 GB
+	// Total cell memory: 64*32 + 16*32 = 2560 GB
+	// Aggregate utilization: 2560 / 5120 = 50%
+	expectedMemoryUtil := 50.0
+	if state.HostMemoryUtilizationPercent != expectedMemoryUtil {
+		t.Errorf("Expected aggregate HostMemoryUtilizationPercent %.1f, got %.1f",
+			expectedMemoryUtil, state.HostMemoryUtilizationPercent)
+	}
+
+	// Total host cores: 4*64 + 2*32 = 320
+	// Total vCPUs: 64*4 + 16*4 = 320
+	// Aggregate utilization: 320 / 320 = 100%
+	expectedCPUUtil := 100.0
+	if state.HostCPUUtilizationPercent != expectedCPUUtil {
+		t.Errorf("Expected aggregate HostCPUUtilizationPercent %.1f, got %.1f",
+			expectedCPUUtil, state.HostCPUUtilizationPercent)
+	}
+}
+
+func TestHostUtilizationSerialization(t *testing.T) {
+	state := ClusterState{
+		Name:                         "Utilization Serialization Test",
+		HostMemoryUtilizationPercent: 75.5,
+		HostCPUUtilizationPercent:    125.0,
+	}
+
+	data, err := json.Marshal(state)
+	if err != nil {
+		t.Fatalf("Failed to marshal ClusterState: %v", err)
+	}
+
+	var decoded ClusterState
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Failed to unmarshal ClusterState: %v", err)
+	}
+
+	if decoded.HostMemoryUtilizationPercent != state.HostMemoryUtilizationPercent {
+		t.Errorf("HostMemoryUtilizationPercent mismatch: got %.1f, want %.1f",
+			decoded.HostMemoryUtilizationPercent, state.HostMemoryUtilizationPercent)
+	}
+	if decoded.HostCPUUtilizationPercent != state.HostCPUUtilizationPercent {
+		t.Errorf("HostCPUUtilizationPercent mismatch: got %.1f, want %.1f",
+			decoded.HostCPUUtilizationPercent, state.HostCPUUtilizationPercent)
 	}
 }
