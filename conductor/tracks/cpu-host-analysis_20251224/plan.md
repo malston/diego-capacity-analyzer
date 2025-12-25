@@ -46,7 +46,7 @@
 - [x] Add HA status to API responses [90fe279]
 
 ### Task 2.4: Integrate vSphere host data
-- [ ] Write tests for host data extraction from vSphere
+- [~] Write tests for host data extraction from vSphere
 - [ ] Update vSphere service to fetch host-level metrics
 - [ ] Map vSphere host data to host analysis models
 
