@@ -8,9 +8,9 @@
 ## Phase 1: Backend - CPU Analysis Models and Calculations
 
 ### Task 1.1: Extend models with CPU fields
-- [ ] Write tests for CPU-related model fields (cores per host, vCPU:pCPU ratio)
-- [ ] Add CPU fields to infrastructure and scenario models
-- [ ] Verify model serialization/deserialization
+- [x] Write tests for CPU-related model fields (cores per host, vCPU:pCPU ratio) [4bd595b]
+- [x] Add CPU fields to infrastructure and scenario models [4bd595b]
+- [x] Verify model serialization/deserialization [4bd595b]
 
 ### Task 1.2: Implement CPU utilization calculations
 - [ ] Write tests for CPU utilization percentage calculation
