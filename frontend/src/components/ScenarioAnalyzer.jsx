@@ -41,6 +41,10 @@ const ScenarioAnalyzer = () => {
   const [hostCount, setHostCount] = useState(3);
   const [targetVCPURatio, setTargetVCPURatio] = useState(4);
 
+  // Host configuration state
+  const [memoryPerHost, setMemoryPerHost] = useState(512);
+  const [haAdmissionPct, setHaAdmissionPct] = useState(25);
+
   // Wizard step completion tracking
   const [step1Completed, setStep1Completed] = useState(false);
 
@@ -254,6 +258,9 @@ const ScenarioAnalyzer = () => {
           host_count: hostCount,
           target_vcpu_ratio: targetVCPURatio,
         }),
+        // Host configuration (for HA and capacity analysis)
+        memory_per_host_gb: memoryPerHost,
+        ha_admission_pct: haAdmissionPct,
       };
 
       // Add hypothetical app if enabled
@@ -480,6 +487,10 @@ const ScenarioAnalyzer = () => {
           setHostCount={setHostCount}
           targetVCPURatio={targetVCPURatio}
           setTargetVCPURatio={setTargetVCPURatio}
+          memoryPerHost={memoryPerHost}
+          setMemoryPerHost={setMemoryPerHost}
+          haAdmissionPct={haAdmissionPct}
+          setHaAdmissionPct={setHaAdmissionPct}
           overheadPct={overheadPct}
           setOverheadPct={setOverheadPct}
           useAdditionalApp={useAdditionalApp}

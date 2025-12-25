@@ -39,6 +39,11 @@ const ScenarioWizard = ({
   setHostCount,
   targetVCPURatio,
   setTargetVCPURatio,
+  // Host config props (for Advanced step)
+  memoryPerHost,
+  setMemoryPerHost,
+  haAdmissionPct,
+  setHaAdmissionPct,
   // Advanced props
   overheadPct,
   setOverheadPct,
@@ -139,6 +144,14 @@ const ScenarioWizard = ({
             setAdditionalApp={setAdditionalApp}
             tpsCurve={tpsCurve}
             setTPSCurve={setTPSCurve}
+            hostCount={hostCount}
+            setHostCount={setHostCount}
+            coresPerHost={physicalCoresPerHost}
+            setCoresPerHost={setPhysicalCoresPerHost}
+            memoryPerHost={memoryPerHost}
+            setMemoryPerHost={setMemoryPerHost}
+            haAdmissionPct={haAdmissionPct}
+            setHaAdmissionPct={setHaAdmissionPct}
             isLastStep={isLastStep}
           />
         );
