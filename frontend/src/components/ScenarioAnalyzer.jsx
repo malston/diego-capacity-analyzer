@@ -66,21 +66,28 @@ const ScenarioAnalyzer = () => {
     if (saved) {
       try {
         const data = JSON.parse(saved);
+        const totalCells = data.clusters?.reduce((sum, c) => sum + (c.diego_cell_count || 0), 0) || 0;
+        console.log(`[ScenarioAnalyzer] Loading from localStorage: "${data.name}" with ${totalCells} cells`);
         setInfrastructureData(data);
         handleDataLoaded(data);
       } catch (e) {
-        console.error('Failed to load saved infrastructure:', e);
+        console.error('[ScenarioAnalyzer] Failed to load saved infrastructure:', e);
       }
+    } else {
+      console.log('[ScenarioAnalyzer] No saved infrastructure in localStorage');
     }
   }, []);
 
   const handleDataLoaded = async (data) => {
+    console.log('[ScenarioAnalyzer] handleDataLoaded called with:', data.name);
     setInfrastructureData(data);
     setLoading(true);
     setError(null);
 
     try {
+      console.log('[ScenarioAnalyzer] Calling setManualInfrastructure...');
       const state = await scenarioApi.setManualInfrastructure(data);
+      console.log('[ScenarioAnalyzer] Backend returned state with', state.total_cell_count, 'cells');
       setInfrastructureState(state);
 
       // Set initial disk from first cluster if available
@@ -92,6 +99,7 @@ const ScenarioAnalyzer = () => {
       // Show confirmation with cell count from backend
       showToast(`Infrastructure loaded: ${state.total_cell_count} cells`, 'success');
     } catch (err) {
+      console.error('[ScenarioAnalyzer] Error loading infrastructure:', err);
       setError(err.message);
       showToast(`Failed to load infrastructure: ${err.message}`, 'error');
     } finally {
