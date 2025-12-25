@@ -5,7 +5,7 @@
 
 ---
 
-## Phase 1: Backend - CPU Analysis Models and Calculations
+## Phase 1: Backend - CPU Analysis Models and Calculations [checkpoint: 2df9807]
 
 ### Task 1.1: Extend models with CPU fields
 - [x] Write tests for CPU-related model fields (cores per host, vCPU:pCPU ratio) [4bd595b]
@@ -23,7 +23,7 @@
 - [x] Update infrastructure and scenario API handlers [04bfc48]
 - [x] Verify backward compatibility with existing clients [04bfc48]
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Backend - CPU Analysis Models and Calculations' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Backend - CPU Analysis Models and Calculations' (Protocol in workflow.md) [2df9807]
 
 ---
 
