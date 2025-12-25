@@ -125,9 +125,9 @@
 - [x] Verify all data flows correctly from vSphere to UI [e5c21f9]
 
 ### Task 5.2: Update sample scenarios
-- [ ] Add CPU and host data to existing sample files
-- [ ] Create new sample demonstrating CPU-constrained scenario
-- [ ] Create new sample demonstrating host-constrained scenario
+- [x] Add CPU and host data to existing sample files [b4fd39a]
+- [x] Create new sample demonstrating CPU-constrained scenario [b4fd39a]
+- [x] Create new sample demonstrating host-constrained scenario [b4fd39a]
 
 ### Task 5.3: Documentation updates
 - [ ] Update UI Guide with new metrics and components
