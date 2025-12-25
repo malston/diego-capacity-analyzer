@@ -108,9 +108,9 @@
 - [x] Highlight the constraining resource [694685d]
 
 ### Task 4.6: Create upgrade recommendations component
-- [ ] Write tests for recommendations display
-- [ ] Implement actionable recommendation cards
-- [ ] Add recommendation priority ordering
+- [x] Write tests for recommendations display [ed23abd]
+- [x] Implement actionable recommendation cards [ed23abd]
+- [x] Add recommendation priority ordering [ed23abd]
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Frontend - CPU and Host UI Components' (Protocol in workflow.md)
 
