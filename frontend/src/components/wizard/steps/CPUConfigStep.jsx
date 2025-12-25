@@ -3,28 +3,31 @@
 
 import { ArrowRight, Cpu, Server, AlertTriangle, CheckCircle } from 'lucide-react';
 
-// vCPU:pCPU ratio risk level thresholds per spec
+// vCPU:pCPU ratio risk level thresholds
+// Note: VMware recommends "driving by contention" (CPU Ready <5%) rather than
+// fixed ratios. These thresholds provide general guidance but actual safety
+// depends on workload characteristics and active monitoring.
 const getRatioRiskLevel = (ratio) => {
   if (ratio <= 4) {
     return {
-      level: 'low',
-      label: 'Low - Production safe',
+      level: 'conservative',
+      label: 'Conservative - Typical for general workloads',
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-500/20',
       icon: CheckCircle,
     };
   } else if (ratio <= 8) {
     return {
-      level: 'medium',
-      label: 'Medium - Monitor CPU ready',
+      level: 'moderate',
+      label: 'Moderate - Monitor CPU Ready time',
       color: 'text-amber-400',
       bgColor: 'bg-amber-500/20',
       icon: AlertTriangle,
     };
   } else {
     return {
-      level: 'high',
-      label: 'High - Expect contention',
+      level: 'aggressive',
+      label: 'Aggressive - Requires active monitoring',
       color: 'text-red-400',
       bgColor: 'bg-red-500/20',
       icon: AlertTriangle,

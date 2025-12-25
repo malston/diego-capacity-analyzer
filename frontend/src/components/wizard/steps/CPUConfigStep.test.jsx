@@ -74,19 +74,19 @@ describe('CPUConfigStep', () => {
     expect(setTargetVCPURatio).toHaveBeenCalled();
   });
 
-  it('shows ratio risk level indicator - low risk for ratio <= 4', () => {
+  it('shows ratio risk level indicator - conservative for ratio <= 4', () => {
     render(<CPUConfigStep {...defaultProps} targetVCPURatio={4} />);
-    expect(screen.getByText(/low.*production safe/i)).toBeInTheDocument();
+    expect(screen.getByText(/conservative.*typical for general workloads/i)).toBeInTheDocument();
   });
 
-  it('shows ratio risk level indicator - medium risk for ratio 5-8', () => {
+  it('shows ratio risk level indicator - moderate for ratio 5-8', () => {
     render(<CPUConfigStep {...defaultProps} targetVCPURatio={6} />);
-    expect(screen.getByText(/medium.*monitor cpu ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/moderate.*monitor cpu ready time/i)).toBeInTheDocument();
   });
 
-  it('shows ratio risk level indicator - high risk for ratio > 8', () => {
+  it('shows ratio risk level indicator - aggressive for ratio > 8', () => {
     render(<CPUConfigStep {...defaultProps} targetVCPURatio={10} />);
-    expect(screen.getByText(/high.*expect contention/i)).toBeInTheDocument();
+    expect(screen.getByText(/aggressive.*requires active monitoring/i)).toBeInTheDocument();
   });
 
   it('calls onContinue when Continue button clicked', async () => {
