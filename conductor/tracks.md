@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: Add CPU and host-level capacity analysis
+## [x] Track: Add CPU and host-level capacity analysis
 *Link: [./tracks/cpu-host-analysis_20251224/](./tracks/cpu-host-analysis_20251224/)*
