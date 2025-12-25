@@ -130,9 +130,9 @@
 - [x] Create new sample demonstrating host-constrained scenario [b4fd39a]
 
 ### Task 5.3: Documentation updates
-- [ ] Update UI Guide with new metrics and components
-- [ ] Update README with new environment variables
-- [ ] Add inline help text for new wizard inputs
+- [x] Update UI Guide with new metrics and components [a1a8251]
+- [x] Update README with new environment variables [a1a8251]
+- [x] Add inline help text for new wizard inputs [de3618d]
 
 ### Task 5.4: Final polish and edge cases
 - [ ] Handle missing host data gracefully (show N/A, not errors)
