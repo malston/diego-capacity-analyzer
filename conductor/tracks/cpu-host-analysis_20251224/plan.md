@@ -76,7 +76,7 @@
 
 ---
 
-## Phase 4: Frontend - CPU and Host UI Components
+## Phase 4: Frontend - CPU and Host UI Components [checkpoint: e78fa6e]
 
 ### Task 4.1: Add CPU inputs to scenario wizard
 - [x] Write tests for CPU input fields in wizard [5e31ebe]
@@ -112,7 +112,7 @@
 - [x] Implement actionable recommendation cards [ed23abd]
 - [x] Add recommendation priority ordering [ed23abd]
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Frontend - CPU and Host UI Components' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Frontend - CPU and Host UI Components' (Protocol in workflow.md) [e78fa6e]
 
 ---
 
