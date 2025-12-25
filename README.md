@@ -17,10 +17,14 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 
 ### Capacity Planning
 
-- **Scenario Analysis Wizard** - Step-based configuration: Resources → Cell Config → Advanced
+- **Scenario Analysis Wizard** - Step-based configuration: Resources → Cell Config → CPU Config → Host Config → Advanced
 - **vSphere Infrastructure Discovery** - Live infrastructure data from vCenter
 - **N-1 HA Calculations** - Ensure capacity survives host failure
 - **Max Cell Estimation** - Calculate deployable cells based on memory/CPU constraints
+- **CPU Analysis** - vCPU:pCPU ratio calculation with risk level indicators
+- **Host-Level Metrics** - VMs per host, host utilization, HA capacity analysis
+- **Multi-Resource Bottleneck Detection** - Identify constraining resources (memory/CPU/disk)
+- **Upgrade Recommendations** - Actionable suggestions: add cells, resize cells, add hosts
 - **TPS Performance Modeling** - Estimate throughput based on cell count
 - **Markdown Export** - Generate analysis reports for stakeholders
 
@@ -29,7 +33,7 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 - **Live vSphere** - Connect to vCenter for real infrastructure data
 - **JSON Upload** - Import infrastructure configurations
 - **Manual Entry** - Define infrastructure manually
-- **Sample Scenarios** - 7 pre-built configurations (dev/staging/prod/enterprise)
+- **Sample Scenarios** - 9 pre-built configurations including CPU and host-constrained scenarios
 
 ## Quick Start (Local Development)
 
