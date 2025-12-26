@@ -14,7 +14,8 @@ describe('RecommendationsCard', () => {
         description: 'Add 2 more Diego cells to increase memory capacity',
         priority: 1,
         type: 'scale-out',
-        impact: 'high',
+        impact: 'Increases memory capacity by 64 GB',
+        impact_level: 'high',
       },
       {
         id: 'resize-cells',
@@ -22,7 +23,8 @@ describe('RecommendationsCard', () => {
         description: 'Increase cell memory from 64GB to 128GB',
         priority: 2,
         type: 'scale-up',
-        impact: 'medium',
+        impact: 'Doubles memory capacity per cell',
+        impact_level: 'medium',
       },
       {
         id: 'add-hosts',
@@ -30,7 +32,8 @@ describe('RecommendationsCard', () => {
         description: 'Add 1 physical host to your cluster',
         priority: 3,
         type: 'infrastructure',
-        impact: 'low',
+        impact: 'Adds 256 GB of physical memory capacity',
+        impact_level: 'low',
       },
     ],
   };
@@ -101,20 +104,19 @@ describe('RecommendationsCard', () => {
   });
 
   describe('Impact Indicators', () => {
-    it('shows high impact indicator', () => {
+    it('shows high impact indicator from impact_level', () => {
       render(<RecommendationsCard {...defaultProps} />);
-      expect(screen.getByText(/high/i)).toBeInTheDocument();
+      expect(screen.getByText(/high impact/i)).toBeInTheDocument();
     });
 
-    it('shows medium impact indicator', () => {
+    it('shows medium impact indicator from impact_level', () => {
       render(<RecommendationsCard {...defaultProps} />);
-      expect(screen.getByText(/medium/i)).toBeInTheDocument();
+      expect(screen.getByText(/medium impact/i)).toBeInTheDocument();
     });
 
-    it('shows low impact indicator', () => {
+    it('shows low impact indicator from impact_level', () => {
       render(<RecommendationsCard {...defaultProps} />);
-      // Multiple matches for "low" - use getAllByText
-      expect(screen.getAllByText(/low/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/low impact/i)).toBeInTheDocument();
     });
 
     it('uses color coding for impact levels', () => {
@@ -124,6 +126,14 @@ describe('RecommendationsCard', () => {
       expect(container.querySelector('.text-emerald-400')).toBeInTheDocument();
       // Medium impact should have amber color
       expect(container.querySelector('.text-amber-400')).toBeInTheDocument();
+    });
+
+    it('displays impact description text', () => {
+      render(<RecommendationsCard {...defaultProps} />);
+
+      // Impact descriptions should be displayed
+      expect(screen.getByText(/increases memory capacity by 64 GB/i)).toBeInTheDocument();
+      expect(screen.getByText(/doubles memory capacity per cell/i)).toBeInTheDocument();
     });
   });
 

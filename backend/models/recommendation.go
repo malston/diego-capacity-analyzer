@@ -19,16 +19,17 @@ const (
 
 // Recommendation represents an actionable upgrade recommendation
 type Recommendation struct {
-	Type           RecommendationType `json:"type"`
-	Priority       int                `json:"priority"`
-	Title          string             `json:"title"`
-	Description    string             `json:"description"`
-	Impact         string             `json:"impact"`
-	Resource       string             `json:"resource"`
-	CellsToAdd     int                `json:"cells_to_add,omitempty"`
-	HostsToAdd     int                `json:"hosts_to_add,omitempty"`
-	NewCellMemoryGB int               `json:"new_cell_memory_gb,omitempty"`
-	NewCellCPU     int                `json:"new_cell_cpu,omitempty"`
+	Type            RecommendationType `json:"type"`
+	Priority        int                `json:"priority"`
+	Title           string             `json:"title"`
+	Description     string             `json:"description"`
+	Impact          string             `json:"impact"`
+	ImpactLevel     string             `json:"impact_level"`
+	Resource        string             `json:"resource"`
+	CellsToAdd      int                `json:"cells_to_add,omitempty"`
+	HostsToAdd      int                `json:"hosts_to_add,omitempty"`
+	NewCellMemoryGB int                `json:"new_cell_memory_gb,omitempty"`
+	NewCellCPU      int                `json:"new_cell_cpu,omitempty"`
 }
 
 // RecommendationsResponse wraps the list of recommendations with context
@@ -94,6 +95,7 @@ func GenerateAddCellsRecommendation(state InfrastructureState, constrainingResou
 		Title:       "Add Diego Cells",
 		Description: fmt.Sprintf("Add %d more Diego cells to increase capacity", cellsToAdd),
 		Impact:      impact,
+		ImpactLevel: "high",
 		Resource:    constrainingResource,
 		CellsToAdd:  cellsToAdd,
 	}
@@ -139,14 +141,15 @@ func GenerateResizeCellsRecommendation(state InfrastructureState, constrainingRe
 	}
 
 	return &Recommendation{
-		Type:           RecommendationResizeCells,
-		Priority:       2,
-		Title:          "Resize Diego Cells",
-		Description:    description,
-		Impact:         impact,
-		Resource:       constrainingResource,
+		Type:            RecommendationResizeCells,
+		Priority:        2,
+		Title:           "Resize Diego Cells",
+		Description:     description,
+		Impact:          impact,
+		ImpactLevel:     "medium",
+		Resource:        constrainingResource,
 		NewCellMemoryGB: newMemory,
-		NewCellCPU:     newCPU,
+		NewCellCPU:      newCPU,
 	}
 }
 
@@ -213,6 +216,7 @@ func GenerateAddHostsRecommendation(state InfrastructureState, constrainingResou
 		Title:       "Add Physical Host",
 		Description: fmt.Sprintf("Add %d physical host(s) to your cluster", hostsToAdd),
 		Impact:      impact,
+		ImpactLevel: "low",
 		Resource:    constrainingResource,
 		HostsToAdd:  hostsToAdd,
 	}

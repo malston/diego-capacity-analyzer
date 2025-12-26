@@ -77,7 +77,9 @@ const RecommendationsCard = ({ recommendations = [] }) => {
       <div className="space-y-3">
         {sortedRecommendations.map((rec) => {
           const TypeIcon = getTypeIcon(rec.type);
-          const impactColors = getImpactColor(rec.impact);
+          // Use impact_level for badge coloring (falls back to impact for backwards compat)
+          const impactLevel = rec.impact_level || rec.impact;
+          const impactColors = getImpactColor(impactLevel);
           const typeBadgeColor = getTypeBadgeColor(rec.type);
 
           return (
@@ -106,12 +108,12 @@ const RecommendationsCard = ({ recommendations = [] }) => {
                       {rec.type}
                     </span>
 
-                    {/* Impact Badge */}
-                    {rec.impact && (
+                    {/* Impact Level Badge */}
+                    {impactLevel && (
                       <span
                         className={`text-xs px-2 py-0.5 rounded ${impactColors.bg} ${impactColors.text}`}
                       >
-                        {rec.impact} impact
+                        {impactLevel} impact
                       </span>
                     )}
                   </div>
@@ -119,6 +121,11 @@ const RecommendationsCard = ({ recommendations = [] }) => {
                   {/* Description */}
                   {rec.description && (
                     <p className="text-sm text-gray-400 mt-1">{rec.description}</p>
+                  )}
+
+                  {/* Impact Description (detailed text from backend) */}
+                  {rec.impact && rec.impact_level && (
+                    <p className="text-xs text-gray-500 mt-1 italic">{rec.impact}</p>
                   )}
                 </div>
               </div>

@@ -15,6 +15,7 @@ func TestRecommendation_BasicFields(t *testing.T) {
 		Title:       "Add Diego Cells",
 		Description: "Add 2 more Diego cells to increase capacity",
 		Impact:      "Increases memory capacity by 64 GB",
+		ImpactLevel: "high",
 		Resource:    "Memory",
 	}
 
@@ -24,6 +25,54 @@ func TestRecommendation_BasicFields(t *testing.T) {
 	if rec.Priority != 1 {
 		t.Errorf("Expected Priority 1, got %d", rec.Priority)
 	}
+	if rec.ImpactLevel != "high" {
+		t.Errorf("Expected ImpactLevel 'high', got '%s'", rec.ImpactLevel)
+	}
+}
+
+func TestRecommendation_ImpactLevelSerialization(t *testing.T) {
+	rec := Recommendation{
+		Type:        RecommendationAddCells,
+		Priority:    1,
+		Title:       "Add Diego Cells",
+		Description: "Add 2 more Diego cells",
+		Impact:      "Increases capacity by 64 GB",
+		ImpactLevel: "high",
+		Resource:    "Memory",
+	}
+
+	data, err := json.Marshal(rec)
+	if err != nil {
+		t.Fatalf("Failed to marshal: %v", err)
+	}
+
+	// Verify JSON contains impact_level
+	jsonStr := string(data)
+	if !contains(jsonStr, `"impact_level":"high"`) {
+		t.Errorf("Expected JSON to contain impact_level field, got: %s", jsonStr)
+	}
+
+	// Verify roundtrip
+	var decoded Recommendation
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
+	}
+	if decoded.ImpactLevel != "high" {
+		t.Errorf("Expected ImpactLevel 'high' after roundtrip, got '%s'", decoded.ImpactLevel)
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 func TestRecommendation_Serialization(t *testing.T) {
@@ -103,6 +152,51 @@ func TestGenerateAddCellsRecommendation_CPUConstrained(t *testing.T) {
 	}
 	if rec.Resource != "CPU" {
 		t.Errorf("Expected Resource 'CPU', got '%s'", rec.Resource)
+	}
+}
+
+func TestGenerateAddCellsRecommendation_SetsImpactLevel(t *testing.T) {
+	state := createTestInfrastructure(
+		4, 1024, 64, 100, 32, 4, 100, 2800, 4000,
+	)
+
+	rec := GenerateAddCellsRecommendation(state, "Memory")
+
+	if rec == nil {
+		t.Fatal("Expected a recommendation, got nil")
+	}
+	if rec.ImpactLevel != "high" {
+		t.Errorf("Expected ImpactLevel 'high' for AddCells, got '%s'", rec.ImpactLevel)
+	}
+}
+
+func TestGenerateResizeCellsRecommendation_SetsImpactLevel(t *testing.T) {
+	state := createTestInfrastructure(
+		4, 1024, 64, 100, 32, 4, 100, 2800, 4000,
+	)
+
+	rec := GenerateResizeCellsRecommendation(state, "Memory")
+
+	if rec == nil {
+		t.Fatal("Expected a recommendation, got nil")
+	}
+	if rec.ImpactLevel != "medium" {
+		t.Errorf("Expected ImpactLevel 'medium' for ResizeCells, got '%s'", rec.ImpactLevel)
+	}
+}
+
+func TestGenerateAddHostsRecommendation_SetsImpactLevel(t *testing.T) {
+	state := createTestInfrastructure(
+		4, 1024, 64, 120, 32, 4, 100, 3200, 4000,
+	)
+
+	rec := GenerateAddHostsRecommendation(state, "Memory")
+
+	if rec == nil {
+		t.Fatal("Expected a recommendation, got nil")
+	}
+	if rec.ImpactLevel != "low" {
+		t.Errorf("Expected ImpactLevel 'low' for AddHosts, got '%s'", rec.ImpactLevel)
 	}
 }
 
