@@ -1,7 +1,7 @@
 // ABOUTME: End-to-end tests for CPU and host-level capacity analysis
 // ABOUTME: Tests full flow from manual input through bottleneck analysis and recommendations
 
-package main
+package e2e
 
 import (
 	"bytes"

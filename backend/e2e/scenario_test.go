@@ -1,7 +1,7 @@
 // ABOUTME: End-to-end test for scenario analysis API
 // ABOUTME: Tests full flow from manual input to scenario comparison
 
-package main
+package e2e
 
 import (
 	"bytes"
