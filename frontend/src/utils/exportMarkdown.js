@@ -122,15 +122,17 @@ This analysis compares the current Diego cell configuration with a proposed chan
     md += `✅ No warnings for this configuration.\n\n`;
   }
 
-  // Add redundancy assessment
-  md += `### Redundancy Assessment\n\n`;
-  if (delta.redundancy_change === 'improved') {
-    md += `The proposed configuration **improves redundancy** by increasing the cell count.\n`;
-  } else if (delta.redundancy_change === 'reduced') {
-    const reduction = ((current.cell_count - proposed.cell_count) / current.cell_count * 100).toFixed(0);
-    md += `The proposed configuration **reduces redundancy** by ${reduction}% (fewer cells means each cell failure affects more apps).\n`;
+  // Add cell resilience assessment based on blast radius
+  md += `### Cell Failure Resilience\n\n`;
+  const blastRadius = proposed.blast_radius_pct?.toFixed(1) || 'N/A';
+  if (delta.resilience_change === 'low') {
+    md += `✅ **Low risk** - Single cell failure affects only ${blastRadius}% of capacity.\n`;
+  } else if (delta.resilience_change === 'moderate') {
+    md += `⚠️ **Moderate risk** - Single cell failure affects ${blastRadius}% of capacity.\n`;
+  } else if (delta.resilience_change === 'high') {
+    md += `🔴 **High risk** - Single cell failure affects ${blastRadius}% of capacity. Consider adding more cells.\n`;
   } else {
-    md += `Redundancy remains **unchanged** with this configuration.\n`;
+    md += `Cell resilience assessment: ${blastRadius}% capacity at risk per cell failure.\n`;
   }
 
   md += `

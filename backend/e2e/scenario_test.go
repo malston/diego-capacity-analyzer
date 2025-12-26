@@ -1,7 +1,7 @@
 // ABOUTME: End-to-end test for scenario analysis API
 // ABOUTME: Tests full flow from manual input to scenario comparison
 
-package main
+package e2e
 
 import (
 	"bytes"
@@ -106,21 +106,16 @@ func TestScenarioAnalysisE2E(t *testing.T) {
 		t.Errorf("Expected Proposed.CellSize '4×64', got '%s'", comparison.Proposed.CellSize())
 	}
 
-	// Validate delta
-	if comparison.Delta.RedundancyChange != "reduced" {
-		t.Errorf("Expected RedundancyChange 'reduced', got '%s'", comparison.Delta.RedundancyChange)
+	// Validate delta - with 235 cells, blast radius is ~0.43%, so ResilienceChange = "low"
+	if comparison.Delta.ResilienceChange != "low" {
+		t.Errorf("Expected ResilienceChange 'low' for large foundation, got '%s'", comparison.Delta.ResilienceChange)
 	}
 
-	// Should have warning about redundancy reduction (50% cell reduction)
-	hasRedundancyWarning := false
+	// No blast radius warning expected - 235 cells is plenty resilient
 	for _, w := range comparison.Warnings {
-		if w.Message == "Significant redundancy reduction" {
-			hasRedundancyWarning = true
-			break
+		if w.Message == "Elevated cell failure impact" || w.Message == "High cell failure impact" {
+			t.Errorf("Did not expect blast radius warning for 235 cells, got: %s", w.Message)
 		}
-	}
-	if !hasRedundancyWarning {
-		t.Error("Expected warning about redundancy reduction")
 	}
 
 	t.Logf("Comparison: Current %s (%d cells) → Proposed %s (%d cells)",

@@ -304,12 +304,14 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
           <div className="flex flex-col items-center">
             <div className="text-4xl text-cyan-500">→</div>
             <div className={`text-xs mt-1 ${
-              delta.redundancy_change === 'improved' ? 'text-emerald-400' :
-              delta.redundancy_change === 'reduced' ? 'text-amber-400' :
+              delta.resilience_change === 'low' ? 'text-emerald-400' :
+              delta.resilience_change === 'moderate' ? 'text-amber-400' :
+              delta.resilience_change === 'high' ? 'text-red-400' :
               'text-gray-500'
             }`}>
-              {delta.redundancy_change === 'improved' ? '↑ More redundant' :
-               delta.redundancy_change === 'reduced' ? '↓ Less redundant' :
+              {delta.resilience_change === 'low' ? '✓ Low risk' :
+               delta.resilience_change === 'moderate' ? '⚠ Moderate risk' :
+               delta.resilience_change === 'high' ? '⚠ High risk' :
                'No change'}
             </div>
           </div>

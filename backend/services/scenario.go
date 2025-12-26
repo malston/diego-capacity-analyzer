@@ -234,6 +234,12 @@ func (c *ScenarioCalculator) calculateFull(
 	// TPS estimation
 	estimatedTPS, tpsStatus := EstimateTPS(cellCount, tpsCurve)
 
+	// Blast radius: % of capacity lost per single cell failure
+	var blastRadiusPct float64
+	if cellCount > 0 {
+		blastRadiusPct = 100.0 / float64(cellCount)
+	}
+
 	return models.ScenarioResult{
 		CellCount:          cellCount,
 		CellMemoryGB:       cellMemoryGB,
@@ -249,6 +255,7 @@ func (c *ScenarioCalculator) calculateFull(
 		InstancesPerCell:   instancesPerCell,
 		EstimatedTPS:       estimatedTPS,
 		TPSStatus:          tpsStatus,
+		BlastRadiusPct:     blastRadiusPct,
 	}
 }
 
@@ -322,15 +329,18 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 		})
 	}
 
-	// Redundancy reduction warning
-	if current.CellCount > 0 {
-		reduction := float64(current.CellCount-proposed.CellCount) / float64(current.CellCount) * 100
-		if reduction >= 50 {
-			warnings = append(warnings, models.ScenarioWarning{
-				Severity: "warning",
-				Message:  "Significant redundancy reduction",
-			})
-		}
+	// Blast radius warning: warn when single cell failure impact is high
+	// Thresholds: >20% is critical (5 or fewer cells), >10% is warning (10 or fewer cells)
+	if proposed.BlastRadiusPct > 20 {
+		warnings = append(warnings, models.ScenarioWarning{
+			Severity: "critical",
+			Message:  fmt.Sprintf("High cell failure impact: single cell loss affects %.0f%% of capacity", proposed.BlastRadiusPct),
+		})
+	} else if proposed.BlastRadiusPct > 10 {
+		warnings = append(warnings, models.ScenarioWarning{
+			Severity: "warning",
+			Message:  fmt.Sprintf("Elevated cell failure impact: single cell loss affects %.0f%% of capacity", proposed.BlastRadiusPct),
+		})
 	}
 
 	return warnings
@@ -348,13 +358,18 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 	utilizationChange := proposed.UtilizationPct - current.UtilizationPct
 	diskUtilizationChange := proposed.DiskUtilizationPct - current.DiskUtilizationPct
 
-	var redundancyChange string
-	if proposed.CellCount > current.CellCount {
-		redundancyChange = "improved"
-	} else if proposed.CellCount < current.CellCount {
-		redundancyChange = "reduced"
-	} else {
-		redundancyChange = "unchanged"
+	// ResilienceChange based on blast radius: what % of capacity is at risk per cell failure
+	// "low" = ≤5% blast radius (20+ cells), very resilient
+	// "moderate" = 5-15% blast radius (7-20 cells), acceptable for most workloads
+	// "high" = >15% blast radius (< 7 cells), concerning for production
+	var resilienceChange string
+	switch {
+	case proposed.BlastRadiusPct <= 5:
+		resilienceChange = "low"
+	case proposed.BlastRadiusPct <= 15:
+		resilienceChange = "moderate"
+	default:
+		resilienceChange = "high"
 	}
 
 	return models.ScenarioComparison{
@@ -366,7 +381,7 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 			DiskCapacityChangeGB:     diskCapacityChange,
 			UtilizationChangePct:     utilizationChange,
 			DiskUtilizationChangePct: diskUtilizationChange,
-			RedundancyChange:         redundancyChange,
+			ResilienceChange:         resilienceChange,
 		},
 	}
 }

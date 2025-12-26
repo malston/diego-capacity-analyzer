@@ -143,9 +143,17 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
       }
       const data = await response.json();
       validateManualInput(data);
-      onDataLoaded(data);
+
+      // Calculate total cells for logging
+      const totalCells = data.clusters?.reduce((sum, c) => sum + (c.diego_cell_count || 0), 0) || 0;
+      console.log(`[DataSourceSelector] Loading sample "${data.name}" with ${totalCells} cells`);
+
+      await onDataLoaded(data);
       localStorage.setItem('scenario-infrastructure', JSON.stringify(data));
+
+      console.log(`[DataSourceSelector] Sample loaded and saved to localStorage`);
     } catch (err) {
+      console.error(`[DataSourceSelector] Error loading sample:`, err);
       setError(err.message);
     } finally {
       setLoading(false);

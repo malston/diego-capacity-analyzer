@@ -1,8 +1,9 @@
 // ABOUTME: Step 3 of scenario wizard - advanced configuration options
-// ABOUTME: Handles memory overhead, hypothetical app, and TPS curve
+// ABOUTME: Handles memory overhead, hypothetical app, host config, and TPS curve
 
 import { ArrowRight, Plus, X, CheckCircle2 } from 'lucide-react';
 import { DEFAULT_TPS_CURVE } from '../../../config/resourceConfig';
+import HostConfigSection from './HostConfigSection';
 
 const AdvancedStep = ({
   overheadPct,
@@ -13,6 +14,15 @@ const AdvancedStep = ({
   setAdditionalApp,
   tpsCurve,
   setTPSCurve,
+  // Host config props
+  hostCount,
+  setHostCount,
+  coresPerHost,
+  setCoresPerHost,
+  memoryPerHost,
+  setMemoryPerHost,
+  haAdmissionPct,
+  setHaAdmissionPct,
   onContinue,
   onSkip,
   isLastStep = false,
@@ -40,6 +50,18 @@ const AdvancedStep = ({
 
   return (
     <div className="space-y-6">
+      {/* Host Configuration Section - Collapsible */}
+      <HostConfigSection
+        hostCount={hostCount}
+        setHostCount={setHostCount}
+        coresPerHost={coresPerHost}
+        setCoresPerHost={setCoresPerHost}
+        memoryPerHost={memoryPerHost}
+        setMemoryPerHost={setMemoryPerHost}
+        haAdmissionPct={haAdmissionPct}
+        setHaAdmissionPct={setHaAdmissionPct}
+      />
+
       {/* Memory Overhead Slider */}
       <div>
         <label

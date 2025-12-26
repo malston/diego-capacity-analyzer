@@ -39,9 +39,12 @@ func (c *PlanningCalculator) Calculate(state models.InfrastructureState, input m
 
 	// Get total available resources
 	memoryAvail := state.TotalN1MemoryGB
-	cpuAvail := 0
-	for _, cluster := range state.Clusters {
-		cpuAvail += cluster.CPUCores
+	cpuAvail := state.TotalCPUCores
+	// Fallback: compute from clusters if TotalCPUCores is not set
+	if cpuAvail == 0 {
+		for _, cluster := range state.Clusters {
+			cpuAvail += cluster.CPUCores
+		}
 	}
 
 	// Handle empty state

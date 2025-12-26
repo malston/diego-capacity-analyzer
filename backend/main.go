@@ -57,6 +57,8 @@ func main() {
 	http.HandleFunc("/api/infrastructure/status", h.EnableCORS(middleware.LogRequest(h.HandleInfrastructureStatus)))
 	http.HandleFunc("/api/infrastructure/planning", h.EnableCORS(middleware.LogRequest(h.HandleInfrastructurePlanning)))
 	http.HandleFunc("/api/scenario/compare", h.EnableCORS(middleware.LogRequest(h.HandleScenarioCompare)))
+	http.HandleFunc("/api/bottleneck", h.EnableCORS(middleware.LogRequest(h.HandleBottleneckAnalysis)))
+	http.HandleFunc("/api/recommendations", h.EnableCORS(middleware.LogRequest(h.HandleRecommendations)))
 
 	// Start server
 	addr := ":" + cfg.Port

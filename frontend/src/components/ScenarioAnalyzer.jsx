@@ -2,7 +2,7 @@
 // ABOUTME: Main what-if scenario analyzer component
 // ABOUTME: Combines data source, comparison table, and warnings
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Calculator, RefreshCw, FileDown, Sparkles, Server, HardDrive, Cpu, Database, AlertCircle } from 'lucide-react';
 import DataSourceSelector from './DataSourceSelector';
 import ScenarioResults from './ScenarioResults';
@@ -36,6 +36,15 @@ const ScenarioAnalyzer = () => {
   const [selectedResources, setSelectedResources] = useState(DEFAULT_SELECTED_RESOURCES);
   const [overheadPct, setOverheadPct] = useState(OVERHEAD_DEFAULTS.memoryPct);
 
+  // CPU configuration state
+  const [physicalCoresPerHost, setPhysicalCoresPerHost] = useState(32);
+  const [hostCount, setHostCount] = useState(3);
+  const [targetVCPURatio, setTargetVCPURatio] = useState(4);
+
+  // Host configuration state
+  const [memoryPerHost, setMemoryPerHost] = useState(512);
+  const [haAdmissionPct, setHaAdmissionPct] = useState(25);
+
   // Wizard step completion tracking
   const [step1Completed, setStep1Completed] = useState(false);
 
@@ -51,27 +60,16 @@ const ScenarioAnalyzer = () => {
   // TPS curve state
   const [tpsCurve, setTPSCurve] = useState(DEFAULT_TPS_CURVE);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('scenario-infrastructure');
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        setInfrastructureData(data);
-        handleDataLoaded(data);
-      } catch (e) {
-        console.error('Failed to load saved infrastructure:', e);
-      }
-    }
-  }, []);
-
-  const handleDataLoaded = async (data) => {
+  const handleDataLoaded = useCallback(async (data) => {
+    console.log('[ScenarioAnalyzer] handleDataLoaded called with:', data.name);
     setInfrastructureData(data);
     setLoading(true);
     setError(null);
 
     try {
+      console.log('[ScenarioAnalyzer] Calling setManualInfrastructure...');
       const state = await scenarioApi.setManualInfrastructure(data);
+      console.log('[ScenarioAnalyzer] Backend returned state with', state.total_cell_count, 'cells');
       setInfrastructureState(state);
 
       // Set initial disk from first cluster if available
@@ -79,12 +77,35 @@ const ScenarioAnalyzer = () => {
         setCustomDisk(data.clusters[0].diego_cell_disk_gb);
       }
       // Note: cellCount is auto-set by the useEffect that calculates equivalent capacity
+
+      // Show confirmation with cell count from backend
+      showToast(`Infrastructure loaded: ${state.total_cell_count} cells`, 'success');
     } catch (err) {
+      console.error('[ScenarioAnalyzer] Error loading infrastructure:', err);
       setError(err.message);
+      showToast(`Failed to load infrastructure: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('scenario-infrastructure');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        const totalCells = data.clusters?.reduce((sum, c) => sum + (c.diego_cell_count || 0), 0) || 0;
+        console.log(`[ScenarioAnalyzer] Loading from localStorage: "${data.name}" with ${totalCells} cells`);
+        setInfrastructureData(data);
+        handleDataLoaded(data);
+      } catch (e) {
+        console.error('[ScenarioAnalyzer] Failed to load saved infrastructure:', e);
+      }
+    } else {
+      console.log('[ScenarioAnalyzer] No saved infrastructure in localStorage');
+    }
+  }, [handleDataLoaded]);
 
   const toggleResource = (resourceId) => {
     setSelectedResources(prev =>
@@ -195,13 +216,37 @@ const ScenarioAnalyzer = () => {
       return sum + ((hostCount - 1) * memPerHost);
     }, 0);
 
+    // Also compute per-host values for CPU config defaults
+    const coresPerHost = totalHosts > 0 ? Math.round(totalCPUCores / totalHosts) : 64;
+    const memoryGBPerHost = totalHosts > 0 ? Math.round(totalMemoryGB / totalHosts) : 512;
+
     return {
       totalHosts,
       totalMemoryGB,
       totalCPUCores,
       n1MemoryGB,
+      coresPerHost,
+      memoryGBPerHost,
     };
   }, [infrastructureData]);
+
+  // Auto-populate host config from IaaS capacity when infrastructure is loaded
+  // Note: We only auto-set host count and memory - physical cores must come from
+  // actual host hardware data, not vCPU counts (which are oversubscribed)
+  useEffect(() => {
+    if (!iaasCapacity) return;
+
+    // Set host count from loaded infrastructure
+    if (iaasCapacity.totalHosts > 0) {
+      setHostCount(iaasCapacity.totalHosts);
+    }
+    // Set memory per host (this is accurate from infrastructure)
+    if (iaasCapacity.memoryGBPerHost > 0) {
+      setMemoryPerHost(iaasCapacity.memoryGBPerHost);
+    }
+    // Note: We do NOT auto-set physicalCoresPerHost from totalCPUCores
+    // because totalCPUCores represents vCPUs (oversubscribed), not physical cores
+  }, [iaasCapacity]);
 
   // Compute max deployable cells based on proposed cell size and IaaS capacity
   const maxCellsEstimate = useMemo(() => {
@@ -243,6 +288,15 @@ const ScenarioAnalyzer = () => {
         selected_resources: selectedResources,
         overhead_pct: overheadPct,
         tps_curve: tpsCurve,
+        // CPU configuration (only included when CPU is selected)
+        ...(selectedResources.includes('cpu') && {
+          physical_cores_per_host: physicalCoresPerHost,
+          host_count: hostCount,
+          target_vcpu_ratio: targetVCPURatio,
+        }),
+        // Host configuration (for HA and capacity analysis)
+        memory_per_host_gb: memoryPerHost,
+        ha_admission_pct: haAdmissionPct,
       };
 
       // Add hypothetical app if enabled
@@ -463,6 +517,17 @@ const ScenarioAnalyzer = () => {
           toggleResource={toggleResource}
           customDisk={customDisk}
           setCustomDisk={setCustomDisk}
+          physicalCoresPerHost={physicalCoresPerHost}
+          setPhysicalCoresPerHost={setPhysicalCoresPerHost}
+          hostCount={hostCount}
+          setHostCount={setHostCount}
+          targetVCPURatio={targetVCPURatio}
+          setTargetVCPURatio={setTargetVCPURatio}
+          memoryPerHost={memoryPerHost}
+          setMemoryPerHost={setMemoryPerHost}
+          haAdmissionPct={haAdmissionPct}
+          setHaAdmissionPct={setHaAdmissionPct}
+          totalVCPUs={iaasCapacity?.totalCPUCores || 0}
           overheadPct={overheadPct}
           setOverheadPct={setOverheadPct}
           useAdditionalApp={useAdditionalApp}

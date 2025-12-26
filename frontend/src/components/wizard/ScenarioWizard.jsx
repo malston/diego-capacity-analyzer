@@ -1,17 +1,20 @@
 // ABOUTME: Container component for scenario configuration wizard
 // ABOUTME: Manages step navigation and renders appropriate step content
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import StepIndicator from './StepIndicator';
 import CellConfigStep from './steps/CellConfigStep';
 import ResourceTypesStep from './steps/ResourceTypesStep';
+import CPUConfigStep from './steps/CPUConfigStep';
 import AdvancedStep from './steps/AdvancedStep';
 
-const STEPS = [
+const BASE_STEPS = [
   { id: 'resources', label: 'Resources', required: true },
   { id: 'cell-config', label: 'Cell Config', required: true },
   { id: 'advanced', label: 'Advanced', required: false },
 ];
+
+const CPU_STEP = { id: 'cpu-config', label: 'CPU Config', required: false };
 
 const ScenarioWizard = ({
   // Cell config props
@@ -29,6 +32,20 @@ const ScenarioWizard = ({
   toggleResource,
   customDisk,
   setCustomDisk,
+  // CPU config props
+  physicalCoresPerHost,
+  setPhysicalCoresPerHost,
+  hostCount,
+  setHostCount,
+  targetVCPURatio,
+  setTargetVCPURatio,
+  // Host config props (for Advanced step)
+  memoryPerHost,
+  setMemoryPerHost,
+  haAdmissionPct,
+  setHaAdmissionPct,
+  // Infrastructure data for current ratio calculation
+  totalVCPUs,
   // Advanced props
   overheadPct,
   setOverheadPct,
@@ -44,6 +61,16 @@ const ScenarioWizard = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState([]);
 
+  // Dynamically build steps based on selected resources
+  const steps = useMemo(() => {
+    const result = [BASE_STEPS[0], BASE_STEPS[1]]; // Resources, Cell Config
+    if (selectedResources.includes('cpu')) {
+      result.push(CPU_STEP);
+    }
+    result.push(BASE_STEPS[2]); // Advanced
+    return result;
+  }, [selectedResources]);
+
   const markStepComplete = useCallback(
     (stepIndex) => {
       if (!completedSteps.includes(stepIndex)) {
@@ -56,18 +83,21 @@ const ScenarioWizard = ({
 
   const handleContinue = useCallback(() => {
     markStepComplete(currentStep);
-    if (currentStep < STEPS.length - 1) {
+    if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
-  }, [currentStep, markStepComplete]);
+  }, [currentStep, markStepComplete, steps.length]);
 
   const handleStepClick = useCallback((stepIndex) => {
     setCurrentStep(stepIndex);
   }, []);
 
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 0:
+    const currentStepId = steps[currentStep]?.id;
+    const isLastStep = currentStep === steps.length - 1;
+
+    switch (currentStepId) {
+      case 'resources':
         return (
           <ResourceTypesStep
             selectedResources={selectedResources}
@@ -77,7 +107,7 @@ const ScenarioWizard = ({
             onContinue={handleContinue}
           />
         );
-      case 1:
+      case 'cell-config':
         return (
           <CellConfigStep
             selectedPreset={selectedPreset}
@@ -92,7 +122,21 @@ const ScenarioWizard = ({
             onContinue={handleContinue}
           />
         );
-      case 2:
+      case 'cpu-config':
+        return (
+          <CPUConfigStep
+            physicalCoresPerHost={physicalCoresPerHost}
+            setPhysicalCoresPerHost={setPhysicalCoresPerHost}
+            hostCount={hostCount}
+            setHostCount={setHostCount}
+            targetVCPURatio={targetVCPURatio}
+            setTargetVCPURatio={setTargetVCPURatio}
+            totalVCPUs={totalVCPUs}
+            onContinue={handleContinue}
+            onSkip={handleContinue}
+          />
+        );
+      case 'advanced':
         return (
           <AdvancedStep
             overheadPct={overheadPct}
@@ -103,7 +147,15 @@ const ScenarioWizard = ({
             setAdditionalApp={setAdditionalApp}
             tpsCurve={tpsCurve}
             setTPSCurve={setTPSCurve}
-            isLastStep={true}
+            hostCount={hostCount}
+            setHostCount={setHostCount}
+            coresPerHost={physicalCoresPerHost}
+            setCoresPerHost={setPhysicalCoresPerHost}
+            memoryPerHost={memoryPerHost}
+            setMemoryPerHost={setMemoryPerHost}
+            haAdmissionPct={haAdmissionPct}
+            setHaAdmissionPct={setHaAdmissionPct}
+            isLastStep={isLastStep}
           />
         );
       default:
@@ -114,7 +166,7 @@ const ScenarioWizard = ({
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
       <StepIndicator
-        steps={STEPS}
+        steps={steps}
         currentStep={currentStep}
         completedSteps={completedSteps}
         onStepClick={handleStepClick}

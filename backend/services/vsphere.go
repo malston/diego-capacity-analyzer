@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 	"github.com/vmware/govmomi"
@@ -302,6 +301,7 @@ func (v *VSphereClient) getVMInfo(ctx context.Context, vm *object.VirtualMachine
 }
 
 // GetInfrastructureState builds InfrastructureState from vSphere data
+// Uses the same calculation logic as ManualInput.ToInfrastructureState() for consistency
 func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.InfrastructureState, error) {
 	// Get all clusters for host/memory info
 	clusters, err := v.GetClusters(ctx)
@@ -309,7 +309,7 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 		return models.InfrastructureState{}, fmt.Errorf("getting clusters: %w", err)
 	}
 
-	// Find all Diego cells across entire datacenter (not filtered by cluster)
+	// Find all Diego cells across entire datacenter
 	allCells, err := v.getAllDiegoCells(ctx)
 	if err != nil {
 		return models.InfrastructureState{}, fmt.Errorf("getting Diego cells: %w", err)
@@ -317,51 +317,122 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 
 	slog.Info("vSphere Diego cell discovery complete", "cell_count", len(allCells), "datacenter", v.creds.Datacenter)
 
-	state := models.InfrastructureState{
-		Source:    "vsphere",
-		Name:      v.creds.Datacenter,
-		Clusters:  make([]models.ClusterState, 0, len(clusters)),
-		Timestamp: time.Now(),
-		Cached:    false,
+	// Build ManualInput from vSphere data to leverage existing calculation logic
+	manualInput := models.ManualInput{
+		Name:     v.creds.Datacenter,
+		Clusters: make([]models.ClusterInput, 0, len(clusters)),
 	}
 
-	// Calculate totals from all clusters
-	var totalCPUCores int
+	// Aggregate all hosts into a single logical cluster if cells span multiple vSphere clusters
+	// First, collect all host stats
+	var totalHosts int
+	var totalMemoryMB int64
+	var totalCPUCores int32
+	var avgMemoryPerHost int
+	var avgCPUPerHost int
+
 	for _, c := range clusters {
-		hostCount := len(c.Hosts)
-		memoryGB := int(c.TotalMemoryMB / 1024)
-		n1MemoryGB := 0
-		if hostCount > 1 {
-			n1MemoryGB = memoryGB - (memoryGB / hostCount)
+		for _, h := range c.Hosts {
+			if h.PowerState == "poweredOn" && !h.Maintenance {
+				totalHosts++
+				totalMemoryMB += h.MemoryMB
+				totalCPUCores += h.CPUCores
+			}
+		}
+	}
+
+	if totalHosts > 0 {
+		avgMemoryPerHost = int(totalMemoryMB / int64(totalHosts) / 1024) // Convert to GB
+		avgCPUPerHost = int(totalCPUCores) / totalHosts
+	}
+
+	// Group Diego cells by cluster for proper per-cluster analysis
+	cellsByCluster := make(map[string][]VMInfo)
+	for _, cell := range allCells {
+		clusterName := cell.Cluster
+		if clusterName == "" {
+			clusterName = "default"
+		}
+		cellsByCluster[clusterName] = append(cellsByCluster[clusterName], cell)
+	}
+
+	// Create cluster inputs for each vSphere cluster with Diego cells
+	for _, c := range clusters {
+		cells := cellsByCluster[c.Name]
+		if len(cells) == 0 {
+			continue // Skip clusters without Diego cells
 		}
 
-		state.TotalMemoryGB += memoryGB
-		state.TotalN1MemoryGB += n1MemoryGB
-		state.TotalHostCount += hostCount
-		totalCPUCores += int(c.TotalCPUCores)
-	}
+		// Calculate per-host metrics for this cluster
+		var clusterHosts int
+		var clusterMemoryMB int64
+		var clusterCPUCores int32
 
-	// Create a single cluster entry with all Diego cells
-	if len(allCells) > 0 {
-		// Calculate cell size from first cell (assuming uniform)
-		cellMemoryGB := allCells[0].CellMemoryGB
-		cellCPU := allCells[0].CellCPU
+		for _, h := range c.Hosts {
+			if h.PowerState == "poweredOn" && !h.Maintenance {
+				clusterHosts++
+				clusterMemoryMB += h.MemoryMB
+				clusterCPUCores += h.CPUCores
+			}
+		}
 
-		clusterState := models.ClusterState{
-			Name:              v.creds.Datacenter,
-			HostCount:         state.TotalHostCount,
-			MemoryGB:          state.TotalMemoryGB,
-			CPUCores:          totalCPUCores,
-			N1MemoryGB:        state.TotalN1MemoryGB,
-			UsableMemoryGB:    int(float64(state.TotalN1MemoryGB) * 0.9),
-			DiegoCellCount:    len(allCells),
+		if clusterHosts == 0 {
+			continue
+		}
+
+		memoryPerHost := int(clusterMemoryMB / int64(clusterHosts) / 1024) // GB
+		cpuPerHost := int(clusterCPUCores) / clusterHosts
+
+		// Use first cell's size (assuming uniform within cluster)
+		cellMemoryGB := cells[0].CellMemoryGB
+		cellCPU := cells[0].CellCPU
+		if cellMemoryGB == 0 {
+			cellMemoryGB = int(cells[0].MemoryMB / 1024)
+		}
+		if cellCPU == 0 {
+			cellCPU = int(cells[0].NumCPU)
+		}
+
+		clusterInput := models.ClusterInput{
+			Name:              c.Name,
+			HostCount:         clusterHosts,
+			MemoryGBPerHost:   memoryPerHost,
+			CPUCoresPerHost:   cpuPerHost,
+			DiegoCellCount:    len(cells),
 			DiegoCellMemoryGB: cellMemoryGB,
 			DiegoCellCPU:      cellCPU,
 		}
 
-		state.Clusters = append(state.Clusters, clusterState)
-		state.TotalCellCount = len(allCells)
+		manualInput.Clusters = append(manualInput.Clusters, clusterInput)
 	}
+
+	// Handle cells without a cluster assignment
+	defaultCells := cellsByCluster["default"]
+	if len(defaultCells) > 0 && avgMemoryPerHost > 0 {
+		cellMemoryGB := defaultCells[0].CellMemoryGB
+		cellCPU := defaultCells[0].CellCPU
+		if cellMemoryGB == 0 {
+			cellMemoryGB = int(defaultCells[0].MemoryMB / 1024)
+		}
+		if cellCPU == 0 {
+			cellCPU = int(defaultCells[0].NumCPU)
+		}
+
+		clusterInput := models.ClusterInput{
+			Name:              "unassigned",
+			HostCount:         totalHosts,
+			MemoryGBPerHost:   avgMemoryPerHost,
+			CPUCoresPerHost:   avgCPUPerHost,
+			DiegoCellCount:    len(defaultCells),
+			DiegoCellMemoryGB: cellMemoryGB,
+			DiegoCellCPU:      cellCPU,
+		}
+		manualInput.Clusters = append(manualInput.Clusters, clusterInput)
+	}
+
+	// Use the standard ToInfrastructureState() for consistent calculations
+	state := manualInput.ToInfrastructureState()
+	state.Source = "vsphere" // Override source
 
 	return state, nil
 }
