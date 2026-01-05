@@ -229,8 +229,9 @@ GitHub Actions workflows run automatically:
 │
 ├── .github/workflows/          # CI/CD pipelines
 ├── docs/                       # Documentation
-├── Makefile                    # Build and development targets
-└── generate-env.sh             # Generate .env from Ops Manager
+├── .env.example                # Example environment configuration
+├── generate-env.sh             # Generate .env from Ops Manager
+└── Makefile                    # Build and development targets
 ```
 
 ## Technology Stack
