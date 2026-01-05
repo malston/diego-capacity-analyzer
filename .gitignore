@@ -37,4 +37,3 @@ cf.yml
 bosh-*.yml.envrc
 bosh-*.yml
 settings.local.json
-setup-env.sh
