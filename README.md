@@ -41,23 +41,20 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 
 ## Quick Start (Local Development)
 
-### Backend
-
 ```bash
-cd backend
-export CF_API_URL=https://api.sys.example.com
-export CF_USERNAME=admin
-export CF_PASSWORD=secret
-go run main.go
-```
+# Install frontend dependencies
+make frontend-install
 
-### Frontend
+# Configure environment (see Configuration section below)
+cp .env.example .env  # or use generate-env.sh
 
-```bash
-cd frontend
-echo "VITE_API_URL=http://localhost:8080" > .env
-npm install
-npm run dev
+# Start services (in separate terminals)
+make backend-run      # Backend on :8080
+make frontend-dev     # Frontend on :5173
+
+# Or use custom ports
+make backend-run BACKEND_PORT=9090
+make frontend-dev FRONTEND_PORT=3000
 ```
 
 ## API Endpoints
@@ -147,24 +144,38 @@ export LOG_LEVEL=info               # debug, info, warn, error
 export LOG_FORMAT=text              # text, json
 ```
 
-## Testing
+## Development
 
-### Frontend
+Run `make help` to see all available targets:
 
 ```bash
-cd frontend
-npm test                  # Run tests once
-npm run test:watch        # Watch mode
-npm run test:coverage     # With coverage report
+make build                   # Build backend and frontend
+make test                    # Run all tests
+make lint                    # Run all linters
+make check                   # Tests + linters
+make clean                   # Remove build artifacts
+
+# Backend development
+make backend-run             # Build and run server
+make backend-dev             # Auto-reload with watchexec
+make backend-test            # Run Go tests
+
+# Frontend development
+make frontend-dev            # Vite dev server with HMR
+make frontend-test           # Run Vitest
+make frontend-test-coverage  # With coverage report
 ```
 
-### Backend
+## Testing
 
 ```bash
-cd backend
-go test ./...             # Run all tests
-go test -v ./...          # Verbose output
-go test ./services/...    # Specific package
+make test                    # Run all tests
+make backend-test            # Backend only
+make backend-test-verbose    # Backend with verbose output
+make frontend-test           # Frontend only
+make frontend-test-coverage  # Frontend with coverage
+make lint                    # Run all linters
+make check                   # Tests + linters
 ```
 
 ## CI/CD
@@ -218,6 +229,7 @@ GitHub Actions workflows run automatically:
 │
 ├── .github/workflows/          # CI/CD pipelines
 ├── docs/                       # Documentation
+├── Makefile                    # Build and development targets
 └── generate-env.sh             # Generate .env from Ops Manager
 ```
 
