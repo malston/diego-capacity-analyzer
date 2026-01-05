@@ -37,3 +37,4 @@ cf.yml
 bosh-*.yml.envrc
 bosh-*.yml
 settings.local.json
+cli/diego-capacity
