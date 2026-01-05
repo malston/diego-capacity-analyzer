@@ -6,17 +6,11 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 ![React](https://img.shields.io/badge/react-18.2-blue.svg)
 ![License](https://img.shields.io/github/license/malston/diego-capacity-analyzer)
 
-## Screenshots
-
-### Dashboard
-![Dashboard showing real-time capacity metrics and Diego cells](docs/images/dashboard.gif)
-
-### Capacity Planning
-![Capacity Planning wizard with scenario analysis](docs/images/capacity-planning.gif)
-
 ## Features
 
 ### Dashboard
+
+![Dashboard showing real-time capacity metrics and Diego cells](docs/images/dashboard.gif)
 
 - **Real-time Capacity Monitoring** - Track Diego cell memory, CPU, and utilization across all cells
 - **Isolation Segment Filtering** - View metrics by isolation segment
@@ -24,6 +18,8 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 - **Right-Sizing Recommendations** - Identify over-provisioned apps with specific memory recommendations
 
 ### Capacity Planning
+
+![Capacity Planning wizard with scenario analysis](docs/images/capacity-planning.gif)
 
 - **Scenario Analysis Wizard** - Step-based configuration: Resources → Cell Config → CPU Config → Host Config → Advanced
 - **vSphere Infrastructure Discovery** - Live infrastructure data from vCenter
@@ -79,10 +75,42 @@ POST /api/scenario/compare          # Compare current vs proposed scenarios
 
 ## Configuration
 
-### Required Environment Variables
+### Generating Configuration from Ops Manager
+
+If you have access to an Ops Manager, use `generate-env.sh` to automatically derive all credentials:
 
 ```bash
-# Cloud Foundry API
+# Option 1: Username/password authentication
+export OM_TARGET=opsman.example.com
+export OM_USERNAME=admin
+export OM_PASSWORD=<your-password>
+
+# Option 2: OAuth client credentials
+export OM_TARGET=opsman.example.com
+export OM_CLIENT_ID=<client-id>
+export OM_CLIENT_SECRET=<client-secret>
+
+# Optional: SSH key for non-routable BOSH networks (tunnels through Ops Manager)
+export OM_PRIVATE_KEY=~/.ssh/opsman_key
+
+# Generate .env file with all derived credentials
+./generate-env.sh
+```
+
+The script connects to Ops Manager and derives:
+
+- BOSH Director credentials and CA certificate
+- CF API credentials and system domain
+- vSphere host, datacenter, and credentials
+- CredHub configuration
+
+### Manual Configuration
+
+If not using Ops Manager, set environment variables manually:
+
+#### Required: Cloud Foundry API
+
+```bash
 export CF_API_URL=https://api.sys.example.com
 export CF_USERNAME=admin
 export CF_PASSWORD=secret
@@ -189,7 +217,8 @@ GitHub Actions workflows run automatically:
 │   └── manifest.yml            # CF deployment manifest
 │
 ├── .github/workflows/          # CI/CD pipelines
-└── docs/                       # Documentation
+├── docs/                       # Documentation
+└── generate-env.sh             # Generate .env from Ops Manager
 ```
 
 ## Technology Stack
