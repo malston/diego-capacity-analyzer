@@ -13,6 +13,7 @@ All endpoints return JSON responses and support CORS.
 Health check endpoint.
 
 **Response:**
+
 ```json
 {
   "cf_api": "ok",
@@ -39,6 +40,7 @@ Health check endpoint.
 Returns live dashboard data from CF and BOSH APIs.
 
 **Response:**
+
 ```json
 {
   "cells": [
@@ -76,6 +78,7 @@ Returns live dashboard data from CF and BOSH APIs.
 ```
 
 **Data Sources:**
+
 - `cells`: BOSH API (Diego cell VMs and vitals)
 - `apps`: CF API (applications and process stats)
 - `segments`: CF API (isolation segments)
@@ -89,12 +92,14 @@ Returns live dashboard data from CF and BOSH APIs.
 Returns live infrastructure data from vSphere.
 
 **Prerequisites:** Requires vSphere environment variables:
+
 - `VSPHERE_HOST`
 - `VSPHERE_USERNAME`
 - `VSPHERE_PASSWORD`
 - `VSPHERE_DATACENTER`
 
 **Response:**
+
 ```json
 {
   "name": "vcenter.example.com",
@@ -136,6 +141,7 @@ Returns live infrastructure data from vSphere.
 ```
 
 **Error (503):** vSphere not configured
+
 ```json
 {
   "error": "vSphere not configured. Set VSPHERE_HOST, VSPHERE_USERNAME, VSPHERE_PASSWORD, and VSPHERE_DATACENTER environment variables.",
@@ -150,6 +156,7 @@ Returns live infrastructure data from vSphere.
 Set infrastructure state from manual input (JSON upload or form data).
 
 **Request Body:**
+
 ```json
 {
   "name": "My Infrastructure",
@@ -196,6 +203,7 @@ Set infrastructure state directly (accepts full InfrastructureState object).
 Returns current infrastructure data source status.
 
 **Response:**
+
 ```json
 {
   "vsphere_configured": true,
@@ -222,6 +230,7 @@ Calculate maximum deployable Diego cells given IaaS capacity constraints.
 **Prerequisites:** Infrastructure data must be loaded first via `/api/infrastructure` or `/api/infrastructure/manual`
 
 **Request Body:**
+
 ```json
 {
   "cell_memory_gb": 64,
@@ -237,6 +246,7 @@ Calculate maximum deployable Diego cells given IaaS capacity constraints.
 | `overhead_pct` | float | Memory overhead percentage (default: 7) |
 
 **Response:**
+
 ```json
 {
   "result": {
@@ -273,6 +283,7 @@ Compare current infrastructure state against a proposed configuration.
 **Prerequisites:** Infrastructure data must be loaded first
 
 **Request Body:**
+
 ```json
 {
   "proposed_cell_memory_gb": 64,
@@ -309,6 +320,7 @@ Compare current infrastructure state against a proposed configuration.
 | `tps_curve` | array | Optional custom TPS performance curve |
 
 **Response:**
+
 ```json
 {
   "current": {
@@ -373,6 +385,7 @@ Returns multi-resource bottleneck analysis.
 **Prerequisites:** Infrastructure data must be loaded first
 
 **Response:**
+
 ```json
 {
   "constraining_resource": "memory",
@@ -409,6 +422,7 @@ Returns upgrade path recommendations based on current bottlenecks.
 **Prerequisites:** Infrastructure data must be loaded first
 
 **Response:**
+
 ```json
 {
   "constraining_resource": "memory",
