@@ -6,6 +6,14 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 ![React](https://img.shields.io/badge/react-18.2-blue.svg)
 ![License](https://img.shields.io/github/license/malston/diego-capacity-analyzer)
 
+## Screenshots
+
+### Dashboard
+![Dashboard showing real-time capacity metrics and Diego cells](docs/images/dashboard.gif)
+
+### Capacity Planning
+![Capacity Planning wizard with scenario analysis](docs/images/capacity-planning.gif)
+
 ## Features
 
 ### Dashboard
