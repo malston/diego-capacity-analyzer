@@ -9,10 +9,10 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 ## Screenshots
 
 ### Dashboard
-![Dashboard](docs/images/dashboard.gif)
+![Dashboard showing real-time capacity metrics and Diego cells](docs/images/dashboard.gif)
 
 ### Capacity Planning
-![Capacity Planning](docs/images/capacity-planning.gif)
+![Capacity Planning wizard with scenario analysis](docs/images/capacity-planning.gif)
 
 ## Features
 
