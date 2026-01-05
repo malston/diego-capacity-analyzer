@@ -191,6 +191,7 @@ GitHub Actions workflows run automatically:
 ## Documentation
 
 - **[UI Guide](docs/UI-GUIDE.md)** - Dashboard metrics and visualizations
+- **[API Reference](docs/API.md)** - Backend REST API documentation
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Cloud Foundry deployment
 - **[Authentication](docs/AUTHENTICATION.md)** - OAuth2/UAA authentication flow
 - **[Backend README](backend/README.md)** - Backend-specific documentation
