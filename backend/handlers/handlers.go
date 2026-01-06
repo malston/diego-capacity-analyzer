@@ -348,6 +348,21 @@ func (h *Handler) HandleInfrastructureStatus(w http.ResponseWriter, r *http.Requ
 		analysis := models.AnalyzeBottleneck(*state)
 		status["constraining_resource"] = analysis.ConstrainingResource
 		status["bottleneck_summary"] = analysis.Summary
+
+		// Add capacity metrics for CLI
+		status["memory_utilization"] = state.HostMemoryUtilizationPercent
+		status["ha_min_host_failures_survived"] = state.HAMinHostFailuresSurvived
+		status["ha_status"] = state.HAStatus
+
+		// Calculate N-1 capacity utilization (percentage of N-1 memory used by cells)
+		if state.TotalN1MemoryGB > 0 {
+			n1CapacityPercent := (float64(state.TotalCellMemoryGB) / float64(state.TotalN1MemoryGB)) * 100.0
+			status["n1_capacity_percent"] = n1CapacityPercent
+		} else {
+			// Single-host cluster or no N-1 capacity available
+			status["n1_capacity_percent"] = 0.0
+			status["n1_status"] = "unavailable"
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

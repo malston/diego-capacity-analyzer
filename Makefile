@@ -8,6 +8,7 @@ FRONTEND_PORT ?= 5173
 .PHONY: help all build test lint check clean
 .PHONY: backend-build backend-test backend-lint backend-clean backend-run backend-dev backend-air
 .PHONY: frontend-build frontend-test frontend-lint frontend-dev frontend-preview frontend-clean
+.PHONY: cli-build cli-test cli-lint cli-clean cli-install
 
 .DEFAULT_GOAL := help
 
@@ -23,15 +24,15 @@ all: check build ## Run checks and build everything
 # Combined targets
 #
 
-build: backend-build frontend-build ## Build backend and frontend
+build: backend-build frontend-build cli-build ## Build backend, frontend, and CLI
 
-test: backend-test frontend-test ## Run all tests
+test: backend-test frontend-test cli-test ## Run all tests
 
-lint: backend-lint frontend-lint ## Run all linters
+lint: backend-lint frontend-lint cli-lint ## Run all linters
 
 check: test lint ## Run tests and linters
 
-clean: backend-clean frontend-clean ## Clean all build artifacts
+clean: backend-clean frontend-clean cli-clean ## Clean all build artifacts
 
 #
 # Backend targets (Go)
@@ -104,3 +105,25 @@ frontend-clean: ## Remove frontend build artifacts
 
 frontend-install: ## Install frontend dependencies
 	cd frontend && npm install
+
+#
+# CLI targets (diego-capacity)
+#
+
+cli-build: ## Build CLI binary (diego-capacity)
+	cd cli && go build -o diego-capacity .
+
+cli-test: ## Run CLI tests
+	cd cli && go test ./...
+
+cli-test-verbose: ## Run CLI tests with verbose output
+	cd cli && go test -v ./...
+
+cli-lint: ## Run staticcheck on CLI
+	cd cli && staticcheck ./...
+
+cli-clean: ## Remove CLI build artifacts
+	rm -f cli/diego-capacity
+
+cli-install: cli-build ## Install CLI to $GOPATH/bin
+	cp cli/diego-capacity $(GOPATH)/bin/

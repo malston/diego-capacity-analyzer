@@ -39,6 +39,38 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 - **Manual Entry** - Define infrastructure manually
 - **Sample Scenarios** - 9 pre-built configurations including CPU and host-constrained scenarios
 
+### CLI Tool
+
+The `diego-capacity` CLI provides command-line access to capacity metrics for scripting and CI/CD integration:
+
+```bash
+# Check backend health
+diego-capacity health
+
+# Show infrastructure status
+diego-capacity status
+
+# Check capacity thresholds (for CI/CD)
+diego-capacity check --n1-threshold 85 --memory-threshold 90
+
+# JSON output for parsing
+diego-capacity status --json
+```
+
+**Exit Codes:**
+- `0` - Success (all checks passed)
+- `1` - Threshold exceeded (capacity warning)
+- `2` - Error (connection failed, no data)
+
+**Configuration:**
+```bash
+# Set backend URL (default: http://localhost:8080)
+export DIEGO_CAPACITY_API_URL=http://backend.example.com:8080
+
+# Or use the --api-url flag
+diego-capacity status --api-url http://backend.example.com:8080
+```
+
 ## Quick Start (Local Development)
 
 ```bash
@@ -149,7 +181,7 @@ export LOG_FORMAT=text              # text, json
 Run `make help` to see all available targets:
 
 ```bash
-make build                   # Build backend and frontend
+make build                   # Build backend, frontend, and CLI
 make test                    # Run all tests
 make lint                    # Run all linters
 make check                   # Tests + linters
@@ -164,6 +196,11 @@ make backend-test            # Run Go tests
 make frontend-dev            # Vite dev server with HMR
 make frontend-test           # Run Vitest
 make frontend-test-coverage  # With coverage report
+
+# CLI development
+make cli-build               # Build diego-capacity binary
+make cli-test                # Run CLI tests
+make cli-install             # Install to $GOPATH/bin
 ```
 
 ## Testing
@@ -185,8 +222,10 @@ GitHub Actions workflows run automatically:
 - **CI** (`.github/workflows/ci.yml`) - Runs on PRs and pushes to main
   - Frontend: lint, test, build
   - Backend: staticcheck, test, build
+  - CLI: staticcheck, test, build
 - **Release** (`.github/workflows/release.yml`) - Creates releases on version tags
-  - Cross-compiles for linux/darwin × amd64/arm64
+  - Backend: Cross-compiles for linux/darwin × amd64/arm64
+  - CLI: Cross-compiles `diego-capacity` for linux/darwin × amd64/arm64
 
 ## Documentation
 
@@ -215,6 +254,15 @@ GitHub Actions workflows run automatically:
 │   ├── logger/                 # Structured logging
 │   ├── middleware/             # HTTP middleware
 │   └── manifest.yml            # CF deployment manifest
+│
+├── cli/                        # CLI tool (diego-capacity)
+│   ├── main.go                 # Entry point
+│   ├── cmd/                    # Cobra commands
+│   │   ├── root.go             # Root command, global flags
+│   │   ├── health.go           # Health check command
+│   │   ├── status.go           # Infrastructure status
+│   │   └── check.go            # Threshold checking
+│   └── internal/client/        # HTTP client for backend API
 │
 ├── frontend/                   # React SPA
 │   ├── src/
