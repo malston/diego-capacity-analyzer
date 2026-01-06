@@ -200,7 +200,7 @@ Set infrastructure state directly (accepts full InfrastructureState object).
 
 ### GET /api/infrastructure/status
 
-Returns current infrastructure data source status.
+Returns current infrastructure data source status and capacity metrics.
 
 **Response:**
 
@@ -215,9 +215,36 @@ Returns current infrastructure data source status.
   "cell_count": 20,
   "timestamp": "2024-01-15T10:30:00Z",
   "constraining_resource": "memory",
-  "bottleneck_summary": "Memory is the primary constraint at 78% utilization"
+  "bottleneck_summary": "Memory is the primary constraint at 78% utilization",
+  "memory_utilization": 78.5,
+  "n1_capacity_percent": 72.0,
+  "n1_status": "ok",
+  "ha_min_host_failures_survived": 1,
+  "ha_status": "ok"
 }
 ```
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `vsphere_configured` | boolean | Whether vSphere credentials are configured |
+| `has_data` | boolean | Whether infrastructure data has been loaded |
+| `source` | string | Data source: "vsphere", "manual", or "json" |
+| `name` | string | Infrastructure name (vCenter hostname or custom) |
+| `cluster_count` | integer | Number of clusters |
+| `host_count` | integer | Total ESXi hosts |
+| `cell_count` | integer | Total Diego cells |
+| `timestamp` | string | When data was loaded (ISO 8601) |
+| `constraining_resource` | string | Primary bottleneck: "memory", "CPU", or "disk" |
+| `bottleneck_summary` | string | Human-readable bottleneck description |
+| `memory_utilization` | float | Host memory utilization percentage |
+| `n1_capacity_percent` | float | Percentage of N-1 memory capacity used by cells |
+| `n1_status` | string | N-1 capacity status: "ok", "warning", "critical", or "unavailable" |
+| `ha_min_host_failures_survived` | integer | Number of host failures the cluster can survive |
+| `ha_status` | string | HA status: "ok" or "at-risk" |
+
+**Note:** `n1_status` is set to "unavailable" and `n1_capacity_percent` to 0 for single-host clusters where N-1 capacity cannot be calculated.
 
 ---
 
