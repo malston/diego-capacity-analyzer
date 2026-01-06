@@ -1,0 +1,613 @@
+# DevContainer Configuration
+
+This directory contains the VS Code development container configuration for the Claude Code + Multi-AI environment.
+
+## Prerequisites
+
+### Required
+
+1. **VS Code** with Dev Containers extension
+2. **Docker Desktop** (4.25+) running
+3. **External Docker Network** (see below)
+
+### External Network Dependency
+
+⚠️ **IMPORTANT**: This devcontainer optionally supports an external Docker network named `claude-code-opentelemetry_otel`.
+
+This network is used for OpenTelemetry metrics/logs collection to an external collector.
+
+#### If You DON'T Have OpenTelemetry Monitoring
+
+**Option A: Create a dummy network (recommended for standalone use)**
+
+```bash
+docker network create claude-code-opentelemetry_otel
+```
+
+**Option B: Remove the network dependency**
+
+Edit `devcontainer.json` line 17 and remove the network line:
+
+```json
+"runArgs": [
+  "--cap-drop=ALL",
+  "--cap-add=NET_ADMIN",
+  "--cap-add=NET_RAW",
+  "--add-host=host.docker.internal:host-gateway"
+  // Remove this line: "--network=claude-code-opentelemetry_otel"
+],
+```
+
+Also remove or comment out these environment variables (lines 69-75):
+
+```json
+"CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+"OTEL_LOG_USER_PROMPTS": "1",
+"OTEL_METRICS_EXPORTER": "otlp",
+"OTEL_LOGS_EXPORTER": "otlp",
+"OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+"OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector:4317",
+"OTEL_RESOURCE_ATTRIBUTES": "deployment.environment=devcontainer,service.name=claude-code"
+```
+
+---
+
+## Quick Start
+
+1. **Open project in VS Code**
+   ```bash
+   code .
+   ```
+
+2. **Reopen in Container**
+   - Click "Reopen in Container" when prompted
+   - OR: `Cmd/Ctrl+Shift+P` → "Dev Containers: Reopen in Container"
+
+3. **Wait for first build** (~5-10 minutes)
+   - Downloads base image
+   - Installs tools and AI CLIs
+   - Configures environment
+
+4. **Verify installation**
+   ```bash
+   claude --version
+   codex --version
+   gemini --version
+   ```
+
+---
+
+## What Gets Installed
+
+### AI Coding Assistants
+- **Claude Code** - Anthropic's AI assistant with MCP servers
+- **OpenAI Codex** - OpenAI's coding agent
+- **Google Gemini CLI** - Google's AI assistant
+
+### MCP Servers (Pre-configured)
+- **Context7** - Library documentation (1000+ libraries)
+- **Cloudflare Docs** - Cloudflare products documentation
+- **Chrome DevTools** - Browser automation with Chromium
+
+### Development Tools
+- **Package Managers**: npm, pip, uv (Python), bun (JavaScript)
+- **Shell**: ZSH with fzf, git-delta, syntax highlighting
+- **Build Tools**: gcc, g++, make, cmake, build-essential
+- **Version Control**: git, git-lfs, gh (GitHub CLI)
+- **Modern Search**: ripgrep (rg), fd-find
+- **Text Processing**: jq, yq, sed, gawk
+- **Editors**: nano, vim, tmux
+- **Browser**: Chromium (for Chrome DevTools MCP)
+
+### Security Features
+- **Network Firewall** - Restricts outbound connections to whitelisted domains
+- **Capability Dropping** - Minimal container capabilities with `--cap-drop=ALL`
+- **Non-root User** - Runs as `node` user (UID 1000)
+- **Volume Isolation** - Separate volumes for each AI CLI configuration
+
+### Performance Optimizations
+- **Skip Permission Prompts** - Claude Code runs with `dangerously_skip_permissions: true` for faster development
+- **Verbose Logging** - Enabled by default for easier debugging and troubleshooting
+- **Extended Timeouts** - Bash commands default to 5 minutes, max 10 minutes
+- **High Token Limits** - MCP output up to 60K tokens, thinking up to 8K tokens
+
+---
+
+## Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `devcontainer.json` | Main devcontainer configuration |
+| `Dockerfile` | Container image definition |
+| `init-claude-config.sh` | Initialize Claude Code MCP servers |
+| `init-firewall.sh` | Configure network firewall |
+| `mcp.json.template` | MCP server configuration template |
+| `settings.json.template` | Claude Code settings template |
+
+---
+
+## Persistent Volumes
+
+Configuration persists across container rebuilds via named volumes:
+
+```
+claude-code-bashhistory-${devcontainerId} → /commandhistory
+claude-code-config-${devcontainerId}      → /home/node/.claude
+codex-config-${devcontainerId}            → /home/node/.codex
+gemini-config-${devcontainerId}           → /home/node/.gemini
+opencode-config-${devcontainerId}         → /home/node/.opencode
+ghub-config-${devcontainerId}             → /home/node/.config/gh
+npm-global-${devcontainerId}              → /home/node/.npm-global
+cargo-${devcontainerId}                   → /home/node/.cargo
+bun-${devcontainerId}                     → /home/node/.bun
+local-bin-${devcontainerId}               → /home/node/.local
+aws-config-${devcontainerId}              → /home/node/.aws
+wrangler-config-${devcontainerId}         → /home/node/.wrangler
+vercel-config-${devcontainerId}           → /home/node/.vercel
+```
+
+**Note**: `${devcontainerId}` is auto-generated by VS Code and unique per workspace.
+
+---
+
+## Firewall Configuration
+
+The `init-firewall.sh` script configures iptables to allow only whitelisted domains.
+
+### Whitelisted Domains (Partial List)
+
+**AI Services**:
+- api.anthropic.com (Claude)
+- api.openai.com (Codex)
+- generativelanguage.googleapis.com (Gemini)
+
+**Development**:
+- github.com, npmjs.org, pypi.org
+- unpkg.com, cdn.jsdelivr.net
+
+**MCP Servers**:
+- mcp.context7.com
+- docs.mcp.cloudflare.com
+
+**VS Code**:
+- marketplace.visualstudio.com
+- update.code.visualstudio.com
+
+**Full list**: See `init-firewall.sh` lines 47-95
+
+### Modifying Firewall Rules
+
+To add a domain:
+
+1. Edit `init-firewall.sh`
+2. Add domain to the list (lines 47-95)
+3. Rebuild container: `Cmd/Ctrl+Shift+P` → "Dev Containers: Rebuild Container"
+
+---
+
+## Troubleshooting
+
+### Container Won't Start
+
+**Error**: `network claude-code-opentelemetry_otel not found`
+
+**Fix**: Create the network or remove the dependency (see "External Network Dependency" above)
+
+---
+
+### Slow First Start
+
+**Symptom**: Container build takes >10 minutes
+
+**Cause**: Normal on first build (downloads ~2GB)
+
+**Fix**: Subsequent rebuilds are faster due to Docker layer caching
+
+---
+
+### Firewall Blocking Required Domain
+
+**Symptom**: Network requests failing, `curl` timeouts
+
+**Fix**: Add domain to `init-firewall.sh` whitelist and rebuild
+
+---
+
+### MCP Servers Not Loading
+
+**Symptom**: Claude Code doesn't see Context7 or Cloudflare Docs
+
+**Fix**:
+```bash
+# Check MCP configuration
+cat ~/.claude/mcp.json
+
+# Verify network access
+curl -v https://mcp.context7.com/sse
+
+# Check Claude logs
+claude --verbose
+```
+
+---
+
+### API Keys Not Persisting
+
+**Symptom**: Need to re-enter API keys after rebuild
+
+**Cause**: API keys stored in volume, but volume got deleted
+
+**Fix**: Check volume exists:
+```bash
+docker volume ls | grep claude-code-config
+```
+
+---
+
+## Performance Tips
+
+### Faster Builds
+- Use `.dockerignore` to exclude `node_modules/`, `.git/`
+- Don't delete Docker build cache unnecessarily
+- Use prebuild images (see main README)
+
+### Faster Container Startup
+- Keep `waitFor: "postCreateCommand"` (current setting)
+- Firewall runs in background during `postStartCommand`
+
+### Reduce Memory Usage
+- Close unused VS Code extensions
+- Limit concurrent AI assistants
+- Adjust `NODE_OPTIONS: "--max-old-space-size=4096"` if needed
+
+---
+
+## Security Considerations
+
+### Capability Restrictions
+
+This devcontainer uses `--cap-drop=ALL` to drop all Linux capabilities by default, then adds only:
+- `NET_ADMIN` - Required for firewall (iptables)
+- `NET_RAW` - Required for network diagnostics (ping)
+
+### Why NET_ADMIN is Needed
+
+The firewall (`init-firewall.sh`) uses iptables to restrict outbound connections. This requires NET_ADMIN capability.
+
+**Risk**: Container can manipulate network configuration
+
+**Mitigation**: Firewall script is read-only, reviewed, and version-controlled
+
+### Alternative: Remove Firewall
+
+If you don't need the firewall:
+
+1. Remove `NET_ADMIN` and `NET_RAW` from `runArgs`
+2. Remove `init-firewall.sh` from `postStartCommand`
+3. Rebuild container
+
+---
+
+## Customization
+
+### Add Your Own Tools
+
+Edit `Dockerfile` and add to the `apt-get install` block or RUN commands.
+
+### Add VS Code Extensions
+
+Edit `devcontainer.json` → `customizations.vscode.extensions` array.
+
+### Change Shell
+
+Default: ZSH with Powerline10k theme
+
+To use Bash: Edit `devcontainer.json` line 41:
+```json
+"terminal.integrated.defaultProfile.linux": "bash",
+```
+
+### Add Dotfiles
+
+Add to `devcontainer.json`:
+```json
+"dotfilesRepository": "yourusername/dotfiles",
+"dotfilesInstallCommand": "install.sh",
+"dotfilesTargetPath": "~/dotfiles"
+```
+
+---
+
+## Future Enhancements (Priority 3)
+
+This section documents planned advanced optimizations for team scalability, performance, and platform compatibility. These enhancements are ready to implement after validating current Priority 1+2 improvements.
+
+### Overview
+
+Priority 3 tasks focus on:
+- **Team scalability**: Pre-built images, consistent environments across developers
+- **Performance optimization**: Faster builds, smaller images, reduced startup time
+- **Platform compatibility**: Cloud development (Codespaces), remote development
+- **Developer experience**: Health checks, personalization, automated validation
+
+**Implementation Status**: 📋 Planned (not yet implemented)
+
+---
+
+### 1. GitHub Actions Prebuild Workflow
+
+**Complexity**: Medium | **Effort**: 8-12 hours | **Impact**: High for teams (5+ developers)
+
+#### Purpose
+Pre-build and cache the Docker image on GitHub Container Registry (GHCR), reducing local build time from ~5-10 minutes to ~30 seconds for team members.
+
+#### Benefits
+- ✅ **Faster onboarding**: New team members pull pre-built image instead of building locally
+- ✅ **Consistent builds**: Same image across all developers
+- ✅ **CI/CD ready**: Use the same image for testing pipelines
+- ✅ **Bandwidth savings**: Team members don't download 2GB+ of packages individually
+
+#### Files to Create
+- `.github/workflows/prebuild-devcontainer.yml` (~120 lines)
+  - Triggers: Push to `master`, PR, weekly schedule, manual dispatch
+  - Pushes to `ghcr.io/${{ github.repository }}/devcontainer:latest`
+  - Uses BuildKit cache for faster rebuilds
+  - Tags: branch name, PR number, commit SHA, `latest`
+
+#### Files to Modify
+- `.devcontainer/devcontainer.json` - Add `image` property to use pre-built image
+- `.devcontainer/README.md` - Document pre-built image usage
+
+#### Trade-offs
+- ⚠️ **Storage**: GHCR has 500MB free tier, image is ~1.5GB (may incur costs for private repos)
+- ⚠️ **Public repos**: Image is public unless using private repo or self-hosted runners
+- ⚠️ **Complexity**: Adds GitHub Actions dependency
+
+#### Implementation Notes
+```yaml
+# .github/workflows/prebuild-devcontainer.yml
+name: Prebuild DevContainer Image
+on:
+  push:
+    branches: [master, main]
+    paths: ['.devcontainer/**']
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly rebuild for security updates
+```
+
+---
+
+### 2. GitHub Codespaces Configuration
+
+**Complexity**: Low | **Effort**: 4-6 hours | **Impact**: Medium for remote teams
+
+#### Purpose
+Enable one-click cloud-based development environments via GitHub Codespaces.
+
+#### Benefits
+- ✅ **Zero local setup**: Developers code in browser or VS Code desktop
+- ✅ **Cloud resources**: Offload builds to GitHub's infrastructure
+- ✅ **Consistent environments**: Guaranteed identical setup across team
+- ✅ **Quick testing**: Spin up temporary environment for bug reproduction
+
+#### Files to Modify
+- `.devcontainer/devcontainer.json` - Add Codespaces-specific settings:
+  - Port visibility (`public` vs `private`)
+  - Lifecycle hooks (`onCreateCommand`, `updateContentCommand`)
+  - Secrets configuration (API keys)
+- `.devcontainer/init-firewall.sh` - Detect Codespaces and skip firewall (managed by GitHub)
+- `.devcontainer/README.md` - Add Codespaces setup documentation
+
+#### Files to Create
+- `.github/dependabot.yml` (~30 lines) - Keep dependencies updated
+
+#### Trade-offs
+- ⚠️ **Cost**: Free tier limited (60 hours/month on 4-core), paid plans required for heavy use
+- ⚠️ **Network**: OpenTelemetry integration won't work (external Docker network unavailable)
+- ⚠️ **Firewall**: Custom firewall disabled in Codespaces (managed by GitHub)
+
+#### Implementation Notes
+```json
+// devcontainer.json additions
+"secrets": {
+  "ANTHROPIC_API_KEY": {
+    "description": "Claude Code API key from Anthropic Console"
+  }
+}
+```
+
+Firewall detection:
+```bash
+if [ -n "${CODESPACES:-}" ]; then
+  echo "Running in GitHub Codespaces - skipping firewall"
+  exit 0
+fi
+```
+
+---
+
+### 3. Dotfiles Support
+
+**Complexity**: Low | **Effort**: 3-4 hours | **Impact**: Medium for developer happiness
+
+#### Purpose
+Allow developers to inject personal configurations (.bashrc, .zshrc, git config, vim settings) into the devcontainer.
+
+#### Benefits
+- ✅ **Personalization**: Developers keep their preferred aliases, shortcuts, themes
+- ✅ **Productivity**: Import muscle memory from host system
+- ✅ **Flexibility**: Team standard + personal preferences
+
+#### Files to Modify
+- `.devcontainer/devcontainer.json` - Add dotfiles configuration:
+  ```json
+  "dotfilesRepository": "https://github.com/${localEnv:USER}/dotfiles",
+  "dotfilesInstallCommand": "install.sh",
+  "dotfilesTargetPath": "~/dotfiles"
+  ```
+- `.devcontainer/README.md` - Document dotfiles setup and best practices
+
+#### Example Dotfiles Repository Structure
+```
+dotfiles/
+├── README.md
+├── install.sh              # Symlink script
+├── .zshrc                  # ZSH configuration
+├── .gitconfig              # Git settings
+├── .vimrc                  # Vim configuration
+└── .aliases                # Shell aliases
+```
+
+#### Trade-offs
+- ⚠️ **Conflicts**: Personal configs might override team standards
+- ⚠️ **Privacy**: Dotfiles repo should not contain secrets or API keys
+- ⚠️ **Maintenance**: Developers manage their own dotfiles repo
+
+---
+
+### 4. Multi-Stage Dockerfile
+
+**Complexity**: High | **Effort**: 12-16 hours | **Impact**: Medium (reduces image size 28%)
+
+#### Purpose
+Split Dockerfile into multiple stages to reduce final image size and improve build caching.
+
+#### Benefits
+- ✅ **Smaller images**: Reduce from ~2.5GB to ~1.8GB
+- ✅ **Faster builds**: Better layer caching
+- ✅ **Security**: Build tools not in runtime image
+- ✅ **Clarity**: Separate build vs runtime dependencies
+
+#### Files to Modify
+- `.devcontainer/Dockerfile` - Complete rewrite with 3 stages:
+  1. **Stage 1 (base)**: System runtime dependencies only
+  2. **Stage 2 (builder)**: Build tools + compile git-delta
+  3. **Stage 3 (runtime)**: Copy only what's needed, discard build tools
+
+#### Implementation Notes
+```dockerfile
+# Stage 1: Base
+FROM node:20 AS base
+RUN apt-get install -y runtime-deps...
+
+# Stage 2: Builder
+FROM base AS builder
+RUN apt-get install -y build-essential gcc g++ make...
+RUN wget git-delta && dpkg -i git-delta.deb
+
+# Stage 3: Runtime
+FROM base AS runtime
+COPY --from=builder /usr/bin/delta /usr/bin/delta
+RUN npm install -g @anthropic-ai/claude-code...
+```
+
+#### Trade-offs
+- ⚠️ **Complexity**: Harder to debug (which stage has the issue?)
+- ⚠️ **Build time**: Slightly longer first build (3 stages vs 1)
+- ⚠️ **Flexibility**: Harder to add adhoc build tools at runtime
+
+---
+
+### 5. Health Check Scripts
+
+**Complexity**: Medium | **Effort**: 8-10 hours | **Impact**: High for new team members
+
+#### Purpose
+Validate devcontainer configuration and connectivity before developers start coding.
+
+#### Benefits
+- ✅ **Early detection**: Catch issues (missing API keys, network problems) immediately
+- ✅ **Self-service**: Developers fix common issues without asking for help
+- ✅ **Onboarding**: Guide new users through setup with actionable errors
+
+#### Files to Create
+- `.devcontainer/scripts/health-check.sh` (~200 lines)
+  - Check system resources (CPU, RAM, disk)
+  - Verify AI CLI installations (Claude, Codex, Gemini)
+  - Validate API key configuration
+  - Test network connectivity (Anthropic, OpenAI, GitHub)
+  - Verify MCP servers configuration
+  - Provide actionable error messages
+
+- `.devcontainer/scripts/network-check.sh` (~80 lines)
+  - Test whitelisted domains (should be reachable)
+  - Test blocked domains (should fail)
+  - Display firewall rules summary
+
+#### Files to Modify
+- `.devcontainer/devcontainer.json` - Add health check to `postStartCommand`:
+  ```json
+  "postStartCommand": "sudo /usr/local/bin/init-claude-config.sh && sudo /usr/local/bin/init-firewall.sh && /workspaces/${localWorkspaceFolderBasename}/.devcontainer/scripts/health-check.sh"
+  ```
+- `.devcontainer/README.md` - Add troubleshooting guide with health check usage
+
+#### Implementation Notes
+Health check validates:
+1. ✓ System resources (4+ CPUs, 8GB+ RAM, 32GB+ disk)
+2. ✓ AI CLI installations (`claude`, `codex`, `gemini`)
+3. ✓ API key configuration (settings files, environment variables)
+4. ✓ Network connectivity (api.anthropic.com, api.openai.com, api.github.com)
+5. ✓ Firewall active (example.com should be blocked)
+6. ✓ MCP servers configured (`~/.claude/mcp.json`)
+
+#### Trade-offs
+- ⚠️ **Slower startup**: Adds ~5-10 seconds to container startup
+- ⚠️ **Noise**: May warn about optional features (can be configured to ignore)
+- ⚠️ **Maintenance**: Health checks need updates when adding new features
+
+---
+
+### Implementation Priority
+
+**Recommended order** (highest value first):
+
+1. **Health Checks** (8-10 hours) - Immediate value for everyone, easier onboarding
+2. **Prebuild Workflow** (8-12 hours) - High impact for teams of 5+ developers
+3. **Dotfiles** (3-4 hours) - Quick win for developer happiness
+4. **Codespaces** (4-6 hours) - If using GitHub paid plans or remote teams
+5. **Multi-Stage Dockerfile** (12-16 hours) - If image size becomes a problem
+
+**Total effort estimate**: 40-60 hours across 5 tasks
+
+### When to Implement
+
+These enhancements are ready to implement after:
+1. ✅ Current Priority 1 fixes validated (security, performance, documentation)
+2. ✅ Current Priority 2 improvements validated (Features, hostRequirements, optimizations)
+3. ✅ Team feedback collected on existing setup
+4. ✅ Production usage confirmed stable
+
+### Implementation Checklist Template
+
+When ready to implement a Priority 3 task:
+
+```markdown
+## Task: [Task Name]
+
+**Status**: 🚧 In Progress
+**Started**: YYYY-MM-DD
+**Completed**: YYYY-MM-DD
+
+### Changes Made
+- [ ] File 1 created/modified
+- [ ] File 2 created/modified
+- [ ] Documentation updated
+- [ ] Testing completed
+- [ ] Team notified
+
+### Testing Notes
+- Test 1: [Result]
+- Test 2: [Result]
+
+### Issues Encountered
+- Issue 1: [Resolution]
+```
+
+---
+
+## Further Reading
+
+- **Main README**: `../README.md` - Overview and setup
+- **llms.txt**: `./llms.txt` - Comprehensive devcontainer guide for AI bots
+- **Official Docs**: https://code.visualstudio.com/docs/devcontainers/containers
+- **Claude Code Docs**: https://docs.claude.com/en/docs/claude-code/devcontainer
