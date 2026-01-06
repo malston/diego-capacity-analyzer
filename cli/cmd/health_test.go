@@ -18,6 +18,10 @@ func TestFormatHealthHuman(t *testing.T) {
 	resp := &client.HealthResponse{
 		CFAPI:   "ok",
 		BOSHAPI: "ok",
+		CacheStatus: client.CacheStatus{
+			CellsCached: true,
+			AppsCached:  false,
+		},
 	}
 
 	output := formatHealthHuman("http://localhost:8080", resp)
@@ -31,12 +35,19 @@ func TestFormatHealthHuman(t *testing.T) {
 	if !bytes.Contains([]byte(output), []byte("ok")) {
 		t.Error("expected output to contain ok status")
 	}
+	if !bytes.Contains([]byte(output), []byte("Cells Cached:")) {
+		t.Error("expected output to contain Cells Cached label")
+	}
 }
 
 func TestFormatHealthJSON(t *testing.T) {
 	resp := &client.HealthResponse{
 		CFAPI:   "ok",
 		BOSHAPI: "not_configured",
+		CacheStatus: client.CacheStatus{
+			CellsCached: true,
+			AppsCached:  false,
+		},
 	}
 
 	output := formatHealthJSON("http://localhost:8080", resp)
@@ -48,14 +59,28 @@ func TestFormatHealthJSON(t *testing.T) {
 	if parsed["backend"] != "http://localhost:8080" {
 		t.Errorf("expected backend URL in JSON, got %v", parsed["backend"])
 	}
+	if parsed["bosh_api"] != "not_configured" {
+		t.Errorf("expected bosh_api in JSON, got %v", parsed["bosh_api"])
+	}
+	cacheStatus, ok := parsed["cache_status"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected cache_status in JSON")
+	}
+	if cacheStatus["cells_cached"] != true {
+		t.Errorf("expected cells_cached true, got %v", cacheStatus["cells_cached"])
+	}
 }
 
 func TestHealthCommand_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(client.HealthResponse{
-			CFAPI:   "ok",
-			BOSHAPI: "ok",
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"cf_api":   "ok",
+			"bosh_api": "ok",
+			"cache_status": map[string]bool{
+				"cells_cached": false,
+				"apps_cached":  false,
+			},
 		})
 	}))
 	defer server.Close()

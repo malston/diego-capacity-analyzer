@@ -29,8 +29,15 @@ func New(baseURL string) *Client {
 
 // HealthResponse represents the /api/health endpoint response
 type HealthResponse struct {
-	CFAPI   string `json:"cf_api"`
-	BOSHAPI string `json:"bosh_api"`
+	CFAPI       string      `json:"cf_api"`
+	BOSHAPI     string      `json:"bosh_api"`
+	CacheStatus CacheStatus `json:"cache_status"`
+}
+
+// CacheStatus represents cache state in health response
+type CacheStatus struct {
+	CellsCached bool `json:"cells_cached"`
+	AppsCached  bool `json:"apps_cached"`
 }
 
 // InfrastructureStatus represents the /api/infrastructure/status endpoint response

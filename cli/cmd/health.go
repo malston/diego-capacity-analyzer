@@ -57,17 +57,23 @@ func runHealth(ctx context.Context, w io.Writer) int {
 
 // formatHealthHuman formats health response for human readability
 func formatHealthHuman(url string, resp *client.HealthResponse) string {
-	return fmt.Sprintf(`Backend: %s
-CF API:  %s
-BOSH:    %s`, url, resp.CFAPI, resp.BOSHAPI)
+	return fmt.Sprintf(`Backend:      %s
+CF API:       %s
+BOSH:         %s
+Cells Cached: %t
+Apps Cached:  %t`, url, resp.CFAPI, resp.BOSHAPI, resp.CacheStatus.CellsCached, resp.CacheStatus.AppsCached)
 }
 
 // formatHealthJSON formats health response as JSON
 func formatHealthJSON(url string, resp *client.HealthResponse) string {
 	output := map[string]interface{}{
-		"backend": url,
-		"cf_api":  resp.CFAPI,
-		"bosh":    resp.BOSHAPI,
+		"backend":  url,
+		"cf_api":   resp.CFAPI,
+		"bosh_api": resp.BOSHAPI,
+		"cache_status": map[string]bool{
+			"cells_cached": resp.CacheStatus.CellsCached,
+			"apps_cached":  resp.CacheStatus.AppsCached,
+		},
 	}
 	data, _ := json.MarshalIndent(output, "", "  ")
 	return string(data)
