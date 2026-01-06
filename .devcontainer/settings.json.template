@@ -17,15 +17,7 @@
   "env": {
     "MAX_MCP_OUTPUT_TOKENS": "60000",
     "BASH_DEFAULT_TIMEOUT_MS": "300000",
-    "BASH_MAX_TIMEOUT_MS": "600000",
-    "MAX_THINKING_TOKENS": "8192",
-    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
-    "OTEL_LOG_USER_PROMPTS": "1",
-    "OTEL_METRICS_EXPORTER": "otlp",
-    "OTEL_LOGS_EXPORTER": "otlp",
-    "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
-    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector:4317",
-    "OTEL_RESOURCE_ATTRIBUTES": "deployment.environment=devcontainer,service.name=claude-code"
+    "BASH_MAX_TIMEOUT_MS": "600000"
   },
   "includeCoAuthoredBy": false
 }
