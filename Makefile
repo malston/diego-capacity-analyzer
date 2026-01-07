@@ -9,7 +9,6 @@ FRONTEND_PORT ?= 5173
 .PHONY: backend-build backend-test backend-lint backend-clean backend-run backend-dev backend-air
 .PHONY: frontend-build frontend-test frontend-lint frontend-dev frontend-preview frontend-clean
 .PHONY: cli-build cli-test cli-lint cli-clean cli-install
-.PHONY: dc-build dc-rebuild dc-up dc-run dc-shell dc-stop dc-down dc-status
 
 .DEFAULT_GOAL := help
 
@@ -128,31 +127,3 @@ cli-clean: ## Remove CLI build artifacts
 
 cli-install: cli-build ## Install CLI to $GOPATH/bin
 	cp cli/diego-capacity $(GOPATH)/bin/
-
-#
-# Dev Container targets
-#
-
-dc-build: ## Build the dev container image
-	./scripts/devcontainer.sh build
-
-dc-rebuild: ## Rebuild the dev container (no cache)
-	./scripts/devcontainer.sh rebuild
-
-dc-up: ## Start the dev container
-	./scripts/devcontainer.sh up
-
-dc-run: ## Run a command in the dev container (usage: make dc-run CMD="make test")
-	./scripts/devcontainer.sh run $(CMD)
-
-dc-shell: ## Open an interactive shell in the dev container
-	./scripts/devcontainer.sh shell
-
-dc-stop: ## Stop the running dev container
-	./scripts/devcontainer.sh stop
-
-dc-down: ## Stop and remove the dev container
-	./scripts/devcontainer.sh down
-
-dc-status: ## Show dev container status
-	./scripts/devcontainer.sh status
