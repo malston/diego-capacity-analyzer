@@ -8,8 +8,12 @@ This document describes each file in the `.devcontainer/` directory and how to c
 |------|---------|----------------|
 | `devcontainer.json` | Main configuration | Adding extensions, changing resources, modifying volumes |
 | `Dockerfile` | Container image definition | Adding system packages, tools |
-| `init-claude-config.sh` | Claude Code config setup | Changing default MCP servers or settings |
+| `Makefile` | CLI make targets | Adding/modifying container management commands |
+| `devcontainer.sh` | CLI wrapper script | Changing devcontainer CLI behavior |
+| `init-claude-config.sh` | Git identity, dotfiles, MCP setup | Changing git config, dotfiles, or MCP defaults |
 | `init-claude-hooks.sh` | Claude hooks deployment | Changing hook installation behavior |
+| `init-claudeup.sh` | Plugin manager setup | Changing claudeup installation or profile |
+| `docker-profile.json` | Claudeup plugin definitions | Adding/removing plugins or marketplaces |
 | `setup-git-hooks.sh` | Git pre-commit hook | Modifying branch protection rules |
 | `mcp.json.template` | MCP server definitions | Adding/removing MCP servers |
 | `settings.json.template` | Claude Code settings | Changing timeouts, environment variables |
@@ -129,29 +133,39 @@ RUN curl -LsSf https://example.com/install.sh | sh
 
 ## init-claude-config.sh
 
-**Purpose**: Copies Claude Code configuration templates to the user's home directory on first run.
+**Purpose**: Configures git identity, clones dotfiles, and copies Claude Code configuration templates.
 
 ### What It Does
 
-1. Creates `/home/node/.claude/` directory
-2. Copies `mcp.json.template` → `/home/node/.claude/mcp.json` (if not exists)
-3. Copies `settings.json.template` → `/home/node/.claude/settings.json` (if not exists)
+1. **Git identity** (from environment variables):
+   - Sets `git config --global user.name` from `$GIT_USER_NAME`
+   - Sets `git config --global user.email` from `$GIT_USER_EMAIL`
+   - Configures GitHub token URL rewriting from `$GITHUB_TOKEN`
+
+2. **Dotfiles** (if `$DOTFILES_REPO` is set):
+   - Clones dotfiles repo to `/home/node/dotfiles`
+   - Uses `$DOTFILES_BRANCH` (default: main)
+   - Runs `install.sh` if present
+
+3. **Claude Code config** (if not exists):
+   - Copies `mcp.json.template` → `/home/node/.claude/mcp.json`
+   - Copies `settings.json.template` → `/home/node/.claude/settings.json`
+
+### Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `GIT_USER_NAME` | Git commit author name |
+| `GIT_USER_EMAIL` | Git commit author email |
+| `GITHUB_TOKEN` | Enables `https://github.com/` → `https://TOKEN@github.com/` rewriting |
+| `DOTFILES_REPO` | URL of dotfiles repository to clone |
+| `DOTFILES_BRANCH` | Branch to checkout (default: main) |
 
 ### When to Modify
 
-- **Never** - Modify the templates instead (`mcp.json.template`, `settings.json.template`)
-- Only modify if you need to change the copy logic (e.g., always overwrite)
-
-### Force Overwrite (if needed)
-
-Change from:
-```bash
-if [ ! -f "$MCP_FILE" ] && [ -f "$MCP_TEMPLATE" ]; then
-```
-To:
-```bash
-if [ -f "$MCP_TEMPLATE" ]; then  # Always copy
-```
+- To add more git configuration
+- To change dotfiles installation behavior
+- To modify template copy logic
 
 ---
 
@@ -370,16 +384,139 @@ your-startup-command
 
 ---
 
+## Makefile
+
+**Purpose**: Provides make targets for container management via CLI.
+
+### Targets
+
+| Target | Description |
+|--------|-------------|
+| `make help` | Show all targets |
+| `make build` | Build container image |
+| `make rebuild` | Rebuild with no cache |
+| `make up` | Start container |
+| `make shell` | Open interactive shell |
+| `make stop` | Stop container |
+| `make down` | Stop and remove container |
+| `make status` | Show container status |
+| `make run CMD="..."` | Run command in container |
+
+### Usage
+
+```bash
+cd .devcontainer
+make rebuild
+make up
+make shell
+```
+
+Or from project root: `make -C .devcontainer <target>`
+
+---
+
+## devcontainer.sh
+
+**Purpose**: Wrapper script for devcontainer CLI with environment variable passthrough.
+
+### What It Does
+
+1. Wraps `devcontainer` CLI commands (build, up, exec, etc.)
+2. Passes environment variables via `--remote-env` flags
+3. Provides colored output and status messages
+
+### Environment Variables Passed
+
+- `GIT_USER_NAME`
+- `GIT_USER_EMAIL`
+- `GITHUB_TOKEN`
+- `DOTFILES_REPO`
+- `DOTFILES_BRANCH`
+- `CONTEXT7_API_KEY`
+
+### When to Modify
+
+- To pass additional environment variables
+- To change default CLI behavior
+- To add new commands
+
+---
+
+## init-claudeup.sh
+
+**Purpose**: Installs claudeup plugin manager and applies the docker profile.
+
+### What It Does
+
+1. Checks for setup completion marker (`~/.claudeup/.setup-complete`)
+2. Installs claudeup if not present
+3. Copies `docker-profile.json` to `~/.claudeup/profiles/docker.json`
+4. Runs `claudeup setup --profile docker -y`
+5. Creates marker file to prevent re-running
+
+### When to Modify
+
+- To change the plugin profile applied
+- To add post-installation steps
+- To change marker file location
+
+---
+
+## docker-profile.json
+
+**Purpose**: Defines marketplaces and plugins for claudeup to install.
+
+### Structure
+
+```json
+{
+  "name": "docker",
+  "description": "Default plugins for Docker environment",
+  "marketplaces": [
+    { "source": "github", "repo": "org/repo" },
+    { "source": "git", "url": "https://..." }
+  ],
+  "plugins": [
+    "plugin-name@marketplace-name"
+  ]
+}
+```
+
+### Current Marketplaces (8)
+
+- anthropics/claude-plugins-official
+- anthropics/claude-code
+- obra/superpowers-marketplace
+- thedotmack/claude-mem
+- ccplugins/awesome-claude-code-plugins
+- EveryInc/compound-engineering-plugin
+- anthropics/skills
+- wshobson/agents
+
+### Current Plugins (16)
+
+- superpowers, episodic-memory, elements-of-style (superpowers-marketplace)
+- claude-mem (thedotmack)
+- code-review, code-documentation, commit-commands, feature-dev (official)
+- frontend-design, pr-review-toolkit, security-guidance (official)
+- code-review, commit-commands, feature-dev, hookify, plugin-dev (claude-code-plugins)
+
+### When to Modify
+
+- To add/remove marketplaces
+- To add/remove plugins
+- To create a different plugin profile
+
+---
+
 ## Rebuilding the Container
 
 After modifying any file:
 
 ```bash
-# From workspace root
-devcontainer build --workspace-folder .
-
-# Or rebuild and start
-devcontainer up --workspace-folder . --rebuild
+cd .devcontainer
+make rebuild
+make up
 ```
 
 Or in VS Code: `Cmd+Shift+P` → "Dev Containers: Rebuild Container"
