@@ -42,4 +42,4 @@ cli/diego-capacity
 # Claude
 **/CLAUDE.md
 !.claude/CLAUDE.md
-!CLAUDE.md
+!/CLAUDE.md
