@@ -1,0 +1,59 @@
+{
+  "name": "docker",
+  "description": "Default plugins for Docker environment",
+  "marketplaces": [
+    {
+      "source": "github",
+      "repo": "anthropics/claude-plugins-official"
+    },
+    {
+      "source": "github",
+      "repo": "anthropics/claude-code"
+    },
+    {
+      "source": "github",
+      "repo": "obra/superpowers-marketplace"
+    },
+    {
+      "source": "github",
+      "repo": "thedotmack/claude-mem"
+    },
+    {
+      "source": "github",
+      "repo": "ccplugins/awesome-claude-code-plugins"
+    },
+    {
+      "source": "git",
+      "url": "https://github.com/EveryInc/compound-engineering-plugin.git"
+    },
+    {
+      "source": "github",
+      "repo": "anthropics/skills"
+    },
+    {
+      "source": "github",
+      "repo": "wshobson/agents"
+    }
+  ],
+  "plugins": [
+    "superpowers@superpowers-marketplace",
+    "episodic-memory@superpowers-marketplace",
+    "elements-of-style@superpowers-marketplace",
+    "claude-mem@thedotmack",
+    "code-review@claude-plugins-official",
+    "code-documentation@claude-code-workflows",
+    "commit-commands@claude-plugins-official",
+    "feature-dev@claude-plugins-official",
+    "frontend-design@claude-plugins-official",
+    "github@claude-plugins-official",
+    "pr-review-toolkit@claude-plugins-official",
+    "security-guidance@claude-plugins-official",
+    "code-review@claude-code-plugins",
+    "commit-commands@claude-code-plugins",
+    "feature-dev@claude-code-plugins",
+    "hookify@claude-code-plugins",
+    "plugin-dev@claude-code-plugins"
+  ],
+  "detect": {},
+  "sandbox": {}
+}

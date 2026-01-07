@@ -47,17 +47,27 @@
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-config-${devcontainerId},target=/home/node/.claude,type=volume",
+    "source=claudeup-config-${devcontainerId},target=/home/node/.claudeup,type=volume",
     "source=ghub-config-${devcontainerId},target=/home/node/.config/gh,type=volume",
     "source=npm-global-${devcontainerId},target=/home/node/.npm-global,type=volume",
     "source=local-bin-${devcontainerId},target=/home/node/.local,type=volume",
     "source=cargo-${devcontainerId},target=/home/node/.cargo,type=volume",
     "source=bun-${devcontainerId},target=/home/node/.bun,type=volume",
-    "source=aws-config-${devcontainerId},target=/home/node/.aws,type=volume"
+    "source=aws-config-${devcontainerId},target=/home/node/.aws,type=volume",
+    "source=dotfiles-${devcontainerId},target=/home/node/dotfiles,type=volume",
+    "source=${localEnv:HOME}/.claude-mem,target=/home/node/.claude-mem,type=bind",
+    "source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,readonly"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
-    "NPM_CONFIG_PREFIX": "/home/node/.npm-global"
+    "NPM_CONFIG_PREFIX": "/home/node/.npm-global",
+    "GIT_USER_NAME": "${localEnv:GIT_USER_NAME}",
+    "GIT_USER_EMAIL": "${localEnv:GIT_USER_EMAIL}",
+    "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}",
+    "DOTFILES_REPO": "${localEnv:DOTFILES_REPO}",
+    "DOTFILES_BRANCH": "${localEnv:DOTFILES_BRANCH}",
+    "CONTEXT7_API_KEY": "${localEnv:CONTEXT7_API_KEY}"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "forwardPorts": [3000, 5173, 8080],
@@ -75,7 +85,7 @@
       "onAutoForward": "silent"
     }
   },
-  "postCreateCommand": "npm install -g npm@latest && npm install -g @anthropic-ai/claude-code@latest && /usr/local/bin/init-claude-config.sh && /usr/local/bin/init-claude-hooks.sh",
+  "postCreateCommand": "npm install -g npm@latest && npm install -g @anthropic-ai/claude-code@latest && /usr/local/bin/init-claude-config.sh && /usr/local/bin/init-claude-hooks.sh && /usr/local/bin/init-claudeup.sh",
   "postStartCommand": "bash ${containerWorkspaceFolder}/.devcontainer/setup-git-hooks.sh",
   "waitFor": "postCreateCommand"
 }

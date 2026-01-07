@@ -52,8 +52,8 @@ RUN mkdir /commandhistory && \
 ENV DEVCONTAINER=true
 
 # Create config directories
-RUN mkdir -p /home/node/.config/gh /home/node/.claude /home/node/.npm-global/lib /home/node/.aws /home/node/.local/bin && \
-    chown -R node:node /home/node/.config /home/node/.claude /home/node/.npm-global /home/node/.aws /home/node/.local
+RUN mkdir -p /home/node/.config/gh /home/node/.claude /home/node/.claudeup/profiles /home/node/.claude-mem /home/node/dotfiles /home/node/.npm-global/lib /home/node/.aws /home/node/.local/bin && \
+    chown -R node:node /home/node/.config /home/node/.claude /home/node/.claudeup /home/node/.claude-mem /home/node/dotfiles /home/node/.npm-global /home/node/.aws /home/node/.local
 
 WORKDIR /workspaces
 
@@ -76,12 +76,15 @@ RUN mkdir -p /usr/local/share/claude-defaults/hooks && \
 # Copy scripts and templates
 COPY init-claude-config.sh /usr/local/bin/
 COPY init-claude-hooks.sh /usr/local/bin/
+COPY init-claudeup.sh /usr/local/bin/
 COPY --chown=node:node settings.json.template /usr/local/share/claude-defaults/settings.json
 COPY --chown=node:node mcp.json.template /usr/local/share/claude-defaults/mcp.json
 COPY --chmod=755 session-start.sh.template /usr/local/share/claude-defaults/hooks/session-start.sh
+COPY --chown=node:node docker-profile.json /usr/local/share/claude-defaults/docker-profile.json
 
 # Set permissions
 RUN chmod +x /usr/local/bin/init-claude-config.sh && \
-    chmod +x /usr/local/bin/init-claude-hooks.sh
+    chmod +x /usr/local/bin/init-claude-hooks.sh && \
+    chmod +x /usr/local/bin/init-claudeup.sh
 
 USER node
