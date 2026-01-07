@@ -38,3 +38,8 @@ bosh-*.yml.envrc
 bosh-*.yml
 settings.local.json
 cli/diego-capacity
+
+# Claude
+**/CLAUDE.md
+!CLAUDE.md
+!.claude/CLAUDE.md
