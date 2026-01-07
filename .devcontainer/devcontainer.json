@@ -1,0 +1,91 @@
+{
+  "name": "Claude Code - ${localWorkspaceFolderBasename}",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "TZ": "${localEnv:TZ:America/Denver}"
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": false,
+      "installOhMyZsh": false,
+      "upgradePackages": false,
+      "username": "node",
+      "userUid": "automatic",
+      "userGid": "automatic"
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "latest",
+      "ppa": false
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.23"
+    }
+  },
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "4gb",
+    "storage": "16gb"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "golang.Go",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "go.toolsManagement.checkForUpdates": "local",
+        "go.useLanguageServer": true
+      }
+    }
+  },
+  "remoteUser": "node",
+  "mounts": [
+    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+    "source=claude-config-${devcontainerId},target=/home/node/.claude,type=volume",
+    "source=claudeup-config-${devcontainerId},target=/home/node/.claudeup,type=volume",
+    "source=ghub-config-${devcontainerId},target=/home/node/.config/gh,type=volume",
+    "source=npm-global-${devcontainerId},target=/home/node/.npm-global,type=volume",
+    "source=local-bin-${devcontainerId},target=/home/node/.local,type=volume",
+    "source=cargo-${devcontainerId},target=/home/node/.cargo,type=volume",
+    "source=bun-${devcontainerId},target=/home/node/.bun,type=volume",
+    "source=aws-config-${devcontainerId},target=/home/node/.aws,type=volume",
+    "source=dotfiles-${devcontainerId},target=/home/node/dotfiles,type=volume",
+    "source=${localEnv:HOME}/.claude-mem,target=/home/node/.claude-mem,type=bind",
+    "source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,readonly"
+  ],
+  "containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "NPM_CONFIG_PREFIX": "/home/node/.npm-global",
+    "GIT_USER_NAME": "${localEnv:GIT_USER_NAME}",
+    "GIT_USER_EMAIL": "${localEnv:GIT_USER_EMAIL}",
+    "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}",
+    "DOTFILES_REPO": "${localEnv:DOTFILES_REPO}",
+    "DOTFILES_BRANCH": "${localEnv:DOTFILES_BRANCH}",
+    "CONTEXT7_API_KEY": "${localEnv:CONTEXT7_API_KEY}"
+  },
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "forwardPorts": [3000, 5173, 8080],
+  "portsAttributes": {
+    "3000": {
+      "label": "Frontend Dev",
+      "onAutoForward": "silent"
+    },
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "silent"
+    },
+    "8080": {
+      "label": "Backend API",
+      "onAutoForward": "silent"
+    }
+  },
+  "postCreateCommand": "npm install -g npm@latest && npm install -g @anthropic-ai/claude-code@latest && /usr/local/bin/init-claude-config.sh && /usr/local/bin/init-claude-hooks.sh && /usr/local/bin/init-claudeup.sh",
+  "postStartCommand": "bash ${containerWorkspaceFolder}/.devcontainer/setup-git-hooks.sh",
+  "waitFor": "postCreateCommand"
+}

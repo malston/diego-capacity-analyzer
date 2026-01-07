@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# ABOUTME: Session startup hook for Claude Code in devcontainer.
+# ABOUTME: Validates environment and displays available tools/volumes.
+
+set -e
+
+echo "Claude Code DevContainer - Environment Check"
+echo "============================================="
+
+# Detect devcontainer
+IN_DEVCONTAINER=false
+if [[ -n "${REMOTE_CONTAINERS_IPC:-}" ]] || [[ -n "${CODESPACES:-}" ]] || \
+   [[ -f "/.dockerenv" ]] || grep -qa "docker\|lxc" /proc/1/cgroup 2>/dev/null; then
+    IN_DEVCONTAINER=true
+fi
+
+if [[ "$IN_DEVCONTAINER" == "true" ]]; then
+    echo "[OK] Running inside devcontainer"
+    echo ""
+
+    echo "Volume Mounts:"
+    for vol in ".claude" ".config/gh" ".npm-global" ".local" ".aws" ".cargo" ".bun"; do
+        if [[ -d "/home/node/$vol" ]]; then
+            echo "  [OK] $vol"
+        else
+            echo "  [MISSING] $vol"
+        fi
+    done
+
+    echo ""
+    echo "MCP Servers:"
+    MCP_FILE="/home/node/.claude/mcp.json"
+    if [[ -f "$MCP_FILE" ]]; then
+        jq -r '.mcpServers | keys[]' "$MCP_FILE" 2>/dev/null | while read -r server; do
+            echo "  [OK] $server"
+        done
+    fi
+
+    echo ""
+    echo "Tools:"
+    for tool in claude gh node go; do
+        if command -v "$tool" &> /dev/null; then
+            echo "  [OK] $tool"
+        else
+            echo "  [MISSING] $tool"
+        fi
+    done
+
+    echo ""
+    echo "Workspace: $(pwd)"
+    if git rev-parse --git-dir > /dev/null 2>&1; then
+        BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
+        echo "Git branch: $BRANCH"
+    fi
+else
+    echo "[WARN] Not running in devcontainer!"
+    echo "Run: Dev Containers: Reopen in Container"
+fi
+
+echo "============================================="
+echo "Ready!"
