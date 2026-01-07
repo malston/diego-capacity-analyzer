@@ -14,6 +14,8 @@ DOTFILES_DIR="/home/node/dotfiles"
 echo "Initializing Claude Code configuration..."
 
 # Configure git identity if env vars are set
+# Run from /tmp to avoid worktree .git file issues
+pushd /tmp > /dev/null
 if [ -n "${GIT_USER_NAME:-}" ]; then
     git config --global user.name "$GIT_USER_NAME"
     echo "[OK] Git user.name: $GIT_USER_NAME"
@@ -29,6 +31,7 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
     git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
     echo "[OK] GitHub token configured for git"
 fi
+popd > /dev/null
 
 # Clone dotfiles if repo is set and directory is empty
 if [ -n "${DOTFILES_REPO:-}" ] && [ -z "$(ls -A "$DOTFILES_DIR" 2>/dev/null)" ]; then

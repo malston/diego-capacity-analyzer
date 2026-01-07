@@ -45,7 +45,7 @@ ARG USERNAME=node
 RUN mkdir /commandhistory && \
     touch /commandhistory/.bash_history && \
     chown -R $USERNAME /commandhistory && \
-    echo 'export PATH=$PATH:/home/node/.npm-global/bin:/home/node/.local/bin' >> /home/node/.bashrc && \
+    echo 'export PATH=$PATH:/home/node/.npm-global/bin:/home/node/.local/bin:/home/node/.bun/bin' >> /home/node/.bashrc && \
     echo 'export HISTFILE=/commandhistory/.bash_history' >> /home/node/.bashrc && \
     chown node:node /home/node/.bashrc
 
@@ -61,7 +61,10 @@ USER node
 
 # npm global path
 ENV NPM_CONFIG_PREFIX=/home/node/.npm-global
-ENV PATH=$PATH:/home/node/.npm-global/bin:/home/node/.local/bin
+ENV PATH=$PATH:/home/node/.npm-global/bin:/home/node/.local/bin:/home/node/.bun/bin
+
+# Install Bun (required by some Claude Code plugins)
+RUN curl -fsSL https://bun.sh/install | bash
 
 # Configure git to ignore Claude's local settings
 RUN git config --global core.excludesfile ~/.gitignore_global && \
@@ -74,17 +77,12 @@ RUN mkdir -p /usr/local/share/claude-defaults/hooks && \
     chown -R node:node /usr/local/share/claude-defaults
 
 # Copy scripts and templates
-COPY init-claude-config.sh /usr/local/bin/
-COPY init-claude-hooks.sh /usr/local/bin/
-COPY init-claudeup.sh /usr/local/bin/
+COPY --chmod=755 init-claude-config.sh /usr/local/bin/
+COPY --chmod=755 init-claude-hooks.sh /usr/local/bin/
+COPY --chmod=755 init-claudeup.sh /usr/local/bin/
 COPY --chown=node:node settings.json.template /usr/local/share/claude-defaults/settings.json
 COPY --chown=node:node mcp.json.template /usr/local/share/claude-defaults/mcp.json
 COPY --chmod=755 session-start.sh.template /usr/local/share/claude-defaults/hooks/session-start.sh
 COPY --chown=node:node docker-profile.json /usr/local/share/claude-defaults/docker-profile.json
-
-# Set permissions
-RUN chmod +x /usr/local/bin/init-claude-config.sh && \
-    chmod +x /usr/local/bin/init-claude-hooks.sh && \
-    chmod +x /usr/local/bin/init-claudeup.sh
 
 USER node

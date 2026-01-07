@@ -71,7 +71,17 @@ cmd_rebuild() {
 
 cmd_up() {
     log_info "Starting dev container..."
-    devcontainer up --workspace-folder "$WORKSPACE_ROOT" "$@"
+
+    # Build remote-env args for environment variables that should be passed through
+    local env_args=()
+    [[ -n "${GIT_USER_NAME:-}" ]] && env_args+=(--remote-env "GIT_USER_NAME=$GIT_USER_NAME")
+    [[ -n "${GIT_USER_EMAIL:-}" ]] && env_args+=(--remote-env "GIT_USER_EMAIL=$GIT_USER_EMAIL")
+    [[ -n "${GITHUB_TOKEN:-}" ]] && env_args+=(--remote-env "GITHUB_TOKEN=$GITHUB_TOKEN")
+    [[ -n "${DOTFILES_REPO:-}" ]] && env_args+=(--remote-env "DOTFILES_REPO=$DOTFILES_REPO")
+    [[ -n "${DOTFILES_BRANCH:-}" ]] && env_args+=(--remote-env "DOTFILES_BRANCH=$DOTFILES_BRANCH")
+    [[ -n "${CONTEXT7_API_KEY:-}" ]] && env_args+=(--remote-env "CONTEXT7_API_KEY=$CONTEXT7_API_KEY")
+
+    devcontainer up --workspace-folder "$WORKSPACE_ROOT" "${env_args[@]}" "$@"
     log_success "Container started"
 }
 
@@ -103,7 +113,7 @@ cmd_shell() {
     fi
 
     log_info "Opening interactive shell..."
-    devcontainer exec --workspace-folder "$WORKSPACE_ROOT" /bin/zsh
+    devcontainer exec --workspace-folder "$WORKSPACE_ROOT" /bin/bash
 }
 
 cmd_stop() {
