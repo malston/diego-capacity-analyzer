@@ -289,6 +289,32 @@ HA admission control reserves cluster capacity to ensure workloads can be restar
 | **25%** | High availability, can tolerate larger failures |
 | **>25%** | Mission-critical, multi-host failure tolerance |
 
+#### Calculating HA Admission Percentage
+
+To determine the HA percentage needed to survive N host failures:
+
+```text
+HA % = (Hosts to Survive / Total Hosts) × 100
+```
+
+The number of survivable host failures is calculated as:
+
+```text
+Hosts Survivable = floor(HA % / 100 × Total Hosts)
+```
+
+**Examples:**
+
+| Cluster Size | Target Survivability | Required HA % |
+|--------------|---------------------|---------------|
+| 4 hosts | N-1 (1 host failure) | 25% |
+| 4 hosts | N-2 (2 host failures) | 50% |
+| 15 hosts | N-1 (1 host failure) | 7% (round to 8%) |
+| 15 hosts | N-2 (2 host failures) | 14% |
+| 3 hosts | N-1 (1 host failure) | 34% |
+
+**Note:** Always round up to ensure the `floor()` calculation yields the desired survivability.
+
 ---
 
 ## Bottleneck Analysis
