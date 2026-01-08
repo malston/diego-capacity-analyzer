@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Calculator, RefreshCw, FileDown, Sparkles, Server, HardDrive, Cpu, Database, AlertCircle } from 'lucide-react';
+import Tooltip from './Tooltip';
 import DataSourceSelector from './DataSourceSelector';
 import ScenarioResults from './ScenarioResults';
 import ScenarioWizard from './wizard/ScenarioWizard';
@@ -16,6 +17,13 @@ import {
   OVERHEAD_DEFAULTS,
   DEFAULT_TPS_CURVE,
 } from '../config/resourceConfig';
+
+const IAAS_TOOLTIPS = {
+  hosts: "Total ESXi hosts in your cluster(s). More hosts = more physical capacity and better fault tolerance.",
+  totalMemory: "Total RAM across all hosts. The N-1 value shows available memory after losing one host (for HA planning).",
+  totalCPUs: "Total CPU cores available across all hosts for running Diego cell VMs.",
+  maxCells: "Maximum Diego cells deployable given your infrastructure constraints. Calculated as MIN(memory-limited, cpu-limited).",
+};
 
 const ScenarioAnalyzer = () => {
   const { showToast } = useToast();
@@ -370,7 +378,9 @@ const ScenarioAnalyzer = () => {
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
               <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
                 <Server size={14} />
-                Hosts
+                <Tooltip text={IAAS_TOOLTIPS.hosts} position="bottom" showIcon>
+                  Hosts
+                </Tooltip>
               </div>
               <div className="text-2xl font-mono font-bold text-cyan-400">
                 {iaasCapacity.totalHosts}
@@ -385,7 +395,9 @@ const ScenarioAnalyzer = () => {
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
               <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
                 <HardDrive size={14} />
-                Total Memory
+                <Tooltip text={IAAS_TOOLTIPS.totalMemory} position="bottom" showIcon>
+                  Total Memory
+                </Tooltip>
               </div>
               <div className="text-2xl font-mono font-bold text-cyan-400">
                 {iaasCapacity.totalMemoryGB >= 1000
@@ -402,7 +414,9 @@ const ScenarioAnalyzer = () => {
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
               <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
                 <Cpu size={14} />
-                Total vCPUs
+                <Tooltip text={IAAS_TOOLTIPS.totalCPUs} position="bottom" showIcon>
+                  Total vCPUs
+                </Tooltip>
               </div>
               <div className="text-2xl font-mono font-bold text-cyan-400">
                 {iaasCapacity.totalCPUCores}
@@ -412,7 +426,9 @@ const ScenarioAnalyzer = () => {
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
               <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
                 <Calculator size={14} />
-                Max Cells
+                <Tooltip text={IAAS_TOOLTIPS.maxCells} position="bottom" showIcon>
+                  Max Cells
+                </Tooltip>
               </div>
               <div className="text-2xl font-mono font-bold text-cyan-400">
                 {maxCellsEstimate?.maxCells || '—'}

@@ -3,6 +3,14 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Server, Cpu, HardDrive, Shield } from 'lucide-react';
+import Tooltip from '../../Tooltip';
+
+const HOST_TOOLTIPS = {
+  hostCount: "Number of physical ESXi hosts in your vSphere cluster. More hosts = better fault tolerance and capacity.",
+  coresPerHost: "Physical CPU cores per ESXi host. Used to calculate vCPU:pCPU ratios and detect CPU bottlenecks.",
+  memoryPerHost: "Physical RAM per ESXi host in GB. Used to calculate N-1 capacity and memory utilization.",
+  haAdmission: "vSphere HA Admission Control percentage. Reserves cluster capacity so VMs can restart after host failure. 25% = can survive 1 host failure in a 4-host cluster.",
+};
 
 const HostConfigSection = ({
   hostCount,
@@ -56,7 +64,9 @@ const HostConfigSection = ({
               >
                 <span className="flex items-center gap-1">
                   <Server size={12} />
-                  Number of Hosts
+                  <Tooltip text={HOST_TOOLTIPS.hostCount} position="bottom" showIcon>
+                    Number of Hosts
+                  </Tooltip>
                 </span>
               </label>
               <input
@@ -76,7 +86,9 @@ const HostConfigSection = ({
               >
                 <span className="flex items-center gap-1">
                   <Cpu size={12} />
-                  Cores per Host
+                  <Tooltip text={HOST_TOOLTIPS.coresPerHost} position="bottom" showIcon>
+                    Cores per Host
+                  </Tooltip>
                 </span>
               </label>
               <input
@@ -99,7 +111,9 @@ const HostConfigSection = ({
               >
                 <span className="flex items-center gap-1">
                   <HardDrive size={12} />
-                  Memory per Host (GB)
+                  <Tooltip text={HOST_TOOLTIPS.memoryPerHost} position="bottom" showIcon>
+                    Memory per Host (GB)
+                  </Tooltip>
                 </span>
               </label>
               <input
@@ -119,7 +133,9 @@ const HostConfigSection = ({
               >
                 <span className="flex items-center gap-1">
                   <Shield size={12} />
-                  HA Admission (%)
+                  <Tooltip text={HOST_TOOLTIPS.haAdmission} position="bottom" showIcon>
+                    HA Admission (%)
+                  </Tooltip>
                 </span>
               </label>
               <input
