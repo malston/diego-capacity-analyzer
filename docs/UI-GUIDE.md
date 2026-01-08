@@ -122,6 +122,38 @@ After loading data, a **Current Configuration** summary appears showing your exi
 
 ---
 
+## IaaS Capacity
+
+After loading infrastructure data, the IaaS Capacity section displays your physical infrastructure limits and calculates the maximum number of Diego cells you can deploy.
+
+| Metric | What It Means |
+|--------|---------------|
+| **Hosts** | Total ESXi hosts in your cluster(s). Shows cluster count if multi-cluster. |
+| **Total Memory** | Total RAM across all hosts. The **N-1** value below shows available memory after losing one host (for HA planning). |
+| **Total vCPUs** | Total CPU cores available across all hosts. |
+| **Max Cells** | Maximum Diego cells deployable given your infrastructure constraints. Shows which resource (memory or CPU) is the bottleneck. |
+
+### Max Cells Calculation
+
+Max Cells is the **minimum** of what memory and CPU can support:
+
+| Formula | Description |
+|---------|-------------|
+| **MaxByMemory** | `N-1 Memory GB / Cell Memory GB` |
+| **MaxByCPU** | `Total CPU Cores / Cell vCPUs` |
+| **Max Cells** | `MIN(MaxByMemory, MaxByCPU)` |
+
+The bottleneck indicator (e.g., "memory-limited") tells you which resource will run out first.
+
+**Example:** With 1024 GB N-1 memory, 128 CPU cores, and cells sized at 64 GB / 8 vCPU:
+- MaxByMemory = 1024 ÷ 64 = 16 cells
+- MaxByCPU = 128 ÷ 8 = 16 cells
+- **Max Cells = 16** (balanced—both resources exhaust together)
+
+If your **Proposed Cell Count** exceeds Max Cells, an amber warning appears showing how many cells over capacity you are.
+
+---
+
 ## Proposed Configuration
 
 ### Cell Configuration
