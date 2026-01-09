@@ -14,6 +14,8 @@ const AdvancedStep = ({
   setAdditionalApp,
   tpsCurve,
   setTPSCurve,
+  enableTPS,
+  setEnableTPS,
   // Host config props
   hostCount,
   setHostCount,
@@ -89,7 +91,10 @@ const AdvancedStep = ({
 
       {/* Hypothetical App Section */}
       <div className="bg-slate-700/30 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-gray-300 mb-3">Hypothetical App</h4>
+        <h4 className="text-sm font-medium text-gray-300 mb-2">Hypothetical App</h4>
+        <p className="text-xs text-gray-400 mb-3">
+          Model a new workload to see if it fits (e.g., a 50-instance app with 2GB each).
+        </p>
         <div className="flex items-center gap-2 mb-3">
           <input
             type="checkbox"
@@ -166,62 +171,89 @@ const AdvancedStep = ({
         )}
       </div>
 
-      {/* TPS Curve Section */}
+      {/* TPS Performance Section */}
       <div className="bg-slate-700/30 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-gray-300 mb-3">TPS Performance Curve</h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-medium text-gray-300">TPS Performance Model</h4>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">
+              {enableTPS ? 'Enabled' : 'Disabled'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setEnableTPS(!enableTPS)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                enableTPS ? 'bg-cyan-600' : 'bg-slate-600'
+              }`}
+              aria-label="Toggle TPS model"
+            >
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                  enableTPS ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
         <p className="text-xs text-gray-400 mb-3">
-          Customize to match your observed scheduler performance.
+          {enableTPS
+            ? 'Customize to match your observed scheduler performance.'
+            : 'TPS modeling is experimental and may not be accurate for all environments.'}
         </p>
 
-        <div className="space-y-2 mb-3">
-          {tpsCurve.map((pt, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                type="number"
-                value={pt.cells}
-                onChange={(e) => updateTPSPoint(i, 'cells', e.target.value)}
-                aria-label={`TPS point ${i + 1} cells`}
-                className="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-gray-200 text-sm font-mono focus:border-cyan-500 outline-none"
-              />
-              <span className="text-gray-500">cells →</span>
-              <input
-                type="number"
-                value={pt.tps}
-                onChange={(e) => updateTPSPoint(i, 'tps', e.target.value)}
-                aria-label={`TPS point ${i + 1} tps`}
-                className="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-gray-200 text-sm font-mono focus:border-cyan-500 outline-none"
-              />
-              <span className="text-gray-500">TPS</span>
-              {tpsCurve.length > 2 && (
-                <button
-                  type="button"
-                  onClick={() => removeTPSPoint(i)}
-                  className="text-red-400 hover:text-red-300 p-1"
-                  aria-label={`Remove TPS point ${i + 1}`}
-                >
-                  <X size={14} />
-                </button>
-              )}
+        {enableTPS && (
+          <>
+            <div className="space-y-2 mb-3">
+              {tpsCurve.map((pt, i) => (
+                <div key={`tps-${pt.cells}-${i}`} className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={pt.cells}
+                    onChange={(e) => updateTPSPoint(i, 'cells', e.target.value)}
+                    aria-label={`TPS point ${i + 1} cells`}
+                    className="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-gray-200 text-sm font-mono focus:border-cyan-500 outline-none"
+                  />
+                  <span className="text-gray-500">cells →</span>
+                  <input
+                    type="number"
+                    value={pt.tps}
+                    onChange={(e) => updateTPSPoint(i, 'tps', e.target.value)}
+                    aria-label={`TPS point ${i + 1} tps`}
+                    className="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-gray-200 text-sm font-mono focus:border-cyan-500 outline-none"
+                  />
+                  <span className="text-gray-500">TPS</span>
+                  {tpsCurve.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => removeTPSPoint(i)}
+                      className="text-red-400 hover:text-red-300 p-1"
+                      aria-label={`Remove TPS point ${i + 1}`}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={addTPSPoint}
-            className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-          >
-            <Plus size={12} /> Add Point
-          </button>
-          <button
-            type="button"
-            onClick={resetTPSCurve}
-            className="text-xs text-gray-400 hover:text-gray-300"
-          >
-            Reset to Default
-          </button>
-        </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={addTPSPoint}
+                className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+              >
+                <Plus size={12} /> Add Point
+              </button>
+              <button
+                type="button"
+                onClick={resetTPSCurve}
+                className="text-xs text-gray-400 hover:text-gray-300"
+              >
+                Reset to Default
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {isLastStep ? (

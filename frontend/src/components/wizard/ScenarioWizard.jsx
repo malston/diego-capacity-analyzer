@@ -55,6 +55,8 @@ const ScenarioWizard = ({
   setAdditionalApp,
   tpsCurve,
   setTPSCurve,
+  enableTPS,
+  setEnableTPS,
   // Callbacks
   onStepComplete,
 }) => {
@@ -147,6 +149,8 @@ const ScenarioWizard = ({
             setAdditionalApp={setAdditionalApp}
             tpsCurve={tpsCurve}
             setTPSCurve={setTPSCurve}
+            enableTPS={enableTPS}
+            setEnableTPS={setEnableTPS}
             hostCount={hostCount}
             setHostCount={setHostCount}
             coresPerHost={physicalCoresPerHost}

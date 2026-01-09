@@ -41,16 +41,17 @@ func NewScenarioCalculator() *ScenarioCalculator {
 	return &ScenarioCalculator{}
 }
 
-// EstimateTPS estimates TPS for a given cell count using the provided curve
-// If curve is nil, uses DefaultTPSCurve
+// EstimateTPS estimates TPS for a given cell count using the provided curve.
+// If curve is nil/empty, returns 0 and "disabled" (TPS modeling is disabled).
+// The frontend must explicitly enable TPS by providing a curve.
 func EstimateTPS(cellCount int, curve []models.TPSPt) (tps int, status string) {
 	if cellCount <= 0 {
 		return 0, "unknown"
 	}
 
-	// Use default curve if none provided
+	// Skip TPS calculation if no curve provided (TPS disabled)
 	if len(curve) == 0 {
-		curve = DefaultTPSCurve
+		return 0, "disabled"
 	}
 
 	// Exact match
@@ -110,8 +111,9 @@ func EstimateTPS(cellCount int, curve []models.TPSPt) (tps int, status string) {
 	return tps, status
 }
 
-// CalculateCurrent computes metrics for current infrastructure state
-func (c *ScenarioCalculator) CalculateCurrent(state models.InfrastructureState) models.ScenarioResult {
+// CalculateCurrent computes metrics for the current configuration.
+// tpsCurve is optional - if nil, TPS modeling is disabled.
+func (c *ScenarioCalculator) CalculateCurrent(state models.InfrastructureState, tpsCurve []models.TPSPt) models.ScenarioResult {
 	// Get cell config from first cluster (assumes uniform cells)
 	var cellMemoryGB, cellCPU, cellDiskGB int
 	for _, cluster := range state.Clusters {
@@ -134,7 +136,7 @@ func (c *ScenarioCalculator) CalculateCurrent(state models.InfrastructureState) 
 		state.PlatformVMsGB,
 		state.TotalN1MemoryGB,
 		DefaultMemoryOverheadPct,
-		nil, // default TPS curve
+		tpsCurve,
 	)
 }
 
@@ -348,7 +350,8 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 
 // Compare computes full comparison between current and proposed scenarios
 func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input models.ScenarioInput) models.ScenarioComparison {
-	current := c.CalculateCurrent(state)
+	// Use same TPS curve for both current and proposed (if provided)
+	current := c.CalculateCurrent(state, input.TPSCurve)
 	proposed := c.CalculateProposed(state, input)
 	warnings := c.GenerateWarnings(current, proposed)
 

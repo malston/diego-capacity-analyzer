@@ -32,6 +32,8 @@ describe('ScenarioWizard', () => {
     setAdditionalApp: vi.fn(),
     tpsCurve: [{ cells: 50, tps: 500 }],
     setTPSCurve: vi.fn(),
+    enableTPS: false,
+    setEnableTPS: vi.fn(),
     onStepComplete: vi.fn(),
   };
 

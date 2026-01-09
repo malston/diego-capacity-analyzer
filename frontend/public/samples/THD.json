@@ -14,7 +14,7 @@
     }
   ],
   "platform_vms_gb": 4800,
-  "total_app_memory_gb": 14000,
-  "total_app_disk_gb": 1000,
+  "total_app_memory_gb": 7500,
+  "total_app_disk_gb": 500,
   "total_app_instances": 7000
 }

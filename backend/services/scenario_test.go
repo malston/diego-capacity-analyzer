@@ -24,7 +24,7 @@ func TestCalculateCurrentScenario(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	result := calc.CalculateCurrent(state)
+	result := calc.CalculateCurrent(state, nil)
 
 	// Cell count
 	if result.CellCount != 470 {
@@ -394,7 +394,8 @@ func TestTPSEstimation(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tps, status := EstimateTPS(tc.cellCount, nil) // nil = use default curve
+		// TPS requires an explicit curve - nil returns "disabled"
+		tps, status := EstimateTPS(tc.cellCount, DefaultTPSCurve)
 		if tps < tc.expectedTPS-tc.expectedRange || tps > tc.expectedTPS+tc.expectedRange {
 			t.Errorf("Cell count %d: expected TPS ~%d (±%d), got %d",
 				tc.cellCount, tc.expectedTPS, tc.expectedRange, tps)
@@ -403,6 +404,26 @@ func TestTPSEstimation(t *testing.T) {
 			t.Errorf("Cell count %d: expected status '%s', got '%s'",
 				tc.cellCount, tc.expectedState, status)
 		}
+	}
+}
+
+func TestTPSEstimation_Disabled(t *testing.T) {
+	// When no curve is provided, TPS should be disabled
+	tps, status := EstimateTPS(100, nil)
+	if tps != 0 {
+		t.Errorf("Expected TPS 0 when disabled, got %d", tps)
+	}
+	if status != "disabled" {
+		t.Errorf("Expected status 'disabled', got '%s'", status)
+	}
+
+	// Empty slice should also disable TPS
+	tps, status = EstimateTPS(100, []models.TPSPt{})
+	if tps != 0 {
+		t.Errorf("Expected TPS 0 when disabled, got %d", tps)
+	}
+	if status != "disabled" {
+		t.Errorf("Expected status 'disabled', got '%s'", status)
 	}
 }
 
@@ -572,6 +593,7 @@ func TestCompareWithDiskAndTPS(t *testing.T) {
 		ProposedCellCPU:      8,
 		ProposedCellDiskGB:   256, // Double disk
 		ProposedCellCount:    100,
+		TPSCurve:             DefaultTPSCurve, // Enable TPS by providing curve
 	}
 
 	calc := NewScenarioCalculator()
@@ -582,7 +604,7 @@ func TestCompareWithDiskAndTPS(t *testing.T) {
 		t.Errorf("Expected positive disk capacity change, got %d", comparison.Delta.DiskCapacityChangeGB)
 	}
 
-	// Both current and proposed should have TPS estimates
+	// Both current and proposed should have TPS estimates when curve is provided
 	if comparison.Current.EstimatedTPS == 0 {
 		t.Error("Expected Current.EstimatedTPS to be set")
 	}
@@ -627,7 +649,7 @@ func TestBlastRadiusPct(t *testing.T) {
 			}
 
 			calc := NewScenarioCalculator()
-			result := calc.CalculateCurrent(state)
+			result := calc.CalculateCurrent(state, nil)
 
 			if result.BlastRadiusPct != tt.expectedRadius {
 				t.Errorf("Expected BlastRadiusPct %.1f%%, got %.1f%%",

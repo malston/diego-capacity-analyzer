@@ -15,7 +15,13 @@ type ScenarioInput struct {
 	SelectedResources    []string `json:"selected_resources"`    // ["cpu", "memory", "disk"]
 	OverheadPct          float64  `json:"overhead_pct"`          // Memory overhead % (default 7)
 	AdditionalApp        *AppSpec `json:"additional_app"`        // Optional app to add
-	TPSCurve             []TPSPt  `json:"tps_curve"`             // Custom TPS curve (optional)
+	TPSCurve             []TPSPt  `json:"tps_curve"`             // Custom TPS curve (only used if EnableTPS is true)
+}
+
+// EnableTPS returns true if TPS analysis should be performed.
+// TPS is only calculated when tps_curve is explicitly provided.
+func (s *ScenarioInput) EnableTPS() bool {
+	return len(s.TPSCurve) > 0
 }
 
 // AppSpec represents a hypothetical app for capacity planning

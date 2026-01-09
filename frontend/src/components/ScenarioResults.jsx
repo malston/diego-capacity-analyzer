@@ -183,8 +183,8 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
         </div>
       </div>
 
-      {/* TPS Performance Indicator */}
-      {proposed.estimated_tps > 0 && (
+      {/* TPS Performance Indicator (hidden when TPS model is disabled) */}
+      {proposed.estimated_tps > 0 && proposed.tps_status !== 'disabled' && (
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-4 text-gray-400">
             <Gauge size={16} />

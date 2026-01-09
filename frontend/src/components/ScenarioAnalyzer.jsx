@@ -72,7 +72,8 @@ const ScenarioAnalyzer = () => {
   });
   const [useAdditionalApp, setUseAdditionalApp] = useState(false);
 
-  // TPS curve state
+  // TPS curve state (disabled by default - model is experimental)
+  const [enableTPS, setEnableTPS] = useState(false);
   const [tpsCurve, setTPSCurve] = useState(DEFAULT_TPS_CURVE);
 
   const handleDataLoaded = useCallback(async (data) => {
@@ -299,6 +300,7 @@ const ScenarioAnalyzer = () => {
       pCPU,
       currentVCPUs,
       maxVCPUs,
+      bottleneck: 'memory',  // Memory is always the hard constraint for max cells
     };
   }, [iaasCapacity, selectedPreset, customMemory, customCPU, cellCount]);
 
@@ -320,7 +322,8 @@ const ScenarioAnalyzer = () => {
         proposed_cell_count: cellCount,
         selected_resources: selectedResources,
         overhead_pct: overheadPct,
-        tps_curve: tpsCurve,
+        // TPS curve only included when enabled (experimental feature)
+        ...(enableTPS && { tps_curve: tpsCurve }),
         // CPU configuration (only included when CPU is selected)
         ...(selectedResources.includes('cpu') && {
           physical_cores_per_host: physicalCoresPerHost,
@@ -582,6 +585,8 @@ const ScenarioAnalyzer = () => {
           setAdditionalApp={setAdditionalApp}
           tpsCurve={tpsCurve}
           setTPSCurve={setTPSCurve}
+          enableTPS={enableTPS}
+          setEnableTPS={setEnableTPS}
           onStepComplete={handleStepComplete}
         />
       )}

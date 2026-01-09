@@ -16,6 +16,8 @@ describe('AdvancedStep', () => {
     setAdditionalApp: vi.fn(),
     tpsCurve: [{ cells: 50, tps: 500 }],
     setTPSCurve: vi.fn(),
+    enableTPS: false,
+    setEnableTPS: vi.fn(),
     onContinue: vi.fn(),
     onSkip: vi.fn(),
   };
@@ -41,9 +43,16 @@ describe('AdvancedStep', () => {
     expect(screen.getByLabelText(/instances/i)).toBeInTheDocument();
   });
 
-  it('renders TPS curve section', () => {
+  it('renders TPS section with toggle', () => {
     render(<AdvancedStep {...defaultProps} />);
-    expect(screen.getByText(/tps performance curve/i)).toBeInTheDocument();
+    expect(screen.getByText(/tps performance model/i)).toBeInTheDocument();
+    expect(screen.getByText(/disabled/i)).toBeInTheDocument();
+  });
+
+  it('shows TPS curve inputs when enabled', () => {
+    render(<AdvancedStep {...defaultProps} enableTPS={true} />);
+    expect(screen.getByText(/enabled/i)).toBeInTheDocument();
+    expect(screen.getByText(/customize to match/i)).toBeInTheDocument();
   });
 
   it('calls onSkip when Skip button clicked', async () => {
