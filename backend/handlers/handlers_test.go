@@ -1319,6 +1319,105 @@ func TestEnrichWithCFAppData_NoCFClient(t *testing.T) {
 	}
 }
 
+func TestEnrichWithCFAppData_AuthFailure(t *testing.T) {
+	// Mock CF server that returns auth error
+	cfServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v3/info" {
+			w.Header().Set("Content-Type", "application/json")
+			// Return info with a UAA URL that will fail
+			w.Write([]byte(`{"links":{"login":{"href":"http://invalid-uaa-server"}}}`))
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer cfServer.Close()
+
+	cfg := &config.Config{
+		CFAPIUrl:   cfServer.URL,
+		CFUsername: "admin",
+		CFPassword: "wrong-password",
+	}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	state := &models.InfrastructureState{
+		Source:            "vsphere",
+		TotalAppMemoryGB:  0,
+		TotalAppInstances: 0,
+	}
+
+	ctx := context.Background()
+	err := handler.enrichWithCFAppData(ctx, state)
+
+	// Should return an error on auth failure
+	if err == nil {
+		t.Error("Expected error on auth failure, got nil")
+	}
+
+	// Values should remain unchanged
+	if state.TotalAppMemoryGB != 0 {
+		t.Errorf("Expected TotalAppMemoryGB to remain 0 on error, got %d", state.TotalAppMemoryGB)
+	}
+}
+
+func TestEnrichWithCFAppData_GetAppsFailure(t *testing.T) {
+	// Mock UAA server for successful auth
+	uaaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/token" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"access_token":"test-token","token_type":"bearer"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer uaaServer.Close()
+
+	// Mock CF server that succeeds on auth but fails on GetApps
+	var cfServerURL string
+	cfServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v3/info":
+			w.Write([]byte(`{"links":{"self":{"href":"` + cfServerURL + `"},"login":{"href":"` + uaaServer.URL + `"}}}`))
+		case "/v3/apps":
+			// Return error on apps endpoint
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"errors":[{"detail":"Internal server error"}]}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	cfServerURL = cfServer.URL
+	defer cfServer.Close()
+
+	cfg := &config.Config{
+		CFAPIUrl:   cfServer.URL,
+		CFUsername: "admin",
+		CFPassword: "secret",
+	}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	state := &models.InfrastructureState{
+		Source:            "vsphere",
+		TotalAppMemoryGB:  0,
+		TotalAppInstances: 0,
+	}
+
+	ctx := context.Background()
+	err := handler.enrichWithCFAppData(ctx, state)
+
+	// Should return an error on GetApps failure
+	if err == nil {
+		t.Error("Expected error on GetApps failure, got nil")
+	}
+
+	// Values should remain unchanged
+	if state.TotalAppMemoryGB != 0 {
+		t.Errorf("Expected TotalAppMemoryGB to remain 0 on error, got %d", state.TotalAppMemoryGB)
+	}
+}
+
 func TestHandleScenarioCompare_WithRecommendations(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)

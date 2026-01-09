@@ -517,7 +517,8 @@ func (h *Handler) enrichWithCFAppData(ctx context.Context, state *models.Infrast
 		totalInstances += app.Instances
 	}
 
-	state.TotalAppMemoryGB = totalMemoryMB / 1024
+	// Round to nearest GB to avoid precision loss from integer division
+	state.TotalAppMemoryGB = (totalMemoryMB + 512) / 1024
 	state.TotalAppInstances = totalInstances
 
 	return nil
