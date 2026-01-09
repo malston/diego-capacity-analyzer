@@ -52,7 +52,7 @@ const AdvancedStep = ({
 
   return (
     <div className="space-y-6">
-      {/* Host Configuration Section - Collapsible */}
+      {/* Host Configuration Section - Collapsible, expanded by default */}
       <HostConfigSection
         hostCount={hostCount}
         setHostCount={setHostCount}
@@ -62,6 +62,7 @@ const AdvancedStep = ({
         setMemoryPerHost={setMemoryPerHost}
         haAdmissionPct={haAdmissionPct}
         setHaAdmissionPct={setHaAdmissionPct}
+        defaultExpanded={true}
       />
 
       {/* Memory Overhead Slider */}
