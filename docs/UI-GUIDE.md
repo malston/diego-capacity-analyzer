@@ -391,6 +391,33 @@ Cell level (Memory Overhead):
 
 Both calculations are needed: HA admission determines if you can *deploy* the VMs; memory overhead determines how much *workload* fits inside them.
 
+#### vSphere Memory Reservations for Diego Cells
+
+**Best practice:** Set memory reservations on Diego cell VMs equal to their configured memory.
+
+| Cell Size | Reservation |
+|-----------|-------------|
+| 32 GB | 32 GB |
+| 48 GB | 48 GB |
+| 64 GB | 64 GB |
+
+**Why this matters:**
+
+When a vSphere host is under memory pressure, it uses these reclamation techniques (in order):
+
+1. **Ballooning** - VMware Tools balloon driver inflates inside guest VMs, forcing the guest OS to release memory
+2. **Compression** - vSphere compresses memory pages
+3. **Host swapping** - vSphere swaps VM memory to disk (severe performance impact)
+
+Diego cells should **never** be subject to these techniques. If they are:
+- Apps see sudden, unexplained memory pressure
+- OOM kills and container crashes follow
+- Performance becomes unpredictable
+
+Setting a memory reservation tells vSphere "guarantee this VM's full memory allocation—never reclaim from it." This ensures Diego cells have dedicated physical memory and aren't sacrificed when other workloads cause host pressure.
+
+**Note:** Memory reservations reduce the pool of memory available for other VMs. If you reserve 32GB for each of 470 Diego cells, that's 15TB that cannot be overcommitted. This is intentional—Diego cells need predictable memory access.
+
 ---
 
 ## Bottleneck Analysis
