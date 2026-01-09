@@ -22,7 +22,14 @@ const IAAS_TOOLTIPS = {
   hosts: "Total ESXi hosts in your cluster(s). More hosts = more physical capacity and better fault tolerance.",
   totalMemory: "Total RAM across all hosts. The N-1 value shows available memory after losing one host (for HA planning).",
   totalCPUs: "Total CPU cores available across all hosts for running Diego cell VMs.",
-  maxCells: "Maximum Diego cells deployable given your infrastructure constraints. Calculated as MIN(memory-limited, cpu-limited).",
+  maxCells: "Maximum Diego cells deployable based on available memory (N-1). Shows resulting CPU ratio at proposed cell count.",
+};
+
+// CPU ratio risk level thresholds (matches CPUGauge.jsx)
+const getRatioRisk = (ratio) => {
+  if (ratio <= 4) return { level: 'low', label: 'Low', color: 'text-emerald-400' };
+  if (ratio <= 8) return { level: 'medium', label: 'Medium', color: 'text-amber-400' };
+  return { level: 'high', label: 'High', color: 'text-red-400' };
 };
 
 const ScenarioAnalyzer = () => {
@@ -257,28 +264,35 @@ const ScenarioAnalyzer = () => {
   }, [iaasCapacity]);
 
   // Compute max deployable cells based on proposed cell size and IaaS capacity
+  // Memory is the hard constraint; CPU ratio is calculated as an output
   const maxCellsEstimate = useMemo(() => {
     if (!iaasCapacity) return null;
 
     const preset = VM_SIZE_PRESETS[selectedPreset];
     const proposedMemoryGB = preset.memoryGB || customMemory;
     const proposedCPU = preset.cpu || customCPU;
+    const pCPU = iaasCapacity.totalCPUCores;
 
-    const byMemory = Math.floor(iaasCapacity.n1MemoryGB / proposedMemoryGB);
-    // Apply target vCPU:pCPU ratio from UI setting
-    const effectiveVCPUs = iaasCapacity.totalCPUCores * (targetVCPURatio || 4);
-    const byCPU = Math.floor(effectiveVCPUs / proposedCPU);
-    const maxCells = Math.min(byMemory, byCPU);
-    const bottleneck = byMemory <= byCPU ? 'memory' : 'cpu';
+    // Memory is the hard constraint for max cells
+    const maxCells = Math.floor(iaasCapacity.n1MemoryGB / proposedMemoryGB);
+
+    // Calculate resulting CPU ratios at current and max cell counts
+    const currentVCPUs = cellCount * proposedCPU;
+    const maxVCPUs = maxCells * proposedCPU;
+    const currentRatio = pCPU > 0 ? currentVCPUs / pCPU : 0;
+    const maxRatio = pCPU > 0 ? maxVCPUs / pCPU : 0;
 
     return {
       maxCells,
-      byMemory,
-      byCPU,
-      bottleneck,
-      targetRatio: targetVCPURatio || 4,
+      currentRatio: Math.round(currentRatio * 100) / 100,
+      maxRatio: Math.round(maxRatio * 100) / 100,
+      currentRisk: getRatioRisk(currentRatio),
+      maxRisk: getRatioRisk(maxRatio),
+      pCPU,
+      currentVCPUs,
+      maxVCPUs,
     };
-  }, [iaasCapacity, selectedPreset, customMemory, customCPU, targetVCPURatio]);
+  }, [iaasCapacity, selectedPreset, customMemory, customCPU, cellCount]);
 
   const handleCompare = async () => {
     if (!infrastructureState) return;
