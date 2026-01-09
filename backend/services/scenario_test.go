@@ -750,6 +750,151 @@ func TestResilienceChange_UsesBlastRadius(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// CONSTRAINT ANALYSIS TESTS: HA Admission Control vs N-X Tolerance
+// ============================================================================
+
+func TestCalculateConstraints_HAIsLimiting(t *testing.T) {
+	// 15 hosts × 2000GB = 30,000GB total
+	// HA 25% reserves 7,500GB (≈N-4 equivalent)
+	// N-1 reserves 2,000GB (6.67%)
+	// HA is more restrictive
+	result := CalculateConstraints(
+		30000, // totalMemoryGB
+		15,    // hostCount
+		2000,  // memoryPerHostGB
+		25,    // haAdmissionPct
+		15000, // usedMemoryGB (cells + platform)
+	)
+
+	if result == nil {
+		t.Fatal("Expected non-nil ConstraintAnalysis")
+	}
+
+	// HA should be limiting
+	if result.LimitingConstraint != "ha_admission" {
+		t.Errorf("Expected limiting_constraint='ha_admission', got '%s'", result.LimitingConstraint)
+	}
+
+	// HA reserves 25% = 7,500GB
+	if result.HAAdmission.ReservedGB != 7500 {
+		t.Errorf("Expected HA ReservedGB=7500, got %d", result.HAAdmission.ReservedGB)
+	}
+
+	// HA usable = 30,000 - 7,500 = 22,500GB
+	if result.HAAdmission.UsableGB != 22500 {
+		t.Errorf("Expected HA UsableGB=22500, got %d", result.HAAdmission.UsableGB)
+	}
+
+	// HA N-equivalent: 7500 / 2000 = 3.75 → ceil = 4
+	if result.HAAdmission.NEquivalent != 4 {
+		t.Errorf("Expected HA NEquivalent=4, got %d", result.HAAdmission.NEquivalent)
+	}
+
+	// N-1 reserves 2,000GB
+	if result.NMinusX.ReservedGB != 2000 {
+		t.Errorf("Expected N-1 ReservedGB=2000, got %d", result.NMinusX.ReservedGB)
+	}
+
+	// Limiting label should show HA with N-equivalent
+	expectedLabel := "HA 25% (≈N-4)"
+	if result.LimitingLabel != expectedLabel {
+		t.Errorf("Expected LimitingLabel='%s', got '%s'", expectedLabel, result.LimitingLabel)
+	}
+
+	// No insufficient warning (HA > N-1)
+	if result.InsufficientHAWarning {
+		t.Error("Expected InsufficientHAWarning=false when HA >= N-1")
+	}
+
+	// HA utilization: 15000 / 22500 = 66.67%
+	if result.HAAdmission.UtilizationPct < 66 || result.HAAdmission.UtilizationPct > 67 {
+		t.Errorf("Expected HA UtilizationPct ~66.67%%, got %.2f%%", result.HAAdmission.UtilizationPct)
+	}
+}
+
+func TestCalculateConstraints_NMinusXIsLimiting(t *testing.T) {
+	// 15 hosts × 2000GB = 30,000GB total
+	// HA 5% reserves 1,500GB
+	// N-1 reserves 2,000GB (6.67%)
+	// N-1 is more restrictive
+	result := CalculateConstraints(
+		30000, // totalMemoryGB
+		15,    // hostCount
+		2000,  // memoryPerHostGB
+		5,     // haAdmissionPct (low)
+		15000, // usedMemoryGB
+	)
+
+	if result == nil {
+		t.Fatal("Expected non-nil ConstraintAnalysis")
+	}
+
+	// N-1 should be limiting
+	if result.LimitingConstraint != "n_minus_x" {
+		t.Errorf("Expected limiting_constraint='n_minus_x', got '%s'", result.LimitingConstraint)
+	}
+
+	// HA reserves 5% = 1,500GB
+	if result.HAAdmission.ReservedGB != 1500 {
+		t.Errorf("Expected HA ReservedGB=1500, got %d", result.HAAdmission.ReservedGB)
+	}
+
+	// Label should show N-1
+	if result.LimitingLabel != "N-1" {
+		t.Errorf("Expected LimitingLabel='N-1', got '%s'", result.LimitingLabel)
+	}
+
+	// Should warn that HA is insufficient
+	if !result.InsufficientHAWarning {
+		t.Error("Expected InsufficientHAWarning=true when HA < N-1")
+	}
+}
+
+func TestCalculateConstraints_HAZero(t *testing.T) {
+	// HA 0% - no HA reservation
+	result := CalculateConstraints(
+		30000, // totalMemoryGB
+		15,    // hostCount
+		2000,  // memoryPerHostGB
+		0,     // haAdmissionPct
+		15000, // usedMemoryGB
+	)
+
+	if result == nil {
+		t.Fatal("Expected non-nil ConstraintAnalysis")
+	}
+
+	// N-1 should be limiting (HA has 0 reserve)
+	if result.LimitingConstraint != "n_minus_x" {
+		t.Errorf("Expected limiting_constraint='n_minus_x', got '%s'", result.LimitingConstraint)
+	}
+
+	// HA reserves 0GB
+	if result.HAAdmission.ReservedGB != 0 {
+		t.Errorf("Expected HA ReservedGB=0, got %d", result.HAAdmission.ReservedGB)
+	}
+
+	// HA usable = full 30,000GB
+	if result.HAAdmission.UsableGB != 30000 {
+		t.Errorf("Expected HA UsableGB=30000, got %d", result.HAAdmission.UsableGB)
+	}
+
+	// Should warn that HA is insufficient
+	if !result.InsufficientHAWarning {
+		t.Error("Expected InsufficientHAWarning=true when HA=0")
+	}
+}
+
+func TestCalculateConstraints_ZeroHosts(t *testing.T) {
+	// Edge case: no hosts should return nil
+	result := CalculateConstraints(0, 0, 0, 25, 0)
+
+	if result != nil {
+		t.Error("Expected nil ConstraintAnalysis when hostCount=0")
+	}
+}
+
 // Helper function
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
