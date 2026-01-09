@@ -10,7 +10,7 @@ import ScenarioResults from './ScenarioResults';
 import ScenarioWizard from './wizard/ScenarioWizard';
 import { scenarioApi } from '../services/scenarioApi';
 import { useToast } from '../contexts/ToastContext';
-import { VM_SIZE_PRESETS, DEFAULT_PRESET_INDEX } from '../config/vmPresets';
+import { VM_SIZE_PRESETS, DEFAULT_PRESET_INDEX, findMatchingPreset } from '../config/vmPresets';
 import { generateMarkdownReport, downloadMarkdown } from '../utils/exportMarkdown';
 import {
   DEFAULT_SELECTED_RESOURCES,
@@ -170,6 +170,24 @@ const ScenarioAnalyzer = () => {
       clusterCount: clusters.length,
     };
   }, [infrastructureData]);
+
+  // Auto-select VM preset to match loaded infrastructure cell size
+  // This must run BEFORE the cell count effect so preset is correct when calculating equivalentCells
+  useEffect(() => {
+    if (!currentConfig || !currentConfig.cellCpu || !currentConfig.cellMemoryGB) return;
+
+    const { presetIndex, isCustom } = findMatchingPreset(
+      currentConfig.cellCpu,
+      currentConfig.cellMemoryGB
+    );
+
+    setSelectedPreset(presetIndex);
+
+    if (isCustom) {
+      setCustomCPU(currentConfig.cellCpu);
+      setCustomMemory(currentConfig.cellMemoryGB);
+    }
+  }, [currentConfig]);
 
   // Auto-update cell count to equivalent capacity when VM size changes
   useEffect(() => {
