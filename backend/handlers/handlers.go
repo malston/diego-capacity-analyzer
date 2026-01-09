@@ -308,6 +308,12 @@ func (h *Handler) HandleInfrastructure(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Enrich with CF app data (total app memory, instances)
+	if err := h.enrichWithCFAppData(ctx, &state); err != nil {
+		slog.Warn("Failed to enrich with CF app data", "error", err)
+		// Continue without CF data - vSphere infrastructure data is still useful
+	}
+
 	// Cache result
 	h.cache.SetWithTTL(cacheKey, state, time.Duration(h.cfg.VSphereCacheTTL)*time.Second)
 
@@ -488,4 +494,31 @@ func writeError(w http.ResponseWriter, message string, code int) {
 		Error: message,
 		Code:  code,
 	})
+}
+
+// enrichWithCFAppData populates app-related fields from CF API
+func (h *Handler) enrichWithCFAppData(ctx context.Context, state *models.InfrastructureState) error {
+	if h.cfClient == nil || h.cfg == nil || h.cfg.CFAPIUrl == "" {
+		return nil // No CF client configured, skip enrichment
+	}
+
+	if err := h.cfClient.Authenticate(); err != nil {
+		return err
+	}
+
+	apps, err := h.cfClient.GetApps()
+	if err != nil {
+		return err
+	}
+
+	var totalMemoryMB, totalInstances int
+	for _, app := range apps {
+		totalMemoryMB += app.RequestedMB
+		totalInstances += app.Instances
+	}
+
+	state.TotalAppMemoryGB = totalMemoryMB / 1024
+	state.TotalAppInstances = totalInstances
+
+	return nil
 }

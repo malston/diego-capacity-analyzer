@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"net/http"
@@ -1247,6 +1248,74 @@ func TestHandleInfrastructureStatus_WithBottleneck(t *testing.T) {
 	// Verify bottleneck info is present
 	if _, ok := resp["constraining_resource"]; !ok {
 		t.Error("Expected constraining_resource in status response")
+	}
+}
+
+func TestEnrichWithCFAppData(t *testing.T) {
+	// Set up mock CF server with apps
+	cfServer, uaaServer := setupMockCFServerWithApps()
+	defer cfServer.Close()
+	defer uaaServer.Close()
+
+	cfg := &config.Config{
+		CFAPIUrl:   cfServer.URL,
+		CFUsername: "admin",
+		CFPassword: "secret",
+	}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// Create an empty infrastructure state (simulating vSphere data with no app info)
+	state := &models.InfrastructureState{
+		Source:            "vsphere",
+		Name:              "Test Datacenter",
+		TotalAppMemoryGB:  0, // Not populated from vSphere
+		TotalAppInstances: 0, // Not populated from vSphere
+	}
+
+	// Enrich with CF data
+	ctx := context.Background()
+	err := handler.enrichWithCFAppData(ctx, state)
+	if err != nil {
+		t.Fatalf("enrichWithCFAppData failed: %v", err)
+	}
+
+	// Mock CF server returns 2 apps, each with 2 instances × 512MB = 2048MB total
+	// 2048MB / 1024 = 2GB
+	expectedMemoryGB := 2
+	if state.TotalAppMemoryGB != expectedMemoryGB {
+		t.Errorf("Expected TotalAppMemoryGB=%d, got %d", expectedMemoryGB, state.TotalAppMemoryGB)
+	}
+
+	// Total instances: 2 apps × 2 instances = 4
+	expectedInstances := 4
+	if state.TotalAppInstances != expectedInstances {
+		t.Errorf("Expected TotalAppInstances=%d, got %d", expectedInstances, state.TotalAppInstances)
+	}
+}
+
+func TestEnrichWithCFAppData_NoCFClient(t *testing.T) {
+	// Handler with no CF client configured
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	state := &models.InfrastructureState{
+		Source:            "vsphere",
+		TotalAppMemoryGB:  0,
+		TotalAppInstances: 0,
+	}
+
+	// Should return nil (no error) when CF client is not configured
+	ctx := context.Background()
+	err := handler.enrichWithCFAppData(ctx, state)
+	if err != nil {
+		t.Errorf("Expected no error when CF client not configured, got: %v", err)
+	}
+
+	// Values should remain unchanged
+	if state.TotalAppMemoryGB != 0 {
+		t.Errorf("Expected TotalAppMemoryGB to remain 0, got %d", state.TotalAppMemoryGB)
 	}
 }
 
