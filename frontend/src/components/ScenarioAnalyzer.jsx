@@ -59,7 +59,6 @@ const ScenarioAnalyzer = () => {
   // Host configuration state
   const [memoryPerHost, setMemoryPerHost] = useState(512);
   const [haAdmissionPct, setHaAdmissionPct] = useState(25);
-  const [hostFailureTolerance, setHostFailureTolerance] = useState(1); // N-1 default
 
   // Wizard step completion tracking
   const [step1Completed, setStep1Completed] = useState(false);
@@ -91,6 +90,10 @@ const ScenarioAnalyzer = () => {
       // Set initial disk from first cluster if available
       if (data.clusters[0]?.diego_cell_disk_gb) {
         setCustomDisk(data.clusters[0].diego_cell_disk_gb);
+      }
+      // Set HA admission control from data source if available
+      if (data.clusters[0]?.ha_admission_control_percentage) {
+        setHaAdmissionPct(data.clusters[0].ha_admission_control_percentage);
       }
       // Note: cellCount is auto-set by the useEffect that calculates equivalent capacity
 
@@ -224,28 +227,31 @@ const ScenarioAnalyzer = () => {
       return sum + (c.host_count || 0) * (c.cpu_cores_per_host || 64);
     }, 0);
 
-    // Calculate available memory after host failure tolerance (N-1, N-2, etc.)
-    const haMemoryGB = clusters.reduce((sum, c) => {
-      const clusterHosts = c.host_count || 0;
-      const memPerHost = c.memory_gb_per_host || (c.memory_gb / clusterHosts) || 0;
-      const survivingHosts = Math.max(0, clusterHosts - hostFailureTolerance);
-      return sum + (survivingHosts * memPerHost);
-    }, 0);
+    // Calculate available memory using HA Admission Control %
+    // This is what vSphere actually enforces - the real deployable limit
+    const haUsableMemoryGB = totalMemoryGB * (1 - haAdmissionPct / 100);
+
+    // Calculate implied N-X tolerance from HA %
+    // (how many host failures the HA % covers)
+    const memoryGBPerHost = totalHosts > 0 ? totalMemoryGB / totalHosts : 0;
+    const impliedHostFailures = memoryGBPerHost > 0
+      ? Math.floor((totalMemoryGB - haUsableMemoryGB) / memoryGBPerHost)
+      : 0;
 
     // Also compute per-host values for CPU config defaults
     const coresPerHost = totalHosts > 0 ? Math.round(totalCPUCores / totalHosts) : 64;
-    const memoryGBPerHost = totalHosts > 0 ? Math.round(totalMemoryGB / totalHosts) : 512;
 
     return {
       totalHosts,
       totalMemoryGB,
       totalCPUCores,
-      haMemoryGB,
+      haUsableMemoryGB,
       coresPerHost,
-      memoryGBPerHost,
-      hostFailureTolerance,
+      memoryGBPerHost: Math.round(memoryGBPerHost),
+      haAdmissionPct,
+      impliedHostFailures,
     };
-  }, [infrastructureData, hostFailureTolerance]);
+  }, [infrastructureData, haAdmissionPct]);
 
   // Auto-populate host config from IaaS capacity when infrastructure is loaded
   // Note: We only auto-set host count and memory - physical cores must come from
@@ -276,7 +282,7 @@ const ScenarioAnalyzer = () => {
     const pCPU = iaasCapacity.totalCPUCores;
 
     // Memory is the hard constraint for max cells
-    const maxCells = Math.floor(iaasCapacity.haMemoryGB / proposedMemoryGB);
+    const maxCells = Math.floor(iaasCapacity.haUsableMemoryGB / proposedMemoryGB);
 
     // Calculate resulting CPU ratios at current and max cell counts
     const currentVCPUs = cellCount * proposedCPU;
@@ -423,23 +429,15 @@ const ScenarioAnalyzer = () => {
                   ? `${(iaasCapacity.totalMemoryGB / 1000).toFixed(1)}T`
                   : `${iaasCapacity.totalMemoryGB}G`}
               </div>
-              <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                <Tooltip text="Host failure tolerance: how many host failures to survive. N-1 survives 1 failure, N-2 survives 2, etc." position="bottom" showIcon>
-                  <select
-                    value={hostFailureTolerance}
-                    onChange={(e) => setHostFailureTolerance(Number(e.target.value))}
-                    className="bg-slate-700 border border-slate-600 rounded px-1.5 py-0.5 text-xs text-gray-300 cursor-pointer hover:border-cyan-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
-                  >
-                    <option value={1}>N-1</option>
-                    <option value={2}>N-2</option>
-                    <option value={3}>N-3</option>
-                  </select>
+              <div className="text-xs text-gray-500 mt-1">
+                <Tooltip text={`HA Admission Control reserves ${iaasCapacity.haAdmissionPct}% of cluster resources. This is equivalent to N-${iaasCapacity.impliedHostFailures} tolerance (survives ${iaasCapacity.impliedHostFailures} host failures).`} position="bottom" showIcon>
+                  <span className="cursor-help">
+                    HA {iaasCapacity.haAdmissionPct}% (≈N-{iaasCapacity.impliedHostFailures}):{' '}
+                    {iaasCapacity.haUsableMemoryGB >= 1000
+                      ? `${(iaasCapacity.haUsableMemoryGB / 1000).toFixed(1)}T`
+                      : `${Math.round(iaasCapacity.haUsableMemoryGB)}G`}
+                  </span>
                 </Tooltip>
-                <span>
-                  {iaasCapacity.haMemoryGB >= 1000
-                    ? `${(iaasCapacity.haMemoryGB / 1000).toFixed(1)}T`
-                    : `${iaasCapacity.haMemoryGB}G`}
-                </span>
               </div>
             </div>
 
