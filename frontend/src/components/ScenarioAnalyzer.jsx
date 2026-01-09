@@ -20,9 +20,16 @@ import {
 
 const IAAS_TOOLTIPS = {
   hosts: "Total ESXi hosts in your cluster(s). More hosts = more physical capacity and better fault tolerance.",
-  totalMemory: "Total RAM across all hosts. The N-1 value shows available memory after losing one host (for HA planning).",
-  totalCPUs: "Total CPU cores available across all hosts for running Diego cell VMs.",
-  maxCells: "Maximum Diego cells deployable given your infrastructure constraints. Calculated as MIN(memory-limited, cpu-limited).",
+  totalMemory: "Total RAM across all hosts. HA-usable memory (based on HA Admission Control %) shows what vSphere allows you to deploy.",
+  totalCPUs: "Total physical CPU cores across all hosts. The vCPU:pCPU ratio is calculated based on your cell configuration.",
+  maxCells: "Maximum Diego cells deployable based on HA-usable memory. Shows the resulting vCPU:pCPU ratio at both current and max cell counts.",
+};
+
+// CPU ratio risk level thresholds (matches CPUGauge.jsx)
+const getRatioRisk = (ratio) => {
+  if (ratio <= 4) return { level: 'low', label: 'Low', color: 'text-emerald-400' };
+  if (ratio <= 8) return { level: 'medium', label: 'Medium', color: 'text-amber-400' };
+  return { level: 'high', label: 'High', color: 'text-red-400' };
 };
 
 const ScenarioAnalyzer = () => {
@@ -83,6 +90,10 @@ const ScenarioAnalyzer = () => {
       // Set initial disk from first cluster if available
       if (data.clusters[0]?.diego_cell_disk_gb) {
         setCustomDisk(data.clusters[0].diego_cell_disk_gb);
+      }
+      // Set HA admission control from data source if available
+      if (data.clusters[0]?.ha_admission_control_percentage) {
+        setHaAdmissionPct(data.clusters[0].ha_admission_control_percentage);
       }
       // Note: cellCount is auto-set by the useEffect that calculates equivalent capacity
 
@@ -216,27 +227,31 @@ const ScenarioAnalyzer = () => {
       return sum + (c.host_count || 0) * (c.cpu_cores_per_host || 64);
     }, 0);
 
-    // N-1 memory for HA
-    const n1MemoryGB = clusters.reduce((sum, c) => {
-      if (c.n1_memory_gb) return sum + c.n1_memory_gb;
-      const hostCount = c.host_count || 0;
-      const memPerHost = c.memory_gb_per_host || (c.memory_gb / hostCount) || 0;
-      return sum + ((hostCount - 1) * memPerHost);
-    }, 0);
+    // Calculate available memory using HA Admission Control %
+    // This is what vSphere actually enforces - the real deployable limit
+    const haUsableMemoryGB = totalMemoryGB * (1 - haAdmissionPct / 100);
+
+    // Calculate implied N-X tolerance from HA %
+    // (how many host failures the HA % covers)
+    const memoryGBPerHost = totalHosts > 0 ? totalMemoryGB / totalHosts : 0;
+    const impliedHostFailures = memoryGBPerHost > 0
+      ? Math.floor((totalMemoryGB - haUsableMemoryGB) / memoryGBPerHost)
+      : 0;
 
     // Also compute per-host values for CPU config defaults
     const coresPerHost = totalHosts > 0 ? Math.round(totalCPUCores / totalHosts) : 64;
-    const memoryGBPerHost = totalHosts > 0 ? Math.round(totalMemoryGB / totalHosts) : 512;
 
     return {
       totalHosts,
       totalMemoryGB,
       totalCPUCores,
-      n1MemoryGB,
+      haUsableMemoryGB,
       coresPerHost,
-      memoryGBPerHost,
+      memoryGBPerHost: Math.round(memoryGBPerHost),
+      haAdmissionPct,
+      impliedHostFailures,
     };
-  }, [infrastructureData]);
+  }, [infrastructureData, haAdmissionPct]);
 
   // Auto-populate host config from IaaS capacity when infrastructure is loaded
   // Note: We only auto-set host count and memory - physical cores must come from
@@ -257,25 +272,35 @@ const ScenarioAnalyzer = () => {
   }, [iaasCapacity]);
 
   // Compute max deployable cells based on proposed cell size and IaaS capacity
+  // Memory is the hard constraint; CPU ratio is calculated as an output
   const maxCellsEstimate = useMemo(() => {
     if (!iaasCapacity) return null;
 
     const preset = VM_SIZE_PRESETS[selectedPreset];
     const proposedMemoryGB = preset.memoryGB || customMemory;
     const proposedCPU = preset.cpu || customCPU;
+    const pCPU = iaasCapacity.totalCPUCores;
 
-    const byMemory = Math.floor(iaasCapacity.n1MemoryGB / proposedMemoryGB);
-    const byCPU = Math.floor(iaasCapacity.totalCPUCores / proposedCPU);
-    const maxCells = Math.min(byMemory, byCPU);
-    const bottleneck = byMemory <= byCPU ? 'memory' : 'cpu';
+    // Memory is the hard constraint for max cells
+    const maxCells = Math.floor(iaasCapacity.haUsableMemoryGB / proposedMemoryGB);
+
+    // Calculate resulting CPU ratios at current and max cell counts
+    const currentVCPUs = cellCount * proposedCPU;
+    const maxVCPUs = maxCells * proposedCPU;
+    const currentRatio = pCPU > 0 ? currentVCPUs / pCPU : 0;
+    const maxRatio = pCPU > 0 ? maxVCPUs / pCPU : 0;
 
     return {
       maxCells,
-      byMemory,
-      byCPU,
-      bottleneck,
+      currentRatio: Math.round(currentRatio * 100) / 100,
+      maxRatio: Math.round(maxRatio * 100) / 100,
+      currentRisk: getRatioRisk(currentRatio),
+      maxRisk: getRatioRisk(maxRatio),
+      pCPU,
+      currentVCPUs,
+      maxVCPUs,
     };
-  }, [iaasCapacity, selectedPreset, customMemory, customCPU]);
+  }, [iaasCapacity, selectedPreset, customMemory, customCPU, cellCount]);
 
   const handleCompare = async () => {
     if (!infrastructureState) return;
@@ -405,9 +430,14 @@ const ScenarioAnalyzer = () => {
                   : `${iaasCapacity.totalMemoryGB}G`}
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                N-1: {iaasCapacity.n1MemoryGB >= 1000
-                  ? `${(iaasCapacity.n1MemoryGB / 1000).toFixed(1)}T`
-                  : `${iaasCapacity.n1MemoryGB}G`}
+                <Tooltip text={`HA Admission Control reserves ${iaasCapacity.haAdmissionPct}% of cluster resources. This is equivalent to N-${iaasCapacity.impliedHostFailures} tolerance (survives ${iaasCapacity.impliedHostFailures} host failures).`} position="bottom" showIcon>
+                  <span className="cursor-help">
+                    HA {iaasCapacity.haAdmissionPct}% (≈N-{iaasCapacity.impliedHostFailures}):{' '}
+                    {iaasCapacity.haUsableMemoryGB >= 1000
+                      ? `${(iaasCapacity.haUsableMemoryGB / 1000).toFixed(1)}T`
+                      : `${Math.round(iaasCapacity.haUsableMemoryGB)}G`}
+                  </span>
+                </Tooltip>
               </div>
             </div>
 
