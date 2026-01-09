@@ -1,5 +1,6 @@
 {
   "name": "THD",
+  "target_vcpu_ratio": 2,
   "clusters": [
     {
       "name": "THD",
