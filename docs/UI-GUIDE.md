@@ -129,26 +129,45 @@ After loading infrastructure data, the IaaS Capacity section displays your physi
 | Metric | What It Means |
 |--------|---------------|
 | **Hosts** | Total ESXi hosts in your cluster(s). Shows cluster count if multi-cluster. |
-| **Total Memory** | Total RAM across all hosts. The **N-1** value below shows available memory after losing one host (for HA planning). |
+| **Total Memory** | Total RAM across all hosts. Below this, you'll see the **HA-usable memory** based on your HA Admission Control percentage. |
 | **Total vCPUs** | Total CPU cores available across all hosts. |
-| **Max Cells** | Maximum Diego cells deployable given your infrastructure constraints. Shows which resource (memory or CPU) is the bottleneck. |
+| **Max Cells** | Maximum Diego cells deployable based on HA-usable memory. Shows the resulting vCPU:pCPU ratio at current and max cell counts. |
+
+### HA Admission Control
+
+The available memory is constrained by vSphere HA Admission Control, which reserves a percentage of cluster resources for failover capacity. This is what vSphere actually enforces—you cannot deploy VMs beyond this limit.
+
+| Display | Meaning |
+|---------|---------|
+| **HA X% (≈N-Y)** | X% reserved for HA, equivalent to surviving Y host failures |
+
+**Example:** With 30TB total memory and 25% HA Admission Control:
+- Usable memory: 30TB × 75% = 22.5TB
+- Implied tolerance: 25% of 15 hosts ≈ 3.75 hosts → N-3/N-4 tolerance
 
 ### Max Cells Calculation
 
-Max Cells is the **minimum** of what memory and CPU can support:
+Max Cells is based on HA-usable memory (the real deployable limit):
 
-| Formula | Description |
-|---------|-------------|
-| **MaxByMemory** | `N-1 Memory GB / Cell Memory GB` |
-| **MaxByCPU** | `Total CPU Cores / Cell vCPUs` |
-| **Max Cells** | `MIN(MaxByMemory, MaxByCPU)` |
+```text
+Max Cells = HA-Usable Memory GB / Cell Memory GB
+```
 
-The bottleneck indicator (e.g., "memory-limited") tells you which resource will run out first.
+The vCPU:pCPU ratio is calculated as an **output** to show you the resulting CPU oversubscription:
 
-**Example:** With 1024 GB N-1 memory, 128 CPU cores, and cells sized at 64 GB / 8 vCPU:
-- MaxByMemory = 1024 ÷ 64 = 16 cells
-- MaxByCPU = 128 ÷ 8 = 16 cells
-- **Max Cells = 16** (balanced—both resources exhaust together)
+| Metric | Formula |
+|--------|---------|
+| **Current Ratio** | `(Current Cells × Cell vCPU) / Total Physical Cores` |
+| **Max Ratio** | `(Max Cells × Cell vCPU) / Total Physical Cores` |
+
+Risk levels help you understand if the ratio is acceptable:
+- **Low (≤4:1)**: Conservative, typical for production
+- **Medium (4:1-8:1)**: Monitor CPU Ready time
+- **High (>8:1)**: Aggressive, requires active monitoring
+
+**Example:** With 22.5TB HA-usable memory, 960 physical cores, and cells sized at 32 GB / 4 vCPU:
+- Max Cells = 22,500 ÷ 32 = **703 cells**
+- Max Ratio = (703 × 4) ÷ 960 = **2.93:1** (Low risk ✓)
 
 If your **Proposed Cell Count** exceeds Max Cells, an amber warning appears showing how many cells over capacity you are.
 
@@ -166,18 +185,22 @@ If your **Proposed Cell Count** exceeds Max Cells, an amber warning appears show
 
 ### CPU Configuration
 
-| Input | What It Means |
-|-------|---------------|
+The vCPU:pCPU ratio is **calculated as an output**, not configured as an input. This reflects reality: you can't set a "target ratio" in vSphere—the ratio is a consequence of how many cells you deploy and what size they are.
+
+| Metric | What It Means |
+|--------|---------------|
 | **Total Physical Cores** | Total pCPU cores available across all hosts |
 | **Total vCPUs** | Sum of vCPUs allocated to all Diego cells |
-| **Current vCPU:pCPU Ratio** | Shows the actual ratio based on your infrastructure |
-| **Target vCPU:pCPU Ratio** | Your target oversubscription ratio (1-16) |
+| **Current Ratio** | Actual vCPU:pCPU ratio at your current cell count |
+| **Ratio at Max** | What the ratio would be if you deployed max cells |
 
-The CPU configuration step displays your current ratio and lets you set a target. Risk level indicators help you understand the implications:
+Risk level indicators help you understand if your current or proposed configuration is acceptable:
 
-- **Conservative (≤4:1)**: Typical for general production workloads
-- **Moderate (4:1-8:1)**: Monitor CPU Ready time for contention
-- **Aggressive (>8:1)**: Requires active monitoring
+- **Low (≤4:1)**: Conservative, typical for general production workloads
+- **Medium (4:1-8:1)**: Monitor CPU Ready time for contention
+- **High (>8:1)**: Aggressive, requires active monitoring
+
+**Note:** To change the ratio, change one of the actual parameters: cell count, cell vCPU size, or number of physical hosts.
 
 ### Host Configuration (Optional)
 
@@ -194,29 +217,33 @@ The CPU configuration step displays your current ratio and lets you set a target
 
 ## Results: Capacity Gauges
 
-### N-1 Capacity
+### N-1 Capacity (HA-Constrained)
 
-Can all VMs fit on remaining hosts if one ESXi host fails?
+Can all VMs fit within the HA Admission Control limit? This gauge shows utilization of the **HA-usable** capacity (not total capacity).
 
 | Value | Status | Meaning |
 |-------|--------|---------|
-| **< 75%** | Good | Safe headroom for host failure |
-| **75-85%** | Warning | Tight - may struggle after host loss |
-| **> 85%** | Critical | Cannot survive a host failure |
+| **< 75%** | Good | Safe headroom within HA limits |
+| **75-85%** | Warning | Approaching HA capacity limits |
+| **> 85%** | Critical | Near or exceeding what vSphere allows |
 
-**Key insight:** N-1 is about **host** failure (losing all cells on one ESXi host), not individual cell failure. If you can survive losing ~30 cells at once (one host), you can easily handle BOSH rolling upgrades which only remove one cell at a time.
+**Key insight:** HA Admission Control is what vSphere actually enforces. If you configure 25% HA, vSphere reserves 25% of cluster resources and won't let you deploy VMs beyond the remaining 75%. This is equivalent to roughly N-3 or N-4 host failure tolerance on a 15-host cluster.
 
 ### CPU Utilization (vCPU:pCPU Ratio)
 
-The vCPU:pCPU ratio shows how many virtual CPUs are allocated per physical CPU core.
+The vCPU:pCPU ratio shows how many virtual CPUs are allocated per physical CPU core. This is a **calculated output** based on your cell count and cell vCPU size—it's not a configurable setting.
 
 | Ratio | Risk Level | Meaning |
 |-------|------------|---------|
-| **≤ 4:1** | Conservative | Typical for general production workloads |
-| **4:1 - 8:1** | Moderate | Monitor CPU Ready time for contention |
-| **> 8:1** | Aggressive | Requires active monitoring; expect contention |
+| **≤ 4:1** | Low | Conservative, typical for general production workloads |
+| **4:1 - 8:1** | Medium | Monitor CPU Ready time for contention |
+| **> 8:1** | High | Aggressive, requires active monitoring; expect contention |
 
-**Note:** VMware's current guidance emphasizes monitoring actual CPU Ready Time (target <5%) rather than adhering to fixed ratio thresholds. The ratio indicators help you choose an initial configuration, but actual performance depends on workload characteristics.
+The display shows both your current ratio and what the ratio would be at maximum cell count:
+- **Current**: Ratio at your proposed/current cell count
+- **At Max**: Ratio if you deployed the maximum cells (memory-limited)
+
+**Note:** VMware's current guidance emphasizes monitoring actual CPU Ready Time (target <5%) rather than adhering to fixed ratio thresholds. The ratio indicators help you understand the implications of your cell configuration, but actual performance depends on workload characteristics.
 
 ### Memory Utilization
 
@@ -390,13 +417,13 @@ Circular gauges showing utilization percentages with color-coded status:
 
 | Gauge | Formula | Thresholds |
 |-------|---------|------------|
-| **N-1 Host Capacity** | `(Cell Memory + Platform VMs) / N-1 Capacity × 100` | Warning: 75%, Critical: 85% |
+| **N-1 Host Capacity** | `(Cell Memory + Platform VMs) / HA-Usable Capacity × 100` | Warning: 75%, Critical: 85% |
 | **Memory Utilization** | `App Memory / App Capacity × 100` | Warning: 80%, Critical: 90% |
 | **Disk Utilization** | `App Disk / Disk Capacity × 100` | Warning: 80%, Critical: 90% |
 | **Staging Capacity** | Raw count of free 4GB chunks | Healthy: ≥20, Limited: 10-19, Constrained: <10 |
 
 Where:
-- **N-1 Capacity** = Total cluster memory minus one host's memory
+- **HA-Usable Capacity** = Total cluster memory × (1 - HA Admission Control %)
 - **App Capacity** = `cells × (cell_memory_gb - 7% overhead)`
 - **Free Chunks** = `(App Capacity - App Memory) / 4 GB`
 
@@ -537,7 +564,9 @@ Measures whether your cluster can survive the loss of one physical ESXi host.
 | **Exceeds N-1 capacity safety margin** | Critical | N-1 Utilization > 85% | If one host fails, remaining hosts cannot accommodate all VMs. Immediate risk of workload loss during host failure. |
 | **Approaching N-1 capacity limits** | Warning | N-1 Utilization > 75% | Getting close to the threshold. A host failure would leave little headroom. Consider adding hosts or reducing cell count. |
 
-**Formula:** `N-1 Utilization = (Total Cell Memory + Platform VMs) / (Total Cluster Memory - Largest Host Memory) × 100`
+**Formula:** `N-1 Utilization = (Total Cell Memory + Platform VMs) / HA-Usable Capacity × 100`
+
+Where HA-Usable Capacity = Total Cluster Memory × (1 - HA Admission Control %)
 
 ### Staging Capacity (Free Chunks)
 
