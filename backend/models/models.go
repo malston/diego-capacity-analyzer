@@ -16,13 +16,14 @@ type DiegoCell struct {
 	IsolationSegment string `json:"isolation_segment"`
 }
 
-// App represents a Cloud Foundry application with memory metrics
+// App represents a Cloud Foundry application with memory and disk metrics
 type App struct {
 	Name             string `json:"name"`
 	GUID             string `json:"guid,omitempty"`
 	Instances        int    `json:"instances"`
 	RequestedMB      int    `json:"requested_mb"`
 	ActualMB         int    `json:"actual_mb"`
+	RequestedDiskMB  int    `json:"requested_disk_mb"`
 	IsolationSegment string `json:"isolation_segment"`
 }
 

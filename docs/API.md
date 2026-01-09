@@ -250,7 +250,7 @@ Returns current infrastructure data source status and capacity metrics.
 
 ### GET /api/infrastructure/apps
 
-Returns detailed per-app breakdown of memory and instance allocation from Cloud Foundry.
+Returns detailed per-app breakdown of memory, disk, and instance allocation from Cloud Foundry.
 
 **Prerequisites:** CF API credentials must be configured via `CF_API_URL`, `CF_USERNAME`, and `CF_PASSWORD` environment variables.
 
@@ -259,6 +259,7 @@ Returns detailed per-app breakdown of memory and instance allocation from Cloud 
 ```json
 {
   "total_app_memory_gb": 5,
+  "total_app_disk_gb": 12,
   "total_app_instances": 17,
   "apps": [
     {
@@ -267,6 +268,7 @@ Returns detailed per-app breakdown of memory and instance allocation from Cloud 
       "instances": 3,
       "requested_mb": 1536,
       "actual_mb": 512,
+      "requested_disk_mb": 3072,
       "isolation_segment": "default"
     },
     {
@@ -275,6 +277,7 @@ Returns detailed per-app breakdown of memory and instance allocation from Cloud 
       "instances": 2,
       "requested_mb": 2048,
       "actual_mb": 1024,
+      "requested_disk_mb": 2048,
       "isolation_segment": "shared"
     }
   ]
@@ -285,7 +288,8 @@ Returns detailed per-app breakdown of memory and instance allocation from Cloud 
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `total_app_memory_gb` | integer | Total requested memory across all apps (GB) |
+| `total_app_memory_gb` | integer | Total requested memory across all apps (GB, rounded) |
+| `total_app_disk_gb` | integer | Total requested disk across all apps (GB, rounded) |
 | `total_app_instances` | integer | Total running instances across all apps |
 | `apps` | array | Per-app details |
 | `apps[].name` | string | Application name |
@@ -293,7 +297,10 @@ Returns detailed per-app breakdown of memory and instance allocation from Cloud 
 | `apps[].instances` | integer | Number of running instances |
 | `apps[].requested_mb` | integer | Total requested memory (instances × memory per instance) |
 | `apps[].actual_mb` | integer | Actual memory usage from Log Cache (if available) |
+| `apps[].requested_disk_mb` | integer | Total requested disk (instances × disk per instance) |
 | `apps[].isolation_segment` | string | Isolation segment name ("default" if none assigned) |
+
+**Note:** GB totals are rounded to the nearest integer (e.g., 2047 MB → 2 GB, 2560 MB → 3 GB).
 
 **Error Responses:**
 

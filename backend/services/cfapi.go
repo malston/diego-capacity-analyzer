@@ -176,18 +176,19 @@ func (c *CFClient) GetApps() ([]models.App, error) {
 			return nil, fmt.Errorf("failed to parse apps response: %w", err)
 		}
 
-		// Fetch processes for each app to get memory and instance info
+		// Fetch processes for each app to get memory, disk, and instance info
 		for _, resource := range result.Resources {
 			processes, err := c.getAppProcesses(resource.GUID)
 			if err != nil {
 				return nil, err
 			}
 
-			// Calculate total memory across all processes
-			var totalInstances, totalRequestedMB int
+			// Calculate totals across all processes
+			var totalInstances, totalRequestedMB, totalRequestedDiskMB int
 			for _, proc := range processes {
 				totalInstances += proc.Instances
 				totalRequestedMB += proc.Instances * proc.MemoryMB
+				totalRequestedDiskMB += proc.Instances * proc.DiskMB
 			}
 
 			// Try to get actual memory from Log Cache
@@ -217,6 +218,7 @@ func (c *CFClient) GetApps() ([]models.App, error) {
 				Instances:        totalInstances,
 				RequestedMB:      totalRequestedMB,
 				ActualMB:         totalActualMB,
+				RequestedDiskMB:  totalRequestedDiskMB,
 				IsolationSegment: isoSegName,
 			})
 		}
@@ -243,6 +245,7 @@ func (c *CFClient) getAppProcesses(appGUID string) ([]struct {
 	Type      string `json:"type"`
 	Instances int    `json:"instances"`
 	MemoryMB  int    `json:"memory_in_mb"`
+	DiskMB    int    `json:"disk_in_mb"`
 }, error) {
 	resp, err := c.doAuthenticatedRequest("GET", "/v3/apps/"+appGUID+"/processes")
 	if err != nil {
@@ -255,6 +258,7 @@ func (c *CFClient) getAppProcesses(appGUID string) ([]struct {
 			Type      string `json:"type"`
 			Instances int    `json:"instances"`
 			MemoryMB  int    `json:"memory_in_mb"`
+			DiskMB    int    `json:"disk_in_mb"`
 		} `json:"resources"`
 	}
 

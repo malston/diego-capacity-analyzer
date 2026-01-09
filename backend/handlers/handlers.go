@@ -308,9 +308,12 @@ func (h *Handler) HandleInfrastructure(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Enrich with CF app data (total app memory, instances)
+	// Enrich with CF app data (total app memory, disk, instances)
 	if err := h.enrichWithCFAppData(ctx, &state); err != nil {
-		slog.Warn("Failed to enrich with CF app data", "error", err)
+		slog.Warn("Failed to enrich with CF app data, continuing with vSphere-only data",
+			"error", err,
+			"cf_configured", h.cfClient != nil,
+			"cf_api_url", h.cfg.CFAPIUrl)
 		// Continue without CF data - vSphere infrastructure data is still useful
 	}
 
@@ -511,26 +514,30 @@ func (h *Handler) enrichWithCFAppData(ctx context.Context, state *models.Infrast
 		return err
 	}
 
-	var totalMemoryMB, totalInstances int
+	var totalMemoryMB, totalDiskMB, totalInstances int
 	for _, app := range apps {
 		totalMemoryMB += app.RequestedMB
+		totalDiskMB += app.RequestedDiskMB
 		totalInstances += app.Instances
 	}
 
-	state.TotalAppMemoryGB = totalMemoryMB / 1024
+	// Round to nearest GB instead of truncating (add 512MB before dividing)
+	state.TotalAppMemoryGB = (totalMemoryMB + 512) / 1024
+	state.TotalAppDiskGB = (totalDiskMB + 512) / 1024
 	state.TotalAppInstances = totalInstances
 
 	return nil
 }
 
-// AppDetailsResponse contains per-app breakdown of memory and instances
+// AppDetailsResponse contains per-app breakdown of memory, disk, and instances
 type AppDetailsResponse struct {
 	TotalAppMemoryGB  int          `json:"total_app_memory_gb"`
+	TotalAppDiskGB    int          `json:"total_app_disk_gb"`
 	TotalAppInstances int          `json:"total_app_instances"`
 	Apps              []models.App `json:"apps"`
 }
 
-// HandleInfrastructureApps returns detailed per-app memory and instance breakdown
+// HandleInfrastructureApps returns detailed per-app memory, disk, and instance breakdown
 func (h *Handler) HandleInfrastructureApps(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -559,14 +566,17 @@ func (h *Handler) HandleInfrastructureApps(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Calculate totals
-	var totalMemoryMB, totalInstances int
+	var totalMemoryMB, totalDiskMB, totalInstances int
 	for _, app := range apps {
 		totalMemoryMB += app.RequestedMB
+		totalDiskMB += app.RequestedDiskMB
 		totalInstances += app.Instances
 	}
 
 	response := AppDetailsResponse{
-		TotalAppMemoryGB:  totalMemoryMB / 1024,
+		// Round to nearest GB instead of truncating (add 512MB before dividing)
+		TotalAppMemoryGB:  (totalMemoryMB + 512) / 1024,
+		TotalAppDiskGB:    (totalDiskMB + 512) / 1024,
 		TotalAppInstances: totalInstances,
 		Apps:              apps,
 	}

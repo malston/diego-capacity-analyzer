@@ -141,7 +141,8 @@ func setupMockCFServerWithApps() (*httptest.Server, *httptest.Server) {
 					{
 						"type": "web",
 						"instances": 2,
-						"memory_in_mb": 512
+						"memory_in_mb": 512,
+						"disk_in_mb": 1024
 					}
 				]
 			}`))
@@ -216,7 +217,8 @@ func setupMockCFServer() (*httptest.Server, *httptest.Server) {
 					{
 						"type": "web",
 						"instances": 2,
-						"memory_in_mb": 512
+						"memory_in_mb": 512,
+						"disk_in_mb": 1024
 					}
 				]
 			}`))
@@ -1397,6 +1399,7 @@ func TestHandleInfrastructureApps(t *testing.T) {
 
 	var resp struct {
 		TotalAppMemoryGB  int          `json:"total_app_memory_gb"`
+		TotalAppDiskGB    int          `json:"total_app_disk_gb"`
 		TotalAppInstances int          `json:"total_app_instances"`
 		Apps              []models.App `json:"apps"`
 	}
@@ -1404,9 +1407,15 @@ func TestHandleInfrastructureApps(t *testing.T) {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	// Mock server returns 2 apps, each with 2 instances at 512MB = 2048MB total = 2GB
+	// Mock server returns 2 apps, each with 2 instances at 512MB memory and 1024MB disk
+	// Memory: 2 × 2 × 512 = 2048MB → rounded: (2048 + 512) / 1024 = 2GB
+	// Disk: 2 × 2 × 1024 = 4096MB → rounded: (4096 + 512) / 1024 = 4GB
 	if resp.TotalAppMemoryGB != 2 {
 		t.Errorf("Expected total_app_memory_gb=2, got %d", resp.TotalAppMemoryGB)
+	}
+
+	if resp.TotalAppDiskGB != 4 {
+		t.Errorf("Expected total_app_disk_gb=4, got %d", resp.TotalAppDiskGB)
 	}
 
 	if resp.TotalAppInstances != 4 {
@@ -1427,6 +1436,9 @@ func TestHandleInfrastructureApps(t *testing.T) {
 		}
 		if app.RequestedMB != 1024 {
 			t.Errorf("Expected 1024 requested_mb (2×512), got %d", app.RequestedMB)
+		}
+		if app.RequestedDiskMB != 2048 {
+			t.Errorf("Expected 2048 requested_disk_mb (2×1024), got %d", app.RequestedDiskMB)
 		}
 	}
 }
