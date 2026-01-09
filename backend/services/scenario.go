@@ -122,10 +122,12 @@ func CalculateConstraints(totalMemoryGB, hostCount, memoryPerHostGB, haAdmission
 	haReservedPct := float64(haAdmissionPct)
 	haReservedGB := int(float64(totalMemoryGB) * haReservedPct / 100)
 	haUsableGB := totalMemoryGB - haReservedGB
-	// N-equivalent: how many hosts worth of capacity does HA% reserve?
+	// N-equivalent: how many host failures can this HA% survive?
+	// Formula: HA% = (Hosts to Survive / Total Hosts) × 100
+	// So: Hosts survivable = floor(haReservedGB / memoryPerHostGB)
 	haNEquivalent := 0
 	if memoryPerHostGB > 0 {
-		haNEquivalent = int(math.Ceil(float64(haReservedGB) / float64(memoryPerHostGB)))
+		haNEquivalent = haReservedGB / memoryPerHostGB
 	}
 
 	// N-1 constraint (simple: reserve one host's worth)

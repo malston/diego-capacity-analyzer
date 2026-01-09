@@ -756,7 +756,9 @@ func TestResilienceChange_UsesBlastRadius(t *testing.T) {
 
 func TestCalculateConstraints_HAIsLimiting(t *testing.T) {
 	// 15 hosts × 2000GB = 30,000GB total
-	// HA 25% reserves 7,500GB (≈N-4 equivalent)
+	// HA 25% reserves 7,500GB (≈N-3 equivalent: can survive 3 host failures)
+	// Formula: HA% = (Hosts to Survive / Total Hosts) × 100
+	// N-3 = 20%, N-4 = 26.67%, so 25% gives N-3 protection
 	// N-1 reserves 2,000GB (6.67%)
 	// HA is more restrictive
 	result := CalculateConstraints(
@@ -786,9 +788,9 @@ func TestCalculateConstraints_HAIsLimiting(t *testing.T) {
 		t.Errorf("Expected HA UsableGB=22500, got %d", result.HAAdmission.UsableGB)
 	}
 
-	// HA N-equivalent: 7500 / 2000 = 3.75 → ceil = 4
-	if result.HAAdmission.NEquivalent != 4 {
-		t.Errorf("Expected HA NEquivalent=4, got %d", result.HAAdmission.NEquivalent)
+	// HA N-equivalent: 7500 / 2000 = 3.75 → floor = 3 (can survive 3 host failures)
+	if result.HAAdmission.NEquivalent != 3 {
+		t.Errorf("Expected HA NEquivalent=3, got %d", result.HAAdmission.NEquivalent)
 	}
 
 	// N-1 reserves 2,000GB
@@ -797,7 +799,7 @@ func TestCalculateConstraints_HAIsLimiting(t *testing.T) {
 	}
 
 	// Limiting label should show HA with N-equivalent
-	expectedLabel := "HA 25% (≈N-4)"
+	expectedLabel := "HA 25% (≈N-3)"
 	if result.LimitingLabel != expectedLabel {
 		t.Errorf("Expected LimitingLabel='%s', got '%s'", expectedLabel, result.LimitingLabel)
 	}
