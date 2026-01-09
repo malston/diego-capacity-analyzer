@@ -59,6 +59,7 @@ const ScenarioAnalyzer = () => {
   // Host configuration state
   const [memoryPerHost, setMemoryPerHost] = useState(512);
   const [haAdmissionPct, setHaAdmissionPct] = useState(25);
+  const [hostFailureTolerance, setHostFailureTolerance] = useState(1); // N-1 default
 
   // Wizard step completion tracking
   const [step1Completed, setStep1Completed] = useState(false);
@@ -223,12 +224,12 @@ const ScenarioAnalyzer = () => {
       return sum + (c.host_count || 0) * (c.cpu_cores_per_host || 64);
     }, 0);
 
-    // N-1 memory for HA
-    const n1MemoryGB = clusters.reduce((sum, c) => {
-      if (c.n1_memory_gb) return sum + c.n1_memory_gb;
-      const hostCount = c.host_count || 0;
-      const memPerHost = c.memory_gb_per_host || (c.memory_gb / hostCount) || 0;
-      return sum + ((hostCount - 1) * memPerHost);
+    // Calculate available memory after host failure tolerance (N-1, N-2, etc.)
+    const haMemoryGB = clusters.reduce((sum, c) => {
+      const clusterHosts = c.host_count || 0;
+      const memPerHost = c.memory_gb_per_host || (c.memory_gb / clusterHosts) || 0;
+      const survivingHosts = Math.max(0, clusterHosts - hostFailureTolerance);
+      return sum + (survivingHosts * memPerHost);
     }, 0);
 
     // Also compute per-host values for CPU config defaults
@@ -239,11 +240,12 @@ const ScenarioAnalyzer = () => {
       totalHosts,
       totalMemoryGB,
       totalCPUCores,
-      n1MemoryGB,
+      haMemoryGB,
       coresPerHost,
       memoryGBPerHost,
+      hostFailureTolerance,
     };
-  }, [infrastructureData]);
+  }, [infrastructureData, hostFailureTolerance]);
 
   // Auto-populate host config from IaaS capacity when infrastructure is loaded
   // Note: We only auto-set host count and memory - physical cores must come from
@@ -274,7 +276,7 @@ const ScenarioAnalyzer = () => {
     const pCPU = iaasCapacity.totalCPUCores;
 
     // Memory is the hard constraint for max cells
-    const maxCells = Math.floor(iaasCapacity.n1MemoryGB / proposedMemoryGB);
+    const maxCells = Math.floor(iaasCapacity.haMemoryGB / proposedMemoryGB);
 
     // Calculate resulting CPU ratios at current and max cell counts
     const currentVCPUs = cellCount * proposedCPU;
@@ -421,10 +423,23 @@ const ScenarioAnalyzer = () => {
                   ? `${(iaasCapacity.totalMemoryGB / 1000).toFixed(1)}T`
                   : `${iaasCapacity.totalMemoryGB}G`}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
-                N-1: {iaasCapacity.n1MemoryGB >= 1000
-                  ? `${(iaasCapacity.n1MemoryGB / 1000).toFixed(1)}T`
-                  : `${iaasCapacity.n1MemoryGB}G`}
+              <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                <Tooltip text="Host failure tolerance: how many host failures to survive. N-1 survives 1 failure, N-2 survives 2, etc." position="bottom" showIcon>
+                  <select
+                    value={hostFailureTolerance}
+                    onChange={(e) => setHostFailureTolerance(Number(e.target.value))}
+                    className="bg-slate-700 border border-slate-600 rounded px-1.5 py-0.5 text-xs text-gray-300 cursor-pointer hover:border-cyan-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  >
+                    <option value={1}>N-1</option>
+                    <option value={2}>N-2</option>
+                    <option value={3}>N-3</option>
+                  </select>
+                </Tooltip>
+                <span>
+                  {iaasCapacity.haMemoryGB >= 1000
+                    ? `${(iaasCapacity.haMemoryGB / 1000).toFixed(1)}T`
+                    : `${iaasCapacity.haMemoryGB}G`}
+                </span>
               </div>
             </div>
 
