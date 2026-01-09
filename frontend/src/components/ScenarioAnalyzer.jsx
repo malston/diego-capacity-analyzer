@@ -265,7 +265,9 @@ const ScenarioAnalyzer = () => {
     const proposedCPU = preset.cpu || customCPU;
 
     const byMemory = Math.floor(iaasCapacity.n1MemoryGB / proposedMemoryGB);
-    const byCPU = Math.floor(iaasCapacity.totalCPUCores / proposedCPU);
+    // Apply vCPU:pCPU ratio - physical cores * ratio = effective vCPUs
+    const effectiveVCPUs = iaasCapacity.totalCPUCores * (targetVCPURatio || 4);
+    const byCPU = Math.floor(effectiveVCPUs / proposedCPU);
     const maxCells = Math.min(byMemory, byCPU);
     const bottleneck = byMemory <= byCPU ? 'memory' : 'cpu';
 
@@ -275,7 +277,7 @@ const ScenarioAnalyzer = () => {
       byCPU,
       bottleneck,
     };
-  }, [iaasCapacity, selectedPreset, customMemory, customCPU]);
+  }, [iaasCapacity, selectedPreset, customMemory, customCPU, targetVCPURatio]);
 
   const handleCompare = async () => {
     if (!infrastructureState) return;
