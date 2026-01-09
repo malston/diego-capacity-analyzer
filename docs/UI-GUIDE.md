@@ -217,17 +217,32 @@ Risk level indicators help you understand if your current or proposed configurat
 
 ## Results: Capacity Gauges
 
-### N-1 Capacity (HA-Constrained)
+### Capacity (HA) / N-1 Capacity
 
-Can all VMs fit within the HA Admission Control limit? This gauge shows utilization of the **HA-usable** capacity (not total capacity).
+This gauge shows utilization against whichever capacity constraint is more restrictive. The label changes dynamically:
+
+| Label | When Shown | What It Measures |
+|-------|------------|------------------|
+| **Capacity (HA X% (≈N-Y))** | When HA Admission Control is the limiting constraint | Utilization of HA-usable capacity |
+| **N-1 Capacity** | When N-1 host capacity is limiting, or when no host config is provided | Utilization of N-1 capacity (one host reserved) |
+
+The system automatically determines which constraint is more restrictive by comparing:
+- **HA Admission Control**: Reserves X% of total cluster memory (e.g., 25% = 7,500 GB on 30 TB cluster)
+- **N-1 Host Capacity**: Reserves one host's worth of memory (e.g., 2,000 GB per host)
+
+Whichever reserves more capacity is the limiting constraint and is displayed in the gauge.
 
 | Value | Status | Meaning |
 |-------|--------|---------|
-| **< 75%** | Good | Safe headroom within HA limits |
-| **75-85%** | Warning | Approaching HA capacity limits |
-| **> 85%** | Critical | Near or exceeding what vSphere allows |
+| **< 75%** | Good | Safe headroom within capacity limits |
+| **75-85%** | Warning | Approaching capacity limits |
+| **> 85%** | Critical | Near or exceeding deployable capacity |
 
 **Key insight:** HA Admission Control is what vSphere actually enforces. If you configure 25% HA, vSphere reserves 25% of cluster resources and won't let you deploy VMs beyond the remaining 75%. This is equivalent to roughly N-3 or N-4 host failure tolerance on a 15-host cluster.
+
+**Example:** On a 15-host cluster with 2 TB per host (30 TB total):
+- HA 25% reserves 7.5 TB (≈N-4 equivalent) → HA is limiting
+- HA 5% reserves 1.5 TB (< N-1's 2 TB) → N-1 is limiting
 
 ### CPU Utilization (vCPU:pCPU Ratio)
 
@@ -417,13 +432,13 @@ Circular gauges showing utilization percentages with color-coded status:
 
 | Gauge | Formula | Thresholds |
 |-------|---------|------------|
-| **N-1 Host Capacity** | `(Cell Memory + Platform VMs) / HA-Usable Capacity × 100` | Warning: 75%, Critical: 85% |
+| **Capacity (HA/N-1)** | `(Cell Memory + Platform VMs) / Usable Capacity × 100` | Warning: 75%, Critical: 85% |
 | **Memory Utilization** | `App Memory / App Capacity × 100` | Warning: 80%, Critical: 90% |
 | **Disk Utilization** | `App Disk / Disk Capacity × 100` | Warning: 80%, Critical: 90% |
 | **Staging Capacity** | Raw count of free 4GB chunks | Healthy: ≥20, Limited: 10-19, Constrained: <10 |
 
 Where:
-- **HA-Usable Capacity** = Total cluster memory × (1 - HA Admission Control %)
+- **Usable Capacity** = Total cluster memory - Reserved capacity (HA% or N-1, whichever reserves more)
 - **App Capacity** = `cells × (cell_memory_gb - 7% overhead)`
 - **Free Chunks** = `(App Capacity - App Memory) / 4 GB`
 
@@ -555,18 +570,32 @@ The metric scorecards in the results section use color-coded status badges to in
 
 The Recommendations section displays warnings and suggestions based on your proposed configuration. Each message is triggered by a specific metric exceeding a threshold.
 
-### N-1 Host Capacity
+### Capacity Constraint Warnings
 
-Measures whether your cluster can survive the loss of one physical ESXi host.
+Measures whether your cluster can handle VM load within capacity constraints. The warning message reflects which constraint is limiting.
+
+#### When HA Admission Control is the Limiting Constraint
 
 | Message | Severity | Triggered When | What It Means |
 |---------|----------|----------------|---------------|
-| **Exceeds N-1 capacity safety margin** | Critical | N-1 Utilization > 85% | If one host fails, remaining hosts cannot accommodate all VMs. Immediate risk of workload loss during host failure. |
-| **Approaching N-1 capacity limits** | Warning | N-1 Utilization > 75% | Getting close to the threshold. A host failure would leave little headroom. Consider adding hosts or reducing cell count. |
+| **Exceeds HA Admission Control capacity limit (HA X% (≈N-Y))** | Critical | Utilization > 85% and HA is limiting | vSphere HA reserves X% of cluster resources. You're approaching or exceeding what vSphere will allow you to deploy. |
+| **Approaching HA Admission Control capacity limit (HA X% (≈N-Y))** | Warning | Utilization > 75% and HA is limiting | Getting close to the HA-enforced limit. Consider reducing cell count or increasing HA percentage tolerance. |
 
-**Formula:** `N-1 Utilization = (Total Cell Memory + Platform VMs) / HA-Usable Capacity × 100`
+#### When N-1 Host Capacity is the Limiting Constraint
 
-Where HA-Usable Capacity = Total Cluster Memory × (1 - HA Admission Control %)
+| Message | Severity | Triggered When | What It Means |
+|---------|----------|----------------|---------------|
+| **Exceeds N-1 capacity safety margin** | Critical | Utilization > 85% and N-1 is limiting | If one host fails, remaining hosts cannot accommodate all VMs. Immediate risk of workload loss during host failure. |
+| **Approaching N-1 capacity limits** | Warning | Utilization > 75% and N-1 is limiting | Getting close to the threshold. A host failure would leave little headroom. Consider adding hosts or reducing cell count. |
+
+**How the limiting constraint is determined:**
+- System compares HA reserved capacity vs N-1 reserved capacity
+- Whichever reserves MORE is the limiting constraint (less usable capacity)
+- Example: HA 25% on 30 TB = 7.5 TB reserved; N-1 = 2 TB reserved → HA is limiting
+
+**Formula:** `Utilization = (Total Cell Memory + Platform VMs) / Usable Capacity × 100`
+
+Where Usable Capacity = Total Cluster Memory - Reserved Capacity (HA or N-1, whichever is greater)
 
 ### Staging Capacity (Free Chunks)
 
@@ -639,7 +668,7 @@ The cell configuration comparison shows a resilience indicator between current a
 
 | Metric | Good | Warning | Critical |
 |--------|------|---------|----------|
-| N-1 Utilization | < 75% | 75-85% | > 85% |
+| Capacity (HA/N-1) | < 75% | 75-85% | > 85% |
 | Memory Utilization | < 80% | 80-90% | > 90% |
 | Disk Utilization | < 80% | 80-90% | > 90% |
 | Free Chunks | ≥ 400 | 200-399 | < 200 |
