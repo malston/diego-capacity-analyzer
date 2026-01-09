@@ -129,7 +129,7 @@ func TestGenerateWarnings_CriticalN1(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed)
+	warnings := calc.GenerateWarnings(current, proposed, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -156,7 +156,7 @@ func TestGenerateWarnings_LowFreeChunks(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed)
+	warnings := calc.GenerateWarnings(current, proposed, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -201,7 +201,7 @@ func TestGenerateWarnings_BlastRadius(t *testing.T) {
 			}
 
 			calc := NewScenarioCalculator()
-			warnings := calc.GenerateWarnings(current, proposed)
+			warnings := calc.GenerateWarnings(current, proposed, nil)
 
 			foundWarning := false
 			foundCritical := false
@@ -524,7 +524,7 @@ func TestGenerateWarnings_DiskUtilization(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed)
+	warnings := calc.GenerateWarnings(current, proposed, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -555,7 +555,7 @@ func TestGenerateWarnings_TPSDegradation(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed)
+	warnings := calc.GenerateWarnings(current, proposed, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -676,7 +676,7 @@ func TestResilienceWarning_LargeFoundation_NoWarning(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed)
+	warnings := calc.GenerateWarnings(current, proposed, nil)
 
 	for _, w := range warnings {
 		if contains(w.Message, "resilience") || contains(w.Message, "redundancy") || contains(w.Message, "blast") {
@@ -702,7 +702,7 @@ func TestResilienceWarning_SmallFoundation_Warning(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed)
+	warnings := calc.GenerateWarnings(current, proposed, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -892,6 +892,130 @@ func TestCalculateConstraints_ZeroHosts(t *testing.T) {
 
 	if result != nil {
 		t.Error("Expected nil ConstraintAnalysis when hostCount=0")
+	}
+}
+
+func TestGenerateWarnings_HAAdmissionLimiting_ShowsHAMessage(t *testing.T) {
+	// When HA Admission Control is the limiting constraint and utilization is critical,
+	// the warning message should mention HA Admission Control, not N-1.
+	current := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct: 90, // > 85% = critical
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+
+	// HA is limiting: 25% reserves more than N-1
+	constraints := &models.ConstraintAnalysis{
+		LimitingConstraint: "ha_admission",
+		LimitingLabel:      "HA 25% (≈N-4)",
+		HAAdmission: models.CapacityConstraint{
+			IsLimiting:     true,
+			UtilizationPct: 90,
+		},
+		NMinusX: models.CapacityConstraint{
+			IsLimiting:     false,
+			UtilizationPct: 70,
+		},
+	}
+
+	calc := NewScenarioCalculator()
+	warnings := calc.GenerateWarnings(current, proposed, constraints)
+
+	// Should find HA admission message, not N-1 message
+	foundHA := false
+	foundN1 := false
+	for _, w := range warnings {
+		if w.Severity == "critical" && contains(w.Message, "HA Admission Control") {
+			foundHA = true
+		}
+		if w.Severity == "critical" && w.Message == "Exceeds N-1 capacity safety margin" {
+			foundN1 = true
+		}
+	}
+
+	if !foundHA {
+		t.Error("Expected critical warning mentioning HA Admission Control when HA is limiting constraint")
+	}
+	if foundN1 {
+		t.Error("Should NOT show N-1 message when HA Admission Control is the limiting constraint")
+	}
+}
+
+func TestGenerateWarnings_N1Limiting_ShowsN1Message(t *testing.T) {
+	// When N-1 is the limiting constraint and utilization is critical,
+	// the warning message should mention N-1 (existing behavior).
+	current := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct: 90, // > 85% = critical
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+
+	// N-1 is limiting: HA 5% reserves less than N-1
+	constraints := &models.ConstraintAnalysis{
+		LimitingConstraint: "n_minus_x",
+		LimitingLabel:      "N-1",
+		HAAdmission: models.CapacityConstraint{
+			IsLimiting:     false,
+			UtilizationPct: 70,
+		},
+		NMinusX: models.CapacityConstraint{
+			IsLimiting:     true,
+			UtilizationPct: 90,
+		},
+	}
+
+	calc := NewScenarioCalculator()
+	warnings := calc.GenerateWarnings(current, proposed, constraints)
+
+	found := false
+	for _, w := range warnings {
+		if w.Severity == "critical" && w.Message == "Exceeds N-1 capacity safety margin" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Expected critical N-1 warning when N-1 is the limiting constraint")
+	}
+}
+
+func TestGenerateWarnings_NoConstraints_FallsBackToN1(t *testing.T) {
+	// When no constraint analysis is available (nil), fall back to N-1 message
+	current := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct: 90, // > 85% = critical
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+
+	calc := NewScenarioCalculator()
+	warnings := calc.GenerateWarnings(current, proposed, nil)
+
+	found := false
+	for _, w := range warnings {
+		if w.Severity == "critical" && w.Message == "Exceeds N-1 capacity safety margin" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Expected critical N-1 warning when no constraint analysis is provided")
 	}
 }
 

@@ -337,20 +337,37 @@ func (c *ScenarioCalculator) calculateFull(
 	}
 }
 
-// GenerateWarnings produces warnings based on proposed scenario
-func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioResult) []models.ScenarioWarning {
+// GenerateWarnings produces warnings based on proposed scenario.
+// The constraints parameter is optional - if provided, the warning messages
+// will reflect whether HA Admission Control or N-1 is the limiting factor.
+func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioResult, constraints *models.ConstraintAnalysis) []models.ScenarioWarning {
 	var warnings []models.ScenarioWarning
 
-	// N-1 utilization warnings
+	// Determine which constraint is limiting for the warning message
+	isHALimiting := constraints != nil && constraints.LimitingConstraint == "ha_admission"
+
+	// Capacity utilization warnings - message depends on limiting constraint
 	if proposed.N1UtilizationPct > 85 {
+		var message string
+		if isHALimiting {
+			message = fmt.Sprintf("Exceeds HA Admission Control capacity limit (%s)", constraints.LimitingLabel)
+		} else {
+			message = "Exceeds N-1 capacity safety margin"
+		}
 		warnings = append(warnings, models.ScenarioWarning{
 			Severity: "critical",
-			Message:  "Exceeds N-1 capacity safety margin",
+			Message:  message,
 		})
 	} else if proposed.N1UtilizationPct > 75 {
+		var message string
+		if isHALimiting {
+			message = fmt.Sprintf("Approaching HA Admission Control capacity limit (%s)", constraints.LimitingLabel)
+		} else {
+			message = "Approaching N-1 capacity limits"
+		}
 		warnings = append(warnings, models.ScenarioWarning{
 			Severity: "warning",
-			Message:  "Approaching N-1 capacity limits",
+			Message:  message,
 		})
 	}
 
@@ -429,9 +446,9 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 	// Use same TPS curve for both current and proposed (if provided)
 	current := c.CalculateCurrent(state, input.TPSCurve)
 	proposed := c.CalculateProposed(state, input)
-	warnings := c.GenerateWarnings(current, proposed)
 
-	// Calculate constraint analysis if host config is provided
+	// Calculate constraint analysis FIRST if host config is provided
+	// This is needed before generating warnings so we know which constraint is limiting
 	var constraints *models.ConstraintAnalysis
 	if input.HostCount > 0 && input.MemoryPerHostGB > 0 {
 		totalMemoryGB := input.HostCount * input.MemoryPerHostGB
@@ -445,18 +462,21 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 			input.HAAdmissionPct,
 			usedMemoryGB,
 		)
+	}
 
-		// Add warning if HA% is insufficient for N-1 protection
-		if constraints != nil && constraints.InsufficientHAWarning {
-			warnings = append(warnings, models.ScenarioWarning{
-				Severity: "warning",
-				Message: fmt.Sprintf(
-					"HA Admission Control (%d%%) may be insufficient for N-1 host failure protection. Consider increasing to at least %.0f%%.",
-					input.HAAdmissionPct,
-					constraints.NMinusX.ReservedPct,
-				),
-			})
-		}
+	// Generate warnings - pass constraints so warning messages reflect the limiting factor
+	warnings := c.GenerateWarnings(current, proposed, constraints)
+
+	// Add warning if HA% is insufficient for N-1 protection
+	if constraints != nil && constraints.InsufficientHAWarning {
+		warnings = append(warnings, models.ScenarioWarning{
+			Severity: "warning",
+			Message: fmt.Sprintf(
+				"HA Admission Control (%d%%) may be insufficient for N-1 host failure protection. Consider increasing to at least %.0f%%.",
+				input.HAAdmissionPct,
+				constraints.NMinusX.ReservedPct,
+			),
+		})
 	}
 
 	// Calculate delta
