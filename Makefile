@@ -126,4 +126,6 @@ cli-clean: ## Remove CLI build artifacts
 	rm -f cli/diego-capacity
 
 cli-install: cli-build ## Install CLI to $GOPATH/bin
-	cp cli/diego-capacity $(GOPATH)/bin/
+	@GOPATH_BIN=$${GOPATH:-$$(go env GOPATH)}/bin; \
+	mkdir -p $$GOPATH_BIN; \
+	cp cli/diego-capacity $$GOPATH_BIN/

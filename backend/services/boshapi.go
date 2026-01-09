@@ -425,10 +425,17 @@ func (b *BOSHClient) getCellsForDeployment(deployment string) ([]models.DiegoCel
 		isolationSegment = "isolated"
 	}
 
+	// Log all VM job names for debugging
+	var jobNames []string
+	for _, vm := range vms {
+		jobNames = append(jobNames, vm.JobName)
+	}
+	slog.Info("VMs found in deployment", "deployment", deployment, "vm_count", len(vms), "job_names", jobNames)
+
 	var cells []models.DiegoCell
 	for _, vm := range vms {
-		// Include diego_cell, compute, and isolated_diego_cell
-		if vm.JobName == "diego_cell" || vm.JobName == "compute" || vm.JobName == "isolated_diego_cell" {
+		// Include diego_cell, compute, and any job name containing "diego_cell" (e.g., isolated_diego_cell, isolated_diego_cell_small_cell)
+		if vm.JobName == "diego_cell" || vm.JobName == "compute" || strings.Contains(vm.JobName, "diego_cell") {
 			memoryKB := parseIntOrZero(vm.Vitals.Mem.KB)
 			memoryMB := memoryKB / 1024
 			memPercent := parseIntOrZero(vm.Vitals.Mem.Percent)
