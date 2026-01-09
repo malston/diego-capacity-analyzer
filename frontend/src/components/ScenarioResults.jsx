@@ -88,22 +88,72 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
         </div>
       </div>
 
+      {/* Constraint Callout - shows which constraint is limiting */}
+      {comparison.constraints && (
+        <div className={`rounded-xl p-4 border ${
+          comparison.constraints.limiting_constraint === 'ha_admission'
+            ? 'bg-cyan-900/20 border-cyan-700/30'
+            : 'bg-amber-900/20 border-amber-700/30'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Shield className={`${
+                comparison.constraints.limiting_constraint === 'ha_admission'
+                  ? 'text-cyan-400'
+                  : 'text-amber-400'
+              }`} size={20} />
+              <div>
+                <div className="text-sm font-medium text-gray-200">
+                  Constrained by: {comparison.constraints.limiting_label}
+                </div>
+                <div className="text-xs text-gray-400">
+                  Reserves {formatGB(comparison.constraints[comparison.constraints.limiting_constraint].reserved_gb)}B
+                  {comparison.constraints.limiting_constraint === 'ha_admission' && (
+                    <span> (equivalent to N-{comparison.constraints.ha_admission.n_equivalent} tolerance)</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-lg font-mono font-bold text-gray-200">
+                {formatGB(comparison.constraints[comparison.constraints.limiting_constraint].usable_gb)}B
+              </div>
+              <div className="text-xs text-gray-500">usable capacity</div>
+            </div>
+          </div>
+          {comparison.constraints.insufficient_ha_warning && (
+            <div className="mt-3 pt-3 border-t border-amber-700/30 flex items-center gap-2 text-amber-400">
+              <AlertTriangle size={14} />
+              <span className="text-xs">HA% may be insufficient for N-1 host failure protection</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Key Gauges Row */}
       <div className={`grid gap-6 ${
         selectedResources.includes('disk') && proposed.disk_capacity_gb > 0
           ? 'grid-cols-2 lg:grid-cols-4'
           : 'grid-cols-3'
       }`}>
-        {/* N-1 Utilization Gauge */}
+        {/* N-1 / Constraint Utilization Gauge */}
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-4 text-gray-400">
             <Shield size={16} />
             <Tooltip text={TOOLTIPS.n1Capacity} position="bottom" showIcon>
-              <span className="text-xs uppercase tracking-wider font-medium">N-1 Capacity</span>
+              <span className="text-xs uppercase tracking-wider font-medium">
+                {comparison.constraints?.limiting_label
+                  ? `Capacity (${comparison.constraints.limiting_label})`
+                  : 'N-1 Capacity'
+                }
+              </span>
             </Tooltip>
           </div>
           <CapacityGauge
-            value={proposed.n1_utilization_pct}
+            value={comparison.constraints
+              ? comparison.constraints[comparison.constraints.limiting_constraint].utilization_pct
+              : proposed.n1_utilization_pct
+            }
             label="Utilization"
             thresholds={{ warning: 75, critical: 85 }}
             inverse={true}

@@ -16,6 +16,10 @@ type ScenarioInput struct {
 	OverheadPct          float64  `json:"overhead_pct"`          // Memory overhead % (default 7)
 	AdditionalApp        *AppSpec `json:"additional_app"`        // Optional app to add
 	TPSCurve             []TPSPt  `json:"tps_curve"`             // Custom TPS curve (only used if EnableTPS is true)
+	// Host configuration for constraint analysis
+	HostCount       int `json:"host_count"`
+	MemoryPerHostGB int `json:"memory_per_host_gb"`
+	HAAdmissionPct  int `json:"ha_admission_pct"`
 }
 
 // EnableTPS returns true if TPS analysis should be performed.
@@ -79,9 +83,30 @@ type ScenarioDelta struct {
 
 // ScenarioComparison represents full comparison response
 type ScenarioComparison struct {
-	Current         ScenarioResult    `json:"current"`
-	Proposed        ScenarioResult    `json:"proposed"`
-	Warnings        []ScenarioWarning `json:"warnings"`
-	Delta           ScenarioDelta     `json:"delta"`
-	Recommendations []Recommendation  `json:"recommendations,omitempty"`
+	Current         ScenarioResult      `json:"current"`
+	Proposed        ScenarioResult      `json:"proposed"`
+	Warnings        []ScenarioWarning   `json:"warnings"`
+	Delta           ScenarioDelta       `json:"delta"`
+	Recommendations []Recommendation    `json:"recommendations,omitempty"`
+	Constraints     *ConstraintAnalysis `json:"constraints,omitempty"`
+}
+
+// CapacityConstraint represents a single constraint calculation (HA% or N-X)
+type CapacityConstraint struct {
+	Type           string  `json:"type"`            // "ha_admission" or "n_minus_x"
+	ReservedGB     int     `json:"reserved_gb"`     // Memory reserved by this constraint
+	ReservedPct    float64 `json:"reserved_pct"`    // Percentage of total reserved
+	UsableGB       int     `json:"usable_gb"`       // Memory available after reserve
+	NEquivalent    int     `json:"n_equivalent"`    // Hosts worth of capacity reserved
+	IsLimiting     bool    `json:"is_limiting"`     // True if this is the limiting constraint
+	UtilizationPct float64 `json:"utilization_pct"` // How full the usable capacity is
+}
+
+// ConstraintAnalysis compares HA Admission Control vs N-X tolerance
+type ConstraintAnalysis struct {
+	HAAdmission           CapacityConstraint `json:"ha_admission"`
+	NMinusX               CapacityConstraint `json:"n_minus_x"`
+	LimitingConstraint    string             `json:"limiting_constraint"`     // "ha_admission" or "n_minus_x"
+	LimitingLabel         string             `json:"limiting_label"`          // "HA 25% (≈N-4)"
+	InsufficientHAWarning bool               `json:"insufficient_ha_warning"` // True if HA% < N-1
 }

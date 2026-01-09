@@ -327,10 +327,10 @@ const ScenarioAnalyzer = () => {
         // CPU configuration (only included when CPU is selected)
         ...(selectedResources.includes('cpu') && {
           physical_cores_per_host: physicalCoresPerHost,
-          host_count: hostCount,
           target_vcpu_ratio: targetVCPURatio,
         }),
-        // Host configuration (for HA and capacity analysis)
+        // Host configuration (for HA and constraint analysis)
+        host_count: hostCount,
         memory_per_host_gb: memoryPerHost,
         ha_admission_pct: haAdmissionPct,
       };

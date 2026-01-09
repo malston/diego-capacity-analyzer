@@ -111,6 +111,82 @@ func EstimateTPS(cellCount int, curve []models.TPSPt) (tps int, status string) {
 	return tps, status
 }
 
+// CalculateConstraints computes both HA Admission Control and N-X constraints
+// and determines which is more restrictive.
+func CalculateConstraints(totalMemoryGB, hostCount, memoryPerHostGB, haAdmissionPct, usedMemoryGB int) *models.ConstraintAnalysis {
+	if hostCount == 0 || memoryPerHostGB == 0 {
+		return nil
+	}
+
+	// HA Admission Control constraint
+	haReservedPct := float64(haAdmissionPct)
+	haReservedGB := int(float64(totalMemoryGB) * haReservedPct / 100)
+	haUsableGB := totalMemoryGB - haReservedGB
+	// N-equivalent: how many hosts worth of capacity does HA% reserve?
+	haNEquivalent := 0
+	if memoryPerHostGB > 0 {
+		haNEquivalent = int(math.Ceil(float64(haReservedGB) / float64(memoryPerHostGB)))
+	}
+
+	// N-1 constraint (simple: reserve one host's worth)
+	n1ReservedGB := memoryPerHostGB
+	n1UsableGB := totalMemoryGB - n1ReservedGB
+	n1ReservedPct := 0.0
+	if totalMemoryGB > 0 {
+		n1ReservedPct = float64(n1ReservedGB) / float64(totalMemoryGB) * 100
+	}
+
+	// Calculate utilizations
+	haUtil := 0.0
+	if haUsableGB > 0 {
+		haUtil = float64(usedMemoryGB) / float64(haUsableGB) * 100
+	}
+	n1Util := 0.0
+	if n1UsableGB > 0 {
+		n1Util = float64(usedMemoryGB) / float64(n1UsableGB) * 100
+	}
+
+	// Determine which is more restrictive (less usable = more restrictive)
+	haIsLimiting := haUsableGB <= n1UsableGB
+
+	// Check if HA% provides insufficient protection for N-1
+	insufficientHA := haReservedGB < n1ReservedGB
+
+	// Build limiting label
+	var limitingLabel, limitingType string
+	if haIsLimiting {
+		limitingType = "ha_admission"
+		limitingLabel = fmt.Sprintf("HA %d%% (≈N-%d)", haAdmissionPct, haNEquivalent)
+	} else {
+		limitingType = "n_minus_x"
+		limitingLabel = "N-1"
+	}
+
+	return &models.ConstraintAnalysis{
+		HAAdmission: models.CapacityConstraint{
+			Type:           "ha_admission",
+			ReservedGB:     haReservedGB,
+			ReservedPct:    haReservedPct,
+			UsableGB:       haUsableGB,
+			NEquivalent:    haNEquivalent,
+			IsLimiting:     haIsLimiting,
+			UtilizationPct: haUtil,
+		},
+		NMinusX: models.CapacityConstraint{
+			Type:           "n_minus_x",
+			ReservedGB:     n1ReservedGB,
+			ReservedPct:    n1ReservedPct,
+			UsableGB:       n1UsableGB,
+			NEquivalent:    1,
+			IsLimiting:     !haIsLimiting,
+			UtilizationPct: n1Util,
+		},
+		LimitingConstraint:    limitingType,
+		LimitingLabel:         limitingLabel,
+		InsufficientHAWarning: insufficientHA,
+	}
+}
+
 // CalculateCurrent computes metrics for the current configuration.
 // tpsCurve is optional - if nil, TPS modeling is disabled.
 func (c *ScenarioCalculator) CalculateCurrent(state models.InfrastructureState, tpsCurve []models.TPSPt) models.ScenarioResult {
@@ -355,6 +431,34 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 	proposed := c.CalculateProposed(state, input)
 	warnings := c.GenerateWarnings(current, proposed)
 
+	// Calculate constraint analysis if host config is provided
+	var constraints *models.ConstraintAnalysis
+	if input.HostCount > 0 && input.MemoryPerHostGB > 0 {
+		totalMemoryGB := input.HostCount * input.MemoryPerHostGB
+		// Used memory: proposed cell memory + platform VMs
+		usedMemoryGB := proposed.CellCount*proposed.CellMemoryGB + state.PlatformVMsGB
+
+		constraints = CalculateConstraints(
+			totalMemoryGB,
+			input.HostCount,
+			input.MemoryPerHostGB,
+			input.HAAdmissionPct,
+			usedMemoryGB,
+		)
+
+		// Add warning if HA% is insufficient for N-1 protection
+		if constraints != nil && constraints.InsufficientHAWarning {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "warning",
+				Message: fmt.Sprintf(
+					"HA Admission Control (%d%%) may be insufficient for N-1 host failure protection. Consider increasing to at least %.0f%%.",
+					input.HAAdmissionPct,
+					constraints.NMinusX.ReservedPct,
+				),
+			})
+		}
+	}
+
 	// Calculate delta
 	capacityChange := proposed.AppCapacityGB - current.AppCapacityGB
 	diskCapacityChange := proposed.DiskCapacityGB - current.DiskCapacityGB
@@ -376,9 +480,10 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 	}
 
 	return models.ScenarioComparison{
-		Current:  current,
-		Proposed: proposed,
-		Warnings: warnings,
+		Current:     current,
+		Proposed:    proposed,
+		Warnings:    warnings,
+		Constraints: constraints,
 		Delta: models.ScenarioDelta{
 			CapacityChangeGB:         capacityChange,
 			DiskCapacityChangeGB:     diskCapacityChange,
