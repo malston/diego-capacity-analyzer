@@ -384,6 +384,9 @@ Compare current infrastructure state against a proposed configuration.
   "target_cluster": "",
   "selected_resources": ["memory", "cpu", "disk"],
   "overhead_pct": 7,
+  "host_count": 15,
+  "memory_per_host_gb": 2048,
+  "ha_admission_pct": 10,
   "additional_app": {
     "name": "new-service",
     "instances": 10,
@@ -406,9 +409,21 @@ Compare current infrastructure state against a proposed configuration.
 | `proposed_cell_count` | int | Proposed number of cells |
 | `target_cluster` | string | Target cluster (empty = all) |
 | `selected_resources` | array | Resources to analyze: `memory`, `cpu`, `disk` |
-| `overhead_pct` | float | Memory overhead % (default: 7) |
+| `overhead_pct` | float | Memory overhead % for Garden/OS inside each cell (default: 7). See note below. |
+| `host_count` | int | Number of ESXi hosts (for HA calculations) |
+| `memory_per_host_gb` | int | Memory per host in GB (for HA calculations) |
+| `ha_admission_pct` | int | vSphere HA admission control % (for HA calculations) |
 | `additional_app` | object | Optional hypothetical app to model |
 | `tps_curve` | array | Optional custom TPS performance curve |
+
+**Note: `overhead_pct` vs `ha_admission_pct`**
+
+These operate at different layers and are not redundant:
+
+- **`overhead_pct` (7%)**: Memory inside each Diego cell consumed by Garden runtime and OS processes. A 32GB cell has ~30GB available for app containers.
+- **`ha_admission_pct`**: Cluster-level memory reserved by vSphere to restart VMs after host failure. vSphere sees full VM footprint (32GB), not what's inside.
+
+Both are needed: HA admission determines if you can *deploy* the VMs; memory overhead determines how much *workload* fits inside them.
 
 **Response:**
 

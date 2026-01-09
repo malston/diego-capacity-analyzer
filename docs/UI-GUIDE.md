@@ -357,6 +357,40 @@ Hosts Survivable = floor(HA % / 100 × Total Hosts)
 
 **Note:** Always round up to ensure the `floor()` calculation yields the desired survivability.
 
+#### HA Admission vs. Memory Overhead: Not Double-Counting
+
+These two percentages operate at different layers and are **not** redundant:
+
+| Calculation | Layer | What It Measures |
+|-------------|-------|------------------|
+| **HA Admission %** | vSphere cluster | Memory reserved to restart VMs after host failure |
+| **Memory Overhead (7%)** | Inside Diego cell | Memory consumed by Garden runtime and OS processes |
+
+**How they work together:**
+
+1. **vSphere perspective**: A 32GB Diego cell consumes 32GB of cluster memory. HA admission reserves capacity based on this full VM footprint—vSphere doesn't know or care what runs inside the VM.
+
+2. **Diego perspective**: Of that 32GB cell, ~30GB is available for application containers. The remaining ~2GB (7%) runs Garden, system processes, and the Diego executor.
+
+**Example with 15 hosts × 2TB each (30TB cluster), 10% HA, 470 cells @ 32GB:**
+
+```text
+Cluster level (HA Admission):
+  Total memory:     30,000 GB
+  HA reserved:       3,000 GB (10%)
+  Usable for VMs:   27,000 GB
+  Diego cells use:  15,040 GB (470 × 32 GB)  ← full VM footprint
+  Utilization:      55.7% of HA-usable capacity
+
+Cell level (Memory Overhead):
+  Cell size:        32 GB
+  OS/Garden:         2 GB (7%)
+  App capacity:     30 GB per cell
+  Total app capacity: 14,100 GB (470 × 30 GB)
+```
+
+Both calculations are needed: HA admission determines if you can *deploy* the VMs; memory overhead determines how much *workload* fits inside them.
+
 ---
 
 ## Bottleneck Analysis
@@ -474,6 +508,7 @@ Expandable panel with configuration overrides:
 - Adjusts the percentage of cell memory reserved for Garden runtime and system processes
 - Formula: `App Capacity = cells × (cell_memory × (1 - overhead%))`
 - The 7% default is an empirical estimate; verify against your actual cell utilization if precision matters
+- This is separate from HA Admission Control—see [HA Admission vs. Memory Overhead](#ha-admission-vs-memory-overhead-not-double-counting) for details
 
 **Add Hypothetical App**
 - Model the impact of deploying a new application before actually deploying it
