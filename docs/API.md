@@ -575,6 +575,21 @@ The backend implements in-memory caching with configurable TTLs:
 
 Cached responses include `"cached": true` in the metadata.
 
+### Mixed Data Source Caching
+
+When using `GET /api/infrastructure` with both vSphere and CF credentials configured:
+
+1. **vSphere data** is fetched first (infrastructure: hosts, clusters, cells)
+2. **CF data** is fetched to enrich app metrics (`total_app_memory_gb`, `total_app_instances`)
+3. **Combined result** is cached using `VSPHERE_CACHE_TTL`
+
+This means:
+- Both vSphere and CF data share the same cache TTL (default: 300s)
+- If CF data changes frequently, consider lowering `VSPHERE_CACHE_TTL`
+- Cache invalidation clears both data sources together
+
+To force a refresh, either wait for TTL expiration or restart the backend.
+
 ---
 
 ## Manual Data Collection
