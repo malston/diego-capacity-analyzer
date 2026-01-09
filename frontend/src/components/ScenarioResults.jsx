@@ -20,17 +20,20 @@ const TOOLTIPS = {
   instancesPerCell: "Average app instances per cell. Lower = more distributed workload.",
 };
 
-const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memory'] }) => {
+const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] }) => {
   if (!comparison) return null;
 
   const { current, proposed, delta } = comparison;
+
+  // Ensure warnings is always an array (backend may return null)
+  const safeWarnings = warnings ?? [];
 
   // Check for over-capacity (utilization > 100%)
   const isOverCapacity = proposed.utilization_pct > 100;
 
   // Overall status
-  const criticalCount = warnings.filter(w => w.severity === 'critical').length;
-  const warningCount = warnings.filter(w => w.severity === 'warning').length;
+  const criticalCount = safeWarnings.filter(w => w.severity === 'critical').length;
+  const warningCount = safeWarnings.filter(w => w.severity === 'warning').length;
 
   let overallStatus = 'good';
   let statusMessage = 'Configuration looks healthy';
@@ -353,16 +356,16 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
       </div>
 
       {/* Warnings Section */}
-      {warnings.length > 0 && (
+      {safeWarnings.length > 0 && (
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-4 text-gray-400">
             <AlertTriangle size={16} />
             <span className="text-xs uppercase tracking-wider font-medium">
-              Recommendations ({warnings.length})
+              Recommendations ({safeWarnings.length})
             </span>
           </div>
           <div className="space-y-2">
-            {warnings.map((warning, index) => (
+            {safeWarnings.map((warning, index) => (
               <div
                 key={index}
                 className={`flex items-start gap-3 p-3 rounded-lg ${
@@ -396,7 +399,7 @@ const ScenarioResults = ({ comparison, warnings = [], selectedResources = ['memo
       )}
 
       {/* All Clear Message */}
-      {warnings.length === 0 && (
+      {safeWarnings.length === 0 && (
         <div className="bg-emerald-900/20 rounded-xl p-6 border border-emerald-700/30 text-center">
           <CheckCircle2 className="text-emerald-400 mx-auto mb-2" size={32} />
           <div className="text-lg font-semibold text-emerald-400">All Checks Passed</div>
