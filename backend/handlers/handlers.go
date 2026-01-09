@@ -522,3 +522,55 @@ func (h *Handler) enrichWithCFAppData(ctx context.Context, state *models.Infrast
 
 	return nil
 }
+
+// AppDetailsResponse contains per-app breakdown of memory and instances
+type AppDetailsResponse struct {
+	TotalAppMemoryGB  int          `json:"total_app_memory_gb"`
+	TotalAppInstances int          `json:"total_app_instances"`
+	Apps              []models.App `json:"apps"`
+}
+
+// HandleInfrastructureApps returns detailed per-app memory and instance breakdown
+func (h *Handler) HandleInfrastructureApps(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Check if CF is configured
+	if h.cfClient == nil || h.cfg == nil || h.cfg.CFAPIUrl == "" {
+		writeError(w, "CF API not configured. Set CF_API_URL, CF_USERNAME, and CF_PASSWORD environment variables.", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Authenticate with CF
+	if err := h.cfClient.Authenticate(); err != nil {
+		slog.Error("CF authentication failed", "error", err)
+		writeError(w, "Failed to authenticate with CF: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	// Fetch apps
+	apps, err := h.cfClient.GetApps()
+	if err != nil {
+		slog.Error("Failed to fetch apps from CF", "error", err)
+		writeError(w, "Failed to fetch apps: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Calculate totals
+	var totalMemoryMB, totalInstances int
+	for _, app := range apps {
+		totalMemoryMB += app.RequestedMB
+		totalInstances += app.Instances
+	}
+
+	response := AppDetailsResponse{
+		TotalAppMemoryGB:  totalMemoryMB / 1024,
+		TotalAppInstances: totalInstances,
+		Apps:              apps,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
