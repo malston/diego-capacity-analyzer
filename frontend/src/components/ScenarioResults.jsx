@@ -69,6 +69,16 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
   // Format helpers
   const formatGB = (gb) => gb >= 1000 ? `${(gb / 1000).toFixed(1)}T` : `${gb}G`;
   const formatNum = (n) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toString();
+  const formatFieldName = (field) => {
+    const names = {
+      'cell_count': 'Cell count',
+      'cell_memory_gb': 'Cell memory',
+      'cell_cpu': 'Cell CPU',
+      'cell_disk_gb': 'Cell disk',
+      'host_count': 'Host count',
+    };
+    return names[field] || field;
+  };
 
   return (
     <div className="space-y-6">
@@ -414,32 +424,58 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
               Recommendations ({safeWarnings.length})
             </span>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {safeWarnings.map((warning, index) => (
               <div
                 key={index}
-                className={`flex items-start gap-3 p-3 rounded-lg ${
+                className={`p-4 rounded-lg ${
                   warning.severity === 'critical' ? 'bg-red-900/20 border border-red-700/30' :
                   warning.severity === 'warning' ? 'bg-amber-900/20 border border-amber-700/30' :
                   'bg-blue-900/20 border border-blue-700/30'
                 }`}
               >
-                <div className={`mt-0.5 ${
-                  warning.severity === 'critical' ? 'text-red-400' :
-                  warning.severity === 'warning' ? 'text-amber-400' :
-                  'text-blue-400'
-                }`}>
-                  {warning.severity === 'critical' ? <XCircle size={16} /> :
-                   warning.severity === 'warning' ? <AlertTriangle size={16} /> :
-                   <CheckCircle2 size={16} />}
-                </div>
-                <div>
-                  <div className={`text-sm font-medium ${
-                    warning.severity === 'critical' ? 'text-red-300' :
-                    warning.severity === 'warning' ? 'text-amber-300' :
-                    'text-blue-300'
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 ${
+                    warning.severity === 'critical' ? 'text-red-400' :
+                    warning.severity === 'warning' ? 'text-amber-400' :
+                    'text-blue-400'
                   }`}>
-                    {warning.message}
+                    {warning.severity === 'critical' ? <XCircle size={16} /> :
+                     warning.severity === 'warning' ? <AlertTriangle size={16} /> :
+                     <CheckCircle2 size={16} />}
+                  </div>
+                  <div className="flex-1">
+                    <div className={`text-sm font-medium ${
+                      warning.severity === 'critical' ? 'text-red-300' :
+                      warning.severity === 'warning' ? 'text-amber-300' :
+                      'text-blue-300'
+                    }`}>
+                      {warning.message}
+                    </div>
+
+                    {/* Change context */}
+                    {warning.change && (
+                      <div className="mt-2 text-xs text-gray-400 font-mono">
+                        <span className="text-gray-500">Change: </span>
+                        {formatFieldName(warning.change.field)}: {warning.change.previous_val} → {warning.change.proposed_val}
+                        <span className="ml-2 text-gray-500">
+                          ({warning.change.delta >= 0 ? '+' : ''}{warning.change.delta}, {warning.change.delta_pct >= 0 ? '+' : ''}{warning.change.delta_pct.toFixed(1)}%)
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Fix suggestions */}
+                    {warning.fixes && warning.fixes.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        <div className="text-xs text-gray-500 uppercase tracking-wider">Suggested fixes:</div>
+                        {warning.fixes.map((fix, fixIdx) => (
+                          <div key={fixIdx} className="flex items-center gap-2 text-sm">
+                            <span className="text-cyan-400">→</span>
+                            <span className="text-cyan-300">{fix.description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

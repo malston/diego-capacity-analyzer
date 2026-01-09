@@ -66,10 +66,28 @@ func (r *ScenarioResult) CellSize() string {
 	return fmt.Sprintf("%d×%d", r.CellCPU, r.CellMemoryGB)
 }
 
-// ScenarioWarning represents a tradeoff warning
+// ConfigChange describes what configuration the user modified that triggered a warning
+type ConfigChange struct {
+	Field       string  `json:"field"`        // "cell_count", "cell_memory_gb", "host_count", etc.
+	PreviousVal int     `json:"previous_val"` // Current/baseline value
+	ProposedVal int     `json:"proposed_val"` // User's proposed value
+	Delta       int     `json:"delta"`        // Difference (proposed - previous)
+	DeltaPct    float64 `json:"delta_pct"`    // Percentage change
+}
+
+// FixSuggestion describes how to resolve a warning
+type FixSuggestion struct {
+	Description string `json:"description"` // Human-readable fix description
+	Field       string `json:"field"`       // Which field to change
+	Value       int    `json:"value"`       // Suggested value
+}
+
+// ScenarioWarning represents a tradeoff warning with optional context
 type ScenarioWarning struct {
-	Severity string `json:"severity"` // "info", "warning", "critical"
-	Message  string `json:"message"`
+	Severity string          `json:"severity"`         // "info", "warning", "critical"
+	Message  string          `json:"message"`          // Warning message
+	Change   *ConfigChange   `json:"change,omitempty"` // What caused this warning
+	Fixes    []FixSuggestion `json:"fixes,omitempty"`  // How to fix (max 2)
 }
 
 // ScenarioDelta represents changes between current and proposed

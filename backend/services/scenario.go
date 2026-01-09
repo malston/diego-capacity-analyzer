@@ -337,10 +337,36 @@ func (c *ScenarioCalculator) calculateFull(
 	}
 }
 
+// WarningsContext provides context for generating actionable warnings
+type WarningsContext struct {
+	State   models.InfrastructureState
+	Input   models.ScenarioInput
+	Changes []models.ConfigChange
+}
+
+// findRelevantChange finds the most relevant ConfigChange for a warning type
+func findRelevantChange(changes []models.ConfigChange, preferredFields ...string) *models.ConfigChange {
+	// First try to find a change matching preferred fields
+	for _, field := range preferredFields {
+		for i := range changes {
+			if changes[i].Field == field {
+				return &changes[i]
+			}
+		}
+	}
+	// Fall back to first change if any
+	if len(changes) > 0 {
+		return &changes[0]
+	}
+	return nil
+}
+
 // GenerateWarnings produces warnings based on proposed scenario.
 // The constraints parameter is optional - if provided, the warning messages
 // will reflect whether HA Admission Control or N-1 is the limiting factor.
-func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioResult, constraints *models.ConstraintAnalysis) []models.ScenarioWarning {
+// The ctx parameter is optional - if provided, warnings will include change
+// context and fix suggestions.
+func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioResult, constraints *models.ConstraintAnalysis, ctx *WarningsContext) []models.ScenarioWarning {
 	var warnings []models.ScenarioWarning
 
 	// Determine which constraint is limiting for the warning message
@@ -354,10 +380,16 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 		} else {
 			message = "Exceeds N-1 capacity safety margin"
 		}
-		warnings = append(warnings, models.ScenarioWarning{
+		warning := models.ScenarioWarning{
 			Severity: "critical",
 			Message:  message,
-		})
+		}
+		// Add context if available
+		if ctx != nil {
+			warning.Change = findRelevantChange(ctx.Changes, "cell_count", "cell_memory_gb")
+			warning.Fixes = CalculateCapacityFix(ctx.State, ctx.Input, constraints)
+		}
+		warnings = append(warnings, warning)
 	} else if proposed.N1UtilizationPct > 75 {
 		var message string
 		if isHALimiting {
@@ -365,10 +397,16 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 		} else {
 			message = "Approaching N-1 capacity limits"
 		}
-		warnings = append(warnings, models.ScenarioWarning{
+		warning := models.ScenarioWarning{
 			Severity: "warning",
 			Message:  message,
-		})
+		}
+		// Add context if available
+		if ctx != nil {
+			warning.Change = findRelevantChange(ctx.Changes, "cell_count", "cell_memory_gb")
+			warning.Fixes = CalculateCapacityFix(ctx.State, ctx.Input, constraints)
+		}
+		warnings = append(warnings, warning)
 	}
 
 	// Free chunks warnings
@@ -464,8 +502,18 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 		)
 	}
 
-	// Generate warnings - pass constraints so warning messages reflect the limiting factor
-	warnings := c.GenerateWarnings(current, proposed, constraints)
+	// Detect what changed between current and proposed
+	changes := DetectChanges(state, input)
+
+	// Build context for actionable warnings
+	ctx := &WarningsContext{
+		State:   state,
+		Input:   input,
+		Changes: changes,
+	}
+
+	// Generate warnings - pass constraints and context for actionable messages
+	warnings := c.GenerateWarnings(current, proposed, constraints, ctx)
 
 	// Add warning if HA% is insufficient for N-1 protection
 	if constraints != nil && constraints.InsufficientHAWarning {
@@ -512,4 +560,140 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 			ResilienceChange:         resilienceChange,
 		},
 	}
+}
+
+// DetectChanges identifies which configuration values were modified between
+// the current state and the proposed input. Returns a slice of ConfigChange
+// describing each modification with its delta and percentage change.
+func DetectChanges(state models.InfrastructureState, input models.ScenarioInput) []models.ConfigChange {
+	var changes []models.ConfigChange
+
+	// Get current cell config from first cluster (assumes uniform cells)
+	var currentCellMemory, currentCellCPU, currentCellDisk int
+	for _, cluster := range state.Clusters {
+		if cluster.DiegoCellMemoryGB > 0 {
+			currentCellMemory = cluster.DiegoCellMemoryGB
+			currentCellCPU = cluster.DiegoCellCPU
+			currentCellDisk = cluster.DiegoCellDiskGB
+			break
+		}
+	}
+	currentCellCount := state.TotalCellCount
+
+	// Detect cell count change
+	if input.ProposedCellCount != currentCellCount && currentCellCount > 0 {
+		delta := input.ProposedCellCount - currentCellCount
+		deltaPct := float64(delta) / float64(currentCellCount) * 100
+		changes = append(changes, models.ConfigChange{
+			Field:       "cell_count",
+			PreviousVal: currentCellCount,
+			ProposedVal: input.ProposedCellCount,
+			Delta:       delta,
+			DeltaPct:    deltaPct,
+		})
+	}
+
+	// Detect cell memory change
+	if input.ProposedCellMemoryGB != currentCellMemory && currentCellMemory > 0 {
+		delta := input.ProposedCellMemoryGB - currentCellMemory
+		deltaPct := float64(delta) / float64(currentCellMemory) * 100
+		changes = append(changes, models.ConfigChange{
+			Field:       "cell_memory_gb",
+			PreviousVal: currentCellMemory,
+			ProposedVal: input.ProposedCellMemoryGB,
+			Delta:       delta,
+			DeltaPct:    deltaPct,
+		})
+	}
+
+	// Detect cell CPU change
+	if input.ProposedCellCPU != currentCellCPU && currentCellCPU > 0 {
+		delta := input.ProposedCellCPU - currentCellCPU
+		deltaPct := float64(delta) / float64(currentCellCPU) * 100
+		changes = append(changes, models.ConfigChange{
+			Field:       "cell_cpu",
+			PreviousVal: currentCellCPU,
+			ProposedVal: input.ProposedCellCPU,
+			Delta:       delta,
+			DeltaPct:    deltaPct,
+		})
+	}
+
+	// Detect cell disk change
+	if input.ProposedCellDiskGB != currentCellDisk && currentCellDisk > 0 {
+		delta := input.ProposedCellDiskGB - currentCellDisk
+		deltaPct := float64(delta) / float64(currentCellDisk) * 100
+		changes = append(changes, models.ConfigChange{
+			Field:       "cell_disk_gb",
+			PreviousVal: currentCellDisk,
+			ProposedVal: input.ProposedCellDiskGB,
+			Delta:       delta,
+			DeltaPct:    deltaPct,
+		})
+	}
+
+	return changes
+}
+
+// CalculateCapacityFix calculates fix suggestions for N-1/HA capacity warnings.
+// It suggests reducing cell count to achieve 84% utilization, or adding hosts.
+// Returns at most 2 fix suggestions.
+func CalculateCapacityFix(state models.InfrastructureState, input models.ScenarioInput, constraints *models.ConstraintAnalysis) []models.FixSuggestion {
+	var fixes []models.FixSuggestion
+
+	// Determine usable capacity based on which constraint is limiting
+	usableGB := state.TotalN1MemoryGB
+	if constraints != nil && constraints.LimitingConstraint == "ha_admission" {
+		usableGB = constraints.HAAdmission.UsableGB
+	}
+
+	if usableGB == 0 || input.ProposedCellMemoryGB == 0 {
+		return fixes
+	}
+
+	// Fix 1: Reduce cell count to achieve 84% utilization
+	// Formula: targetCells = (targetUtil * usableGB - platformVMs) / cellMemory
+	targetUtil := 0.84
+	targetCellMemoryGB := int(float64(usableGB)*targetUtil) - state.PlatformVMsGB
+	if targetCellMemoryGB > 0 {
+		targetCells := targetCellMemoryGB / input.ProposedCellMemoryGB
+		if targetCells > 0 && targetCells < input.ProposedCellCount {
+			fixes = append(fixes, models.FixSuggestion{
+				Description: fmt.Sprintf("Reduce to %d cells to achieve 84%% capacity utilization", targetCells),
+				Field:       "cell_count",
+				Value:       targetCells,
+			})
+		}
+	}
+
+	// Fix 2: Add hosts (only if host config is provided)
+	if input.HostCount > 0 && input.MemoryPerHostGB > 0 {
+		// Calculate how many hosts needed for proposed cells at 84% utilization
+		proposedCellMemoryGB := input.ProposedCellCount * input.ProposedCellMemoryGB
+		totalNeededGB := proposedCellMemoryGB + state.PlatformVMsGB
+
+		// At 84% utilization: totalNeeded / usableCapacity = 0.84
+		// usable = totalNeeded / 0.84
+		usableNeededGB := float64(totalNeededGB) / targetUtil
+
+		// For N-1: usable = (hosts - 1) * memPerHost
+		// hosts = usable / memPerHost + 1
+		hostsNeeded := int(math.Ceil(usableNeededGB/float64(input.MemoryPerHostGB))) + 1
+		hostsToAdd := hostsNeeded - input.HostCount
+
+		if hostsToAdd > 0 {
+			fixes = append(fixes, models.FixSuggestion{
+				Description: fmt.Sprintf("Add %d host(s) to support %d cells", hostsToAdd, input.ProposedCellCount),
+				Field:       "host_count",
+				Value:       hostsNeeded,
+			})
+		}
+	}
+
+	// Return at most 2 fixes
+	if len(fixes) > 2 {
+		fixes = fixes[:2]
+	}
+
+	return fixes
 }

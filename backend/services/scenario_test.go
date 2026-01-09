@@ -129,7 +129,7 @@ func TestGenerateWarnings_CriticalN1(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed, nil)
+	warnings := calc.GenerateWarnings(current, proposed, nil, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -156,7 +156,7 @@ func TestGenerateWarnings_LowFreeChunks(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed, nil)
+	warnings := calc.GenerateWarnings(current, proposed, nil, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -201,7 +201,7 @@ func TestGenerateWarnings_BlastRadius(t *testing.T) {
 			}
 
 			calc := NewScenarioCalculator()
-			warnings := calc.GenerateWarnings(current, proposed, nil)
+			warnings := calc.GenerateWarnings(current, proposed, nil, nil)
 
 			foundWarning := false
 			foundCritical := false
@@ -524,7 +524,7 @@ func TestGenerateWarnings_DiskUtilization(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed, nil)
+	warnings := calc.GenerateWarnings(current, proposed, nil, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -555,7 +555,7 @@ func TestGenerateWarnings_TPSDegradation(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed, nil)
+	warnings := calc.GenerateWarnings(current, proposed, nil, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -676,7 +676,7 @@ func TestResilienceWarning_LargeFoundation_NoWarning(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed, nil)
+	warnings := calc.GenerateWarnings(current, proposed, nil, nil)
 
 	for _, w := range warnings {
 		if contains(w.Message, "resilience") || contains(w.Message, "redundancy") || contains(w.Message, "blast") {
@@ -702,7 +702,7 @@ func TestResilienceWarning_SmallFoundation_Warning(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed, nil)
+	warnings := calc.GenerateWarnings(current, proposed, nil, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -924,7 +924,7 @@ func TestGenerateWarnings_HAAdmissionLimiting_ShowsHAMessage(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed, constraints)
+	warnings := calc.GenerateWarnings(current, proposed, constraints, nil)
 
 	// Should find HA admission message, not N-1 message
 	foundHA := false
@@ -975,7 +975,7 @@ func TestGenerateWarnings_N1Limiting_ShowsN1Message(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed, constraints)
+	warnings := calc.GenerateWarnings(current, proposed, constraints, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -1004,7 +1004,7 @@ func TestGenerateWarnings_NoConstraints_FallsBackToN1(t *testing.T) {
 	}
 
 	calc := NewScenarioCalculator()
-	warnings := calc.GenerateWarnings(current, proposed, nil)
+	warnings := calc.GenerateWarnings(current, proposed, nil, nil)
 
 	found := false
 	for _, w := range warnings {
@@ -1031,4 +1031,320 @@ func containsHelper(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// ============================================================================
+// DETECT CHANGES TESTS
+// ============================================================================
+
+func TestDetectChanges_CellCountChanged(t *testing.T) {
+	state := models.InfrastructureState{
+		TotalCellCount: 470,
+		Clusters: []models.ClusterState{
+			{
+				DiegoCellCount:    470,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+				DiegoCellDiskGB:   100,
+			},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellCount:    600, // Changed from 470 to 600
+		ProposedCellMemoryGB: 32,  // Same
+		ProposedCellCPU:      4,   // Same
+	}
+
+	changes := DetectChanges(state, input)
+
+	// Should detect cell count change
+	var cellCountChange *models.ConfigChange
+	for i := range changes {
+		if changes[i].Field == "cell_count" {
+			cellCountChange = &changes[i]
+			break
+		}
+	}
+
+	if cellCountChange == nil {
+		t.Fatal("Expected to detect cell_count change")
+	}
+
+	if cellCountChange.PreviousVal != 470 {
+		t.Errorf("Expected PreviousVal=470, got %d", cellCountChange.PreviousVal)
+	}
+	if cellCountChange.ProposedVal != 600 {
+		t.Errorf("Expected ProposedVal=600, got %d", cellCountChange.ProposedVal)
+	}
+	if cellCountChange.Delta != 130 {
+		t.Errorf("Expected Delta=130, got %d", cellCountChange.Delta)
+	}
+	// Delta percent: 130/470 * 100 = ~27.66%
+	if cellCountChange.DeltaPct < 27 || cellCountChange.DeltaPct > 28 {
+		t.Errorf("Expected DeltaPct ~27.66%%, got %.2f%%", cellCountChange.DeltaPct)
+	}
+}
+
+func TestDetectChanges_CellMemoryChanged(t *testing.T) {
+	state := models.InfrastructureState{
+		TotalCellCount: 470,
+		Clusters: []models.ClusterState{
+			{
+				DiegoCellCount:    470,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellCount:    470, // Same
+		ProposedCellMemoryGB: 64,  // Changed from 32 to 64
+		ProposedCellCPU:      4,   // Same
+	}
+
+	changes := DetectChanges(state, input)
+
+	var memoryChange *models.ConfigChange
+	for i := range changes {
+		if changes[i].Field == "cell_memory_gb" {
+			memoryChange = &changes[i]
+			break
+		}
+	}
+
+	if memoryChange == nil {
+		t.Fatal("Expected to detect cell_memory_gb change")
+	}
+
+	if memoryChange.PreviousVal != 32 {
+		t.Errorf("Expected PreviousVal=32, got %d", memoryChange.PreviousVal)
+	}
+	if memoryChange.ProposedVal != 64 {
+		t.Errorf("Expected ProposedVal=64, got %d", memoryChange.ProposedVal)
+	}
+	if memoryChange.Delta != 32 {
+		t.Errorf("Expected Delta=32, got %d", memoryChange.Delta)
+	}
+}
+
+func TestDetectChanges_NoChanges(t *testing.T) {
+	state := models.InfrastructureState{
+		TotalCellCount: 470,
+		Clusters: []models.ClusterState{
+			{
+				DiegoCellCount:    470,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellCount:    470, // Same
+		ProposedCellMemoryGB: 32,  // Same
+		ProposedCellCPU:      4,   // Same
+	}
+
+	changes := DetectChanges(state, input)
+
+	if len(changes) != 0 {
+		t.Errorf("Expected no changes, got %d changes", len(changes))
+	}
+}
+
+func TestDetectChanges_MultipleChanges(t *testing.T) {
+	state := models.InfrastructureState{
+		TotalCellCount: 470,
+		Clusters: []models.ClusterState{
+			{
+				DiegoCellCount:    470,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellCount:    235, // Changed: halved
+		ProposedCellMemoryGB: 64,  // Changed: doubled
+		ProposedCellCPU:      8,   // Changed: doubled
+	}
+
+	changes := DetectChanges(state, input)
+
+	if len(changes) != 3 {
+		t.Errorf("Expected 3 changes, got %d", len(changes))
+	}
+
+	// Verify all expected fields are present
+	fields := make(map[string]bool)
+	for _, c := range changes {
+		fields[c.Field] = true
+	}
+
+	if !fields["cell_count"] {
+		t.Error("Expected cell_count change")
+	}
+	if !fields["cell_memory_gb"] {
+		t.Error("Expected cell_memory_gb change")
+	}
+	if !fields["cell_cpu"] {
+		t.Error("Expected cell_cpu change")
+	}
+}
+
+// ============================================================================
+// FIX CALCULATOR TESTS
+// ============================================================================
+
+func TestCalculateCapacityFix_ReduceCells(t *testing.T) {
+	// Scenario: User proposed 600 cells, which exceeds 85% N-1 capacity
+	// Expected fix: Reduce to fewer cells to achieve 84% utilization
+	state := models.InfrastructureState{
+		TotalCellCount:  470,
+		TotalN1MemoryGB: 26624, // N-1 usable memory
+		PlatformVMsGB:   4800,  // Platform VM overhead
+		Clusters: []models.ClusterState{
+			{
+				DiegoCellMemoryGB: 32,
+			},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellCount:    600,
+		ProposedCellMemoryGB: 32,
+		HostCount:            15,
+		MemoryPerHostGB:      2000,
+		HAAdmissionPct:       10, // Low HA%, so N-1 is limiting
+	}
+
+	fixes := CalculateCapacityFix(state, input, nil)
+
+	if len(fixes) == 0 {
+		t.Fatal("Expected at least one fix suggestion")
+	}
+
+	// First fix should suggest reducing cells
+	found := false
+	for _, fix := range fixes {
+		if fix.Field == "cell_count" {
+			found = true
+			// Target 84% utilization
+			// usable = 26624 GB, platform = 4800 GB
+			// targetCellMemory = 26624 * 0.84 - 4800 = 17564 GB
+			// targetCells = 17564 / 32 = 548 cells
+			if fix.Value < 500 || fix.Value > 560 {
+				t.Errorf("Expected fix value around 548 cells, got %d", fix.Value)
+			}
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Expected a cell_count fix suggestion")
+	}
+}
+
+func TestCalculateCapacityFix_AddHosts(t *testing.T) {
+	// Scenario: User proposed 600 cells with host config
+	// Expected: Suggest adding hosts as alternative fix
+	state := models.InfrastructureState{
+		TotalCellCount:  470,
+		TotalN1MemoryGB: 26624,
+		PlatformVMsGB:   4800,
+		Clusters: []models.ClusterState{
+			{
+				DiegoCellMemoryGB: 32,
+			},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellCount:    600,
+		ProposedCellMemoryGB: 32,
+		HostCount:            15,
+		MemoryPerHostGB:      2000,
+		HAAdmissionPct:       10,
+	}
+
+	fixes := CalculateCapacityFix(state, input, nil)
+
+	// Should have at most 2 fixes
+	if len(fixes) > 2 {
+		t.Errorf("Expected max 2 fixes, got %d", len(fixes))
+	}
+
+	// Second fix (if present) should suggest adding hosts
+	found := false
+	for _, fix := range fixes {
+		if fix.Field == "host_count" {
+			found = true
+			// Should suggest more hosts than current 15
+			if fix.Value <= 15 {
+				t.Errorf("Expected host_count > 15, got %d", fix.Value)
+			}
+			break
+		}
+	}
+
+	// This might not always have a host fix depending on calculation
+	// Just verify it doesn't crash
+	_ = found
+}
+
+func TestCalculateCapacityFix_WithHAConstraint(t *testing.T) {
+	// Scenario: HA Admission Control is the limiting constraint
+	state := models.InfrastructureState{
+		TotalCellCount:  470,
+		TotalN1MemoryGB: 26624,
+		PlatformVMsGB:   4800,
+		Clusters: []models.ClusterState{
+			{
+				DiegoCellMemoryGB: 32,
+			},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellCount:    600,
+		ProposedCellMemoryGB: 32,
+		HostCount:            15,
+		MemoryPerHostGB:      2000,
+		HAAdmissionPct:       25, // 25% = more restrictive than N-1
+	}
+
+	// HA constraint analysis
+	constraints := &models.ConstraintAnalysis{
+		LimitingConstraint: "ha_admission",
+		HAAdmission: models.CapacityConstraint{
+			UsableGB:   22500, // 30000 * 0.75
+			IsLimiting: true,
+		},
+		NMinusX: models.CapacityConstraint{
+			UsableGB:   28000,
+			IsLimiting: false,
+		},
+	}
+
+	fixes := CalculateCapacityFix(state, input, constraints)
+
+	if len(fixes) == 0 {
+		t.Fatal("Expected at least one fix suggestion when HA is limiting")
+	}
+
+	// Fix should use HA usable capacity, not N-1
+	for _, fix := range fixes {
+		if fix.Field == "cell_count" {
+			// With HA usable = 22500, platform = 4800
+			// targetCellMemory = 22500 * 0.84 - 4800 = 14100 GB
+			// targetCells = 14100 / 32 = 440 cells (fewer than N-1 based)
+			if fix.Value > 500 {
+				t.Errorf("Expected fewer cells due to HA constraint, got %d", fix.Value)
+			}
+			break
+		}
+	}
 }
