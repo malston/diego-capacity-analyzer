@@ -250,12 +250,19 @@ const ScenarioAnalyzer = () => {
     // This is what vSphere actually enforces - the real deployable limit
     const haUsableMemoryGB = totalMemoryGB * (1 - haAdmissionPct / 100);
 
+    // Calculate N-1 usable memory (reserve one host's worth)
+    const memoryGBPerHost = totalHosts > 0 ? totalMemoryGB / totalHosts : 0;
+    const n1UsableMemoryGB = totalMemoryGB - memoryGBPerHost;
+
     // Calculate implied N-X tolerance from HA %
     // (how many host failures the HA % covers)
-    const memoryGBPerHost = totalHosts > 0 ? totalMemoryGB / totalHosts : 0;
     const impliedHostFailures = memoryGBPerHost > 0
       ? Math.floor((totalMemoryGB - haUsableMemoryGB) / memoryGBPerHost)
       : 0;
+
+    // Determine which constraint is more restrictive
+    const effectiveUsableMemoryGB = Math.min(haUsableMemoryGB, n1UsableMemoryGB);
+    const constraintLimiting = haUsableMemoryGB <= n1UsableMemoryGB ? 'ha' : 'n1';
 
     // Also compute per-host values for CPU config defaults
     const coresPerHost = totalHosts > 0 ? Math.round(totalCPUCores / totalHosts) : 64;
@@ -265,6 +272,9 @@ const ScenarioAnalyzer = () => {
       totalMemoryGB,
       totalCPUCores,
       haUsableMemoryGB,
+      n1UsableMemoryGB,
+      effectiveUsableMemoryGB,
+      constraintLimiting,
       coresPerHost,
       memoryGBPerHost: Math.round(memoryGBPerHost),
       haAdmissionPct,
@@ -301,13 +311,19 @@ const ScenarioAnalyzer = () => {
     const pCPU = iaasCapacity.totalCPUCores;
 
     // Memory is the hard constraint for max cells
-    const maxCells = Math.floor(iaasCapacity.haUsableMemoryGB / proposedMemoryGB);
+    // Use the more restrictive of HA usable or N-1 usable memory
+    const maxCells = Math.floor(iaasCapacity.effectiveUsableMemoryGB / proposedMemoryGB);
 
     // Calculate resulting CPU ratios at current and max cell counts
     const currentVCPUs = cellCount * proposedCPU;
     const maxVCPUs = maxCells * proposedCPU;
     const currentRatio = pCPU > 0 ? currentVCPUs / pCPU : 0;
     const maxRatio = pCPU > 0 ? maxVCPUs / pCPU : 0;
+
+    // Determine bottleneck label based on which constraint is limiting
+    const constraintLabel = iaasCapacity.constraintLimiting === 'ha'
+      ? `HA ${iaasCapacity.haAdmissionPct}%`
+      : 'N-1';
 
     return {
       maxCells,
@@ -318,7 +334,7 @@ const ScenarioAnalyzer = () => {
       pCPU,
       currentVCPUs,
       maxVCPUs,
-      bottleneck: 'memory',  // Memory is always the hard constraint for max cells
+      bottleneck: constraintLabel,  // Which memory constraint limits max cells
     };
   }, [iaasCapacity, selectedPreset, customMemory, customCPU, cellCount]);
 
