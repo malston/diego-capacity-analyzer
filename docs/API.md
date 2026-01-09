@@ -510,3 +510,130 @@ The backend implements in-memory caching with configurable TTLs:
 | General cache | 300s | `CACHE_TTL` |
 
 Cached responses include `"cached": true` in the metadata.
+
+### Mixed Data Source Caching
+
+When using `GET /api/infrastructure` with both vSphere and CF credentials configured:
+
+1. **vSphere data** is fetched first (infrastructure: hosts, clusters, cells)
+2. **CF data** is fetched to enrich app metrics (`total_app_memory_gb`, `total_app_instances`)
+3. **Combined result** is cached using `VSPHERE_CACHE_TTL`
+
+This means:
+- Both vSphere and CF data share the same cache TTL (default: 300s)
+- If CF data changes frequently, consider lowering `VSPHERE_CACHE_TTL`
+- Cache invalidation clears both data sources together
+
+To force a refresh, either wait for TTL expiration or restart the backend.
+
+---
+
+## Manual Data Collection
+
+When using the manual infrastructure input endpoint (`POST /api/infrastructure/manual`), you may need to collect app-related metrics yourself. This section documents how to obtain these values.
+
+### Data Sources
+
+The following fields require app workload data:
+
+| Field | Description |
+|-------|-------------|
+| `total_app_memory_gb` | Total memory allocated to all application instances |
+| `total_app_disk_gb` | Total disk allocated to all application instances |
+| `total_app_instances` | Total number of running application instances |
+
+### Option 1: From Healthwatch / Aria Operations Dashboards
+
+If you have Healthwatch or Aria Operations for Applications deployed, these metrics are already collected.
+
+**Healthwatch (Grafana/Prometheus)**:
+
+```promql
+# Total allocated app memory across all Diego cells (result in GB)
+sum(rep_CapacityAllocatedMemory) / 1024
+```
+
+**Aria Operations for Applications (Wavefront)**:
+
+```bash
+# Total allocated app memory across all Diego cells (result in GB)
+sum(ts("tas.rep.CapacityAllocatedMemory")) / 1024
+```
+
+**Diego Rep Metrics Reference**:
+
+| Metric | Origin | Units | Description |
+|--------|--------|-------|-------------|
+| `rep.CapacityTotalMemory` | rep | MiB | Max memory available for app allocation |
+| `rep.CapacityRemainingMemory` | rep | MiB | Remaining allocatable memory |
+| `rep.CapacityAllocatedMemory` | rep | MiB | Memory allocated to containers |
+
+Formula: `TotalMemory = AllocatedMemory + RemainingMemory`
+
+### Option 2: CF CLI Commands
+
+Use these commands to collect app metrics directly from the CF API:
+
+```bash
+# Authenticate to CF
+cf login -a https://api.sys.example.com
+
+# Get total allocated app memory (sum of memory_in_mb × instances for all processes)
+cf curl "/v3/processes" | jq '[.resources[] | .memory_in_mb * .instances] | add'
+# Output: total MB (e.g., 10752)
+
+# For large foundations, handle pagination:
+total_mb=0
+next_url="/v3/processes?per_page=5000"
+while [ "$next_url" != "null" ]; do
+  response=$(cf curl "$next_url")
+  page_total=$(echo "$response" | jq '[.resources[] | .memory_in_mb * .instances] | add // 0')
+  total_mb=$((total_mb + page_total))
+  next_url=$(echo "$response" | jq -r '.pagination.next.href // "null"')
+done
+echo "Total app memory: $((total_mb / 1024)) GB"
+
+# Get total app instances
+cf curl "/v3/processes?per_page=5000" | jq '[.resources[].instances] | add'
+
+# Get total disk
+cf curl "/v3/processes?per_page=5000" | jq '[.resources[] | .disk_in_mb * .instances] | add'
+# Convert to GB: divide by 1024
+```
+
+### Understanding the Numbers
+
+| Field | CF API Source | Calculation |
+|-------|--------------|-------------|
+| `total_app_memory_gb` | `/v3/processes` | Sum of (memory_in_mb × instances), convert to GB |
+| `total_app_instances` | `/v3/processes` | Sum of instances |
+| `total_app_disk_gb` | `/v3/processes` | Sum of (disk_in_mb × instances), convert to GB |
+
+### Example Manual JSON Input
+
+After collecting the values above:
+
+```json
+{
+  "name": "Production TAS",
+  "clusters": [
+    {
+      "name": "TAS-Cluster",
+      "host_count": 8,
+      "memory_gb_per_host": 2048,
+      "cpu_cores_per_host": 64,
+      "diego_cell_count": 250,
+      "diego_cell_memory_gb": 32,
+      "diego_cell_cpu": 4
+    }
+  ],
+  "platform_vms_gb": 4800,
+  "total_app_memory_gb": 10,
+  "total_app_disk_gb": 50,
+  "total_app_instances": 42
+}
+```
+
+### Automatic Enrichment
+
+When using live vSphere data (`GET /api/infrastructure`), the backend automatically enriches infrastructure data with app metrics from the CF API if CF credentials are configured. This eliminates the need for manual data collection in most cases.
