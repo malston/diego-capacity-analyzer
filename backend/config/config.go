@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -52,17 +53,17 @@ func Load() (*Config, error) {
 		CacheTTL:     getEnvInt("CACHE_TTL", 300),
 		DashboardTTL: getEnvInt("DASHBOARD_CACHE_TTL", 30),
 
-		CFAPIUrl:   os.Getenv("CF_API_URL"),
+		CFAPIUrl:   ensureScheme(os.Getenv("CF_API_URL")),
 		CFUsername: os.Getenv("CF_USERNAME"),
 		CFPassword: os.Getenv("CF_PASSWORD"),
 
-		BOSHEnvironment: os.Getenv("BOSH_ENVIRONMENT"),
+		BOSHEnvironment: ensureScheme(os.Getenv("BOSH_ENVIRONMENT")),
 		BOSHClient:      os.Getenv("BOSH_CLIENT"),
 		BOSHSecret:      os.Getenv("BOSH_CLIENT_SECRET"),
 		BOSHCACert:      os.Getenv("BOSH_CA_CERT"),
 		BOSHDeployment:  os.Getenv("BOSH_DEPLOYMENT"),
 
-		CredHubURL:    os.Getenv("CREDHUB_URL"),
+		CredHubURL:    ensureScheme(os.Getenv("CREDHUB_URL")),
 		CredHubClient: os.Getenv("CREDHUB_CLIENT"),
 		CredHubSecret: os.Getenv("CREDHUB_SECRET"),
 
@@ -111,4 +112,15 @@ func getEnvBool(key string, defaultValue bool) bool {
 		}
 	}
 	return defaultValue
+}
+
+// ensureScheme adds https:// prefix if the URL has no scheme
+func ensureScheme(url string) string {
+	if url == "" {
+		return url
+	}
+	if !strings.Contains(url, "://") {
+		return "https://" + url
+	}
+	return url
 }
