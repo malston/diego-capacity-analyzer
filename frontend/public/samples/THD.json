@@ -6,7 +6,7 @@
       "host_count": 15,
       "memory_gb_per_host": 2000,
       "cpu_cores_per_host": 64,
-      "ha_admission_control_percentage": 14,
+      "ha_admission_control_percentage": 7,
       "diego_cell_count": 470,
       "diego_cell_memory_gb": 32,
       "diego_cell_cpu": 4,
