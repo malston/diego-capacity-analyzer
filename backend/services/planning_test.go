@@ -228,7 +228,7 @@ func TestGenerateRecommendations(t *testing.T) {
 	}
 
 	calc := NewPlanningCalculator()
-	recs := calc.GenerateRecommendations(state)
+	recs := calc.GenerateRecommendations(state, nil) // nil = all resources selected
 
 	// Should have multiple recommendations
 	if len(recs) < 3 {
@@ -264,7 +264,7 @@ func TestGenerateRecommendations_ContainsCommonSizes(t *testing.T) {
 	}
 
 	calc := NewPlanningCalculator()
-	recs := calc.GenerateRecommendations(state)
+	recs := calc.GenerateRecommendations(state, nil) // nil = all resources selected
 
 	// Should contain common cell sizes
 	commonSizes := []struct {
@@ -329,5 +329,122 @@ func TestCalculateMaxCells_EmptyState(t *testing.T) {
 
 	if result.DeployableCells != 0 {
 		t.Errorf("Empty state should yield 0 deployable cells, got %d", result.DeployableCells)
+	}
+}
+
+func TestCalculate_SelectedResources_MemoryOnly(t *testing.T) {
+	// When only memory is selected, bottleneck should always be "memory"
+	state := models.InfrastructureState{
+		TotalN1MemoryGB: 1024,
+		Clusters: []models.ClusterState{
+			{CPUCores: 1000}, // Plenty of CPU - would be "memory" bottleneck normally
+		},
+	}
+
+	calc := NewPlanningCalculator()
+
+	// With only memory selected, bottleneck should be "memory"
+	input := models.PlanningInput{
+		CellMemoryGB:      32,
+		CellCPU:           4,
+		SelectedResources: []string{"memory"},
+	}
+	result := calc.Calculate(state, input)
+
+	if result.Bottleneck != "memory" {
+		t.Errorf("Expected bottleneck 'memory' when only memory selected, got '%s'", result.Bottleneck)
+	}
+
+	// Deployable should be based on memory only
+	expectedByMemory := state.TotalN1MemoryGB / input.CellMemoryGB // 1024/32 = 32
+	if result.DeployableCells != expectedByMemory {
+		t.Errorf("Expected %d cells (memory-limited), got %d", expectedByMemory, result.DeployableCells)
+	}
+}
+
+func TestCalculate_SelectedResources_CPUOnly(t *testing.T) {
+	// When only CPU is selected, bottleneck should always be "cpu"
+	state := models.InfrastructureState{
+		TotalN1MemoryGB: 10000, // Plenty of memory
+		Clusters: []models.ClusterState{
+			{CPUCores: 128}, // Limited CPU
+		},
+	}
+
+	calc := NewPlanningCalculator()
+
+	// With only CPU selected, bottleneck should be "cpu"
+	input := models.PlanningInput{
+		CellMemoryGB:      32,
+		CellCPU:           4,
+		SelectedResources: []string{"cpu"},
+	}
+	result := calc.Calculate(state, input)
+
+	if result.Bottleneck != "cpu" {
+		t.Errorf("Expected bottleneck 'cpu' when only cpu selected, got '%s'", result.Bottleneck)
+	}
+
+	// Deployable should be based on CPU only
+	expectedByCPU := 128 / input.CellCPU // 128/4 = 32
+	if result.DeployableCells != expectedByCPU {
+		t.Errorf("Expected %d cells (CPU-limited), got %d", expectedByCPU, result.DeployableCells)
+	}
+}
+
+func TestCalculate_SelectedResources_BothSelected(t *testing.T) {
+	// When both selected, bottleneck should reflect actual limiting resource
+	state := models.InfrastructureState{
+		TotalN1MemoryGB: 1024, // 1024/32 = 32 cells by memory
+		Clusters: []models.ClusterState{
+			{CPUCores: 64}, // 64/4 = 16 cells by CPU - THIS IS THE LIMIT
+		},
+	}
+
+	calc := NewPlanningCalculator()
+
+	// With both selected, CPU should be the bottleneck (16 < 32)
+	input := models.PlanningInput{
+		CellMemoryGB:      32,
+		CellCPU:           4,
+		SelectedResources: []string{"memory", "cpu"},
+	}
+	result := calc.Calculate(state, input)
+
+	if result.Bottleneck != "cpu" {
+		t.Errorf("Expected bottleneck 'cpu' (16 < 32), got '%s'", result.Bottleneck)
+	}
+
+	if result.DeployableCells != 16 {
+		t.Errorf("Expected 16 cells (CPU-limited), got %d", result.DeployableCells)
+	}
+}
+
+func TestCalculate_SelectedResources_EmptyDefaultsToAll(t *testing.T) {
+	// When selectedResources is empty/nil, should default to considering all
+	state := models.InfrastructureState{
+		TotalN1MemoryGB: 1024, // 1024/32 = 32 cells by memory
+		Clusters: []models.ClusterState{
+			{CPUCores: 64}, // 64/4 = 16 cells by CPU - THIS IS THE LIMIT
+		},
+	}
+
+	calc := NewPlanningCalculator()
+
+	// With nil selectedResources, should consider all resources
+	input := models.PlanningInput{
+		CellMemoryGB:      32,
+		CellCPU:           4,
+		SelectedResources: nil, // Not set
+	}
+	result := calc.Calculate(state, input)
+
+	// Should report CPU as bottleneck since it's more limiting
+	if result.Bottleneck != "cpu" {
+		t.Errorf("Expected bottleneck 'cpu' with nil selectedResources, got '%s'", result.Bottleneck)
+	}
+
+	if result.DeployableCells != 16 {
+		t.Errorf("Expected 16 cells with nil selectedResources, got %d", result.DeployableCells)
 	}
 }

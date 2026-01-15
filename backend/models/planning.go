@@ -5,9 +5,10 @@ package models
 
 // PlanningInput represents input for infrastructure planning calculation
 type PlanningInput struct {
-	CellMemoryGB int     `json:"cell_memory_gb"` // Desired memory per cell
-	CellCPU      int     `json:"cell_cpu"`       // Desired vCPUs per cell
-	OverheadPct  float64 `json:"overhead_pct"`   // Memory overhead % (default 7)
+	CellMemoryGB      int      `json:"cell_memory_gb"`      // Desired memory per cell
+	CellCPU           int      `json:"cell_cpu"`            // Desired vCPUs per cell
+	OverheadPct       float64  `json:"overhead_pct"`        // Memory overhead % (default 7)
+	SelectedResources []string `json:"selected_resources"`  // ["cpu", "memory", "disk"] - filters bottleneck reporting
 }
 
 // PlanningResult represents the output of infrastructure planning

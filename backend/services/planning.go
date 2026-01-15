@@ -52,6 +52,10 @@ func (c *PlanningCalculator) Calculate(state models.InfrastructureState, input m
 		return models.PlanningResult{Bottleneck: "none"}
 	}
 
+	// Check which resources are selected for analysis
+	cpuSelected := isResourceSelected(input.SelectedResources, "cpu")
+	memorySelected := isResourceSelected(input.SelectedResources, "memory")
+
 	// Calculate max cells by each resource
 	maxByMemory := 0
 	if memoryAvail > 0 {
@@ -63,17 +67,39 @@ func (c *PlanningCalculator) Calculate(state models.InfrastructureState, input m
 		maxByCPU = cpuAvail / input.CellCPU
 	}
 
-	// Deployable is the minimum
-	deployable := maxByMemory
-	if maxByCPU < deployable {
+	// Deployable is the minimum of SELECTED resources only
+	deployable := 0
+	if memorySelected && cpuSelected {
+		// Both selected - use minimum
+		deployable = maxByMemory
+		if maxByCPU < deployable {
+			deployable = maxByCPU
+		}
+	} else if memorySelected {
+		// Only memory selected
+		deployable = maxByMemory
+	} else if cpuSelected {
+		// Only CPU selected
 		deployable = maxByCPU
+	} else {
+		// Neither selected - default to memory (legacy behavior)
+		deployable = maxByMemory
 	}
 
-	// Determine bottleneck
+	// Determine bottleneck - only consider selected resources
 	bottleneck := "balanced"
-	if maxByMemory < maxByCPU {
+	if memorySelected && cpuSelected {
+		// Both selected - report actual bottleneck
+		if maxByMemory < maxByCPU {
+			bottleneck = "memory"
+		} else if maxByCPU < maxByMemory {
+			bottleneck = "cpu"
+		}
+	} else if memorySelected && !cpuSelected {
+		// Only memory selected - always report memory as constraint
 		bottleneck = "memory"
-	} else if maxByCPU < maxByMemory {
+	} else if cpuSelected && !memorySelected {
+		// Only CPU selected - always report cpu as constraint
 		bottleneck = "cpu"
 	}
 
@@ -113,14 +139,16 @@ func (c *PlanningCalculator) Calculate(state models.InfrastructureState, input m
 	}
 }
 
-// GenerateRecommendations produces sizing alternatives for the given infrastructure
-func (c *PlanningCalculator) GenerateRecommendations(state models.InfrastructureState) []models.SizingRecommendation {
+// GenerateRecommendations produces sizing alternatives for the given infrastructure.
+// selectedResources filters which resources are considered for bottleneck reporting.
+func (c *PlanningCalculator) GenerateRecommendations(state models.InfrastructureState, selectedResources []string) []models.SizingRecommendation {
 	var recommendations []models.SizingRecommendation
 
 	for _, preset := range cellSizePresets {
 		input := models.PlanningInput{
-			CellCPU:      preset.cpu,
-			CellMemoryGB: preset.mem,
+			CellCPU:           preset.cpu,
+			CellMemoryGB:      preset.mem,
+			SelectedResources: selectedResources,
 		}
 
 		result := c.Calculate(state, input)
@@ -148,6 +176,6 @@ func (c *PlanningCalculator) GenerateRecommendations(state models.Infrastructure
 func (c *PlanningCalculator) Plan(state models.InfrastructureState, input models.PlanningInput) models.PlanningResponse {
 	return models.PlanningResponse{
 		Result:          c.Calculate(state, input),
-		Recommendations: c.GenerateRecommendations(state),
+		Recommendations: c.GenerateRecommendations(state, input.SelectedResources),
 	}
 }
