@@ -304,3 +304,88 @@ func TestScenarioCompare_NoCPUConfigDisablesAnalysis(t *testing.T) {
 
 	t.Log("CPU analysis correctly disabled when PhysicalCoresPerHost not provided")
 }
+
+func TestScenarioCompare_MaxCellsByCPU(t *testing.T) {
+	handler := handlers.NewHandler(nil, nil)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/infrastructure/manual", handler.HandleManualInfrastructure)
+	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Set up infrastructure
+	manualInput := models.ManualInput{
+		Name: "MaxCellsByCPU Test",
+		Clusters: []models.ClusterInput{
+			{
+				Name:              "test-cluster",
+				HostCount:         3,
+				MemoryGBPerHost:   512,
+				CPUCoresPerHost:   32,
+				DiegoCellCount:    10,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+				DiegoCellDiskGB:   128,
+			},
+		},
+	}
+
+	body1, _ := json.Marshal(manualInput)
+	resp1, err := http.Post(server.URL+"/api/infrastructure/manual", "application/json", bytes.NewReader(body1))
+	if err != nil {
+		t.Fatalf("Failed to post manual infrastructure: %v", err)
+	}
+	defer resp1.Body.Close()
+
+	// Scenario with CPU constraint fields
+	// 3 hosts * 32 pCPU = 96 total pCPU
+	// Target 4:1 = 384 max vCPU
+	// Platform VMs = 24 vCPU
+	// Available = 384 - 24 = 360 vCPU
+	// Max cells = 360 / 4 = 90 cells
+	// Proposing 20 cells, headroom = 90 - 20 = 70
+	scenarioInput := models.ScenarioInput{
+		ProposedCellMemoryGB: 32,
+		ProposedCellCPU:      4,
+		ProposedCellDiskGB:   128,
+		ProposedCellCount:    20,
+		HostCount:            3,
+		MemoryPerHostGB:      512,
+		HAAdmissionPct:       25,
+		PhysicalCoresPerHost: 32,
+		TargetVCPURatio:      4,
+		PlatformVMsCPU:       24,
+	}
+
+	body2, _ := json.Marshal(scenarioInput)
+	resp2, err := http.Post(server.URL+"/api/scenario/compare", "application/json", bytes.NewReader(body2))
+	if err != nil {
+		t.Fatalf("Failed to post scenario compare: %v", err)
+	}
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("Expected 200, got %d", resp2.StatusCode)
+	}
+
+	var comparison models.ScenarioComparison
+	if err := json.NewDecoder(resp2.Body).Decode(&comparison); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	// Verify MaxCellsByCPU
+	expectedMaxCells := 90 // (4 * 96 - 24) / 4 = 90
+	if comparison.Proposed.MaxCellsByCPU != expectedMaxCells {
+		t.Errorf("MaxCellsByCPU = %d, want %d", comparison.Proposed.MaxCellsByCPU, expectedMaxCells)
+	}
+
+	// Verify CPUHeadroomCells
+	expectedHeadroom := 70 // 90 - 20 = 70
+	if comparison.Proposed.CPUHeadroomCells != expectedHeadroom {
+		t.Errorf("CPUHeadroomCells = %d, want %d", comparison.Proposed.CPUHeadroomCells, expectedHeadroom)
+	}
+
+	t.Logf("CPU Constraint: MaxCells=%d, Headroom=%d (proposing %d cells)",
+		comparison.Proposed.MaxCellsByCPU, comparison.Proposed.CPUHeadroomCells, 20)
+}
