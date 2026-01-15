@@ -608,6 +608,9 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 	utilizationChange := proposed.UtilizationPct - current.UtilizationPct
 	diskUtilizationChange := proposed.DiskUtilizationPct - current.DiskUtilizationPct
 
+	// CPU ratio change
+	vcpuRatioChange := proposed.VCPURatio - current.VCPURatio
+
 	// ResilienceChange based on blast radius: what % of capacity is at risk per cell failure
 	// "low" = ≤5% blast radius (20+ cells), very resilient
 	// "moderate" = 5-15% blast radius (7-20 cells), acceptable for most workloads
@@ -633,6 +636,7 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 			UtilizationChangePct:     utilizationChange,
 			DiskUtilizationChangePct: diskUtilizationChange,
 			ResilienceChange:         resilienceChange,
+			VCPURatioChange:          vcpuRatioChange,
 		},
 	}
 }

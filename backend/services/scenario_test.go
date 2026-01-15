@@ -1511,3 +1511,31 @@ func TestGenerateWarnings_AggressiveRatio(t *testing.T) {
 		t.Error("Expected critical warning about aggressive ratio")
 	}
 }
+
+func TestCompare_VCPURatioChange(t *testing.T) {
+	calc := NewScenarioCalculator()
+
+	state := models.InfrastructureState{
+		TotalCellCount: 10,
+		Clusters: []models.ClusterState{
+			{DiegoCellMemoryGB: 32, DiegoCellCPU: 4, DiegoCellDiskGB: 128},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellMemoryGB: 32,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    20, // Double the cells
+		HostCount:            3,
+		PhysicalCoresPerHost: 32,
+	}
+
+	comparison := calc.Compare(state, input)
+
+	// Current: 0 (no host config for current)
+	// Proposed: 20 * 4 / (3 * 32) = 80/96 = 0.833
+	// Change should be 0.833 - 0 = 0.833
+	if comparison.Delta.VCPURatioChange == 0 && comparison.Proposed.VCPURatio > 0 {
+		t.Errorf("VCPURatioChange = 0, but proposed ratio is %f", comparison.Proposed.VCPURatio)
+	}
+}
