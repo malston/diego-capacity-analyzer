@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
@@ -1451,5 +1452,62 @@ func TestCalculateCPURatioFix(t *testing.T) {
 	}
 	if !foundCellFix {
 		t.Errorf("Expected fix suggestion to reduce to 48 cells, got: %+v", fixes)
+	}
+}
+
+func TestGenerateWarnings_CPURatioExceedsTarget(t *testing.T) {
+	calc := NewScenarioCalculator()
+
+	current := models.ScenarioResult{
+		TotalPCPUs: 96,
+		VCPURatio:  3.0,
+	}
+	proposed := models.ScenarioResult{
+		TotalPCPUs:   96,
+		TotalVCPUs:   624,
+		VCPURatio:    6.5,
+		CPURiskLevel: "moderate",
+	}
+
+	ctx := &WarningsContext{
+		Input: models.ScenarioInput{
+			TargetVCPURatio: 4,
+		},
+	}
+
+	warnings := calc.GenerateWarnings(current, proposed, nil, ctx)
+
+	found := false
+	for _, w := range warnings {
+		if w.Severity == "warning" && strings.Contains(w.Message, "exceeds target") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected warning about ratio exceeding target")
+	}
+}
+
+func TestGenerateWarnings_AggressiveRatio(t *testing.T) {
+	calc := NewScenarioCalculator()
+
+	current := models.ScenarioResult{}
+	proposed := models.ScenarioResult{
+		TotalPCPUs:   96,
+		TotalVCPUs:   1000,
+		VCPURatio:    10.4,
+		CPURiskLevel: "aggressive",
+	}
+
+	warnings := calc.GenerateWarnings(current, proposed, nil, nil)
+
+	found := false
+	for _, w := range warnings {
+		if w.Severity == "critical" && strings.Contains(w.Message, "aggressive") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected critical warning about aggressive ratio")
 	}
 }

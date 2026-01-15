@@ -516,6 +516,41 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 		})
 	}
 
+	// vCPU:pCPU ratio warnings (only when CPU analysis enabled)
+	if proposed.TotalPCPUs > 0 {
+		targetRatio := 4.0 // Default target
+		if ctx != nil && ctx.Input.TargetVCPURatio > 0 {
+			targetRatio = float64(ctx.Input.TargetVCPURatio)
+		}
+
+		// Warning when ratio exceeds target
+		if proposed.VCPURatio > targetRatio {
+			warning := models.ScenarioWarning{
+				Severity: "warning",
+				Message: fmt.Sprintf(
+					"vCPU:pCPU ratio %.1f:1 exceeds target %.0f:1 - expect CPU contention under load",
+					proposed.VCPURatio, targetRatio,
+				),
+			}
+			if ctx != nil {
+				warning.Change = findRelevantChange(ctx.Changes, "cell_count", "cell_cpu")
+				warning.Fixes = CalculateCPURatioFix(ctx.State, ctx.Input, proposed.VCPURatio, targetRatio)
+			}
+			warnings = append(warnings, warning)
+		}
+
+		// Critical when ratio is aggressive (>8:1)
+		if proposed.CPURiskLevel == "aggressive" {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "critical",
+				Message: fmt.Sprintf(
+					"vCPU:pCPU ratio %.1f:1 is aggressive - monitor CPU Ready time (>5%% indicates problems)",
+					proposed.VCPURatio,
+				),
+			})
+		}
+	}
+
 	return warnings
 }
 
