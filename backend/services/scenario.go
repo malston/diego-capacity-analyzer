@@ -675,6 +675,47 @@ func DetectChanges(state models.InfrastructureState, input models.ScenarioInput)
 	return changes
 }
 
+// CalculateCPURatioFix suggests how to reduce vCPU:pCPU ratio to target.
+// Returns at most 2 fix suggestions.
+func CalculateCPURatioFix(state models.InfrastructureState, input models.ScenarioInput,
+	currentRatio, targetRatio float64) []models.FixSuggestion {
+	var fixes []models.FixSuggestion
+
+	totalPCPUs := input.HostCount * input.PhysicalCoresPerHost
+	if totalPCPUs == 0 || input.ProposedCellCPU == 0 {
+		return fixes
+	}
+
+	// Fix 1: Reduce cell count to achieve target ratio
+	// targetRatio = (cells * cellCPU) / totalPCPUs
+	// cells = (targetRatio * totalPCPUs) / cellCPU
+	targetCells := int(targetRatio * float64(totalPCPUs) / float64(input.ProposedCellCPU))
+	if targetCells > 0 && targetCells < input.ProposedCellCount {
+		fixes = append(fixes, models.FixSuggestion{
+			Description: fmt.Sprintf("Reduce to %d cells to achieve %.0f:1 ratio", targetCells, targetRatio),
+			Field:       "cell_count",
+			Value:       targetCells,
+		})
+	}
+
+	// Fix 2: Reduce vCPU per cell
+	// targetRatio = (cells * cellCPU) / totalPCPUs
+	// cellCPU = (targetRatio * totalPCPUs) / cells
+	targetCellCPU := int(targetRatio * float64(totalPCPUs) / float64(input.ProposedCellCount))
+	if targetCellCPU > 0 && targetCellCPU < input.ProposedCellCPU {
+		fixes = append(fixes, models.FixSuggestion{
+			Description: fmt.Sprintf("Reduce cell vCPU to %d to achieve %.0f:1 ratio", targetCellCPU, targetRatio),
+			Field:       "cell_cpu",
+			Value:       targetCellCPU,
+		})
+	}
+
+	if len(fixes) > 2 {
+		fixes = fixes[:2]
+	}
+	return fixes
+}
+
 // CalculateCapacityFix calculates fix suggestions for N-1/HA capacity warnings.
 // It suggests reducing cell count to achieve 84% utilization, or adding hosts.
 // Returns at most 2 fix suggestions.

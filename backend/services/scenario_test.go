@@ -1420,3 +1420,36 @@ func TestCalculateFull_WithCPUConfig(t *testing.T) {
 		t.Errorf("CPURiskLevel = %s, want conservative", result.CPURiskLevel)
 	}
 }
+
+func TestCalculateCPURatioFix(t *testing.T) {
+	state := models.InfrastructureState{}
+
+	// 50 cells × 8 vCPU = 400 vCPU
+	// 3 hosts × 32 pCPU = 96 pCPU
+	// Current ratio = 400/96 = 4.17:1
+	// Target ratio = 4:1
+	input := models.ScenarioInput{
+		ProposedCellCount:    50,
+		ProposedCellCPU:      8,
+		HostCount:            3,
+		PhysicalCoresPerHost: 32,
+		TargetVCPURatio:      4,
+	}
+
+	fixes := CalculateCPURatioFix(state, input, 4.17, 4.0)
+
+	if len(fixes) == 0 {
+		t.Fatal("Expected at least one fix suggestion")
+	}
+
+	// Should suggest reducing cells: 4 * 96 / 8 = 48 cells
+	foundCellFix := false
+	for _, fix := range fixes {
+		if fix.Field == "cell_count" && fix.Value == 48 {
+			foundCellFix = true
+		}
+	}
+	if !foundCellFix {
+		t.Errorf("Expected fix suggestion to reduce to 48 cells, got: %+v", fixes)
+	}
+}
