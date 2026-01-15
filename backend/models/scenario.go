@@ -25,6 +25,8 @@ type ScenarioInput struct {
 	PhysicalCoresPerHost int `json:"physical_cores_per_host"`
 	// TargetVCPURatio is the user's target vCPU:pCPU ratio (e.g., 4 for 4:1). 0 means use default (4:1).
 	TargetVCPURatio int `json:"target_vcpu_ratio"`
+	// PlatformVMsCPU is total vCPUs allocated to non-Diego platform VMs (BOSH, Diego Brain, Router, etc.)
+	PlatformVMsCPU int `json:"platform_vms_cpu"`
 }
 
 // EnableTPS returns true if TPS analysis should be performed.
