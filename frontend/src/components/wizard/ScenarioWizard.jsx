@@ -39,6 +39,8 @@ const ScenarioWizard = ({
   setHostCount,
   targetVCPURatio,
   setTargetVCPURatio,
+  platformVMsCPU,
+  setPlatformVMsCPU,
   // Host config props (for Advanced step)
   memoryPerHost,
   setMemoryPerHost,
@@ -133,6 +135,8 @@ const ScenarioWizard = ({
             setHostCount={setHostCount}
             targetVCPURatio={targetVCPURatio}
             setTargetVCPURatio={setTargetVCPURatio}
+            platformVMsCPU={platformVMsCPU}
+            setPlatformVMsCPU={setPlatformVMsCPU}
             totalVCPUs={totalVCPUs}
             onContinue={handleContinue}
             onSkip={handleContinue}

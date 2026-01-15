@@ -23,6 +23,21 @@ describe('ScenarioWizard', () => {
     toggleResource: vi.fn(),
     customDisk: 128,
     setCustomDisk: vi.fn(),
+    // CPU config props
+    physicalCoresPerHost: 32,
+    setPhysicalCoresPerHost: vi.fn(),
+    hostCount: 3,
+    setHostCount: vi.fn(),
+    targetVCPURatio: 4,
+    setTargetVCPURatio: vi.fn(),
+    platformVMsCPU: 0,
+    setPlatformVMsCPU: vi.fn(),
+    totalVCPUs: 400,
+    // Host config props (for Advanced step)
+    memoryPerHost: 512,
+    setMemoryPerHost: vi.fn(),
+    haAdmissionPct: 7,
+    setHaAdmissionPct: vi.fn(),
     // Advanced props
     overheadPct: 7,
     setOverheadPct: vi.fn(),
@@ -85,5 +100,47 @@ describe('ScenarioWizard', () => {
     await userEvent.click(screen.getByText('Resources'));
     // Should show step 1 content
     expect(screen.getByText(/which resources to analyze/i)).toBeInTheDocument();
+  });
+
+  it('shows CPU Config step when cpu resource is selected', async () => {
+    render(<ScenarioWizard {...defaultProps} selectedResources={['memory', 'cpu']} />);
+    // Should have CPU Config step in indicator
+    expect(screen.getByText('CPU Config')).toBeInTheDocument();
+    // Navigate to CPU Config step: Resources -> Cell Config -> CPU Config
+    await userEvent.click(screen.getByRole('button', { name: /continue/i })); // to Cell Config
+    await userEvent.click(screen.getByRole('button', { name: /continue/i })); // to CPU Config
+    // Should show CPU Config step content
+    expect(screen.getByLabelText(/physical cores per host/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/number of hosts/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/target vcpu.*ratio/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/platform vm vcpus/i)).toBeInTheDocument();
+  });
+
+  it('hides CPU Config step when cpu resource is not selected', () => {
+    render(<ScenarioWizard {...defaultProps} selectedResources={['memory']} />);
+    // Should NOT have CPU Config step in indicator
+    expect(screen.queryByText('CPU Config')).not.toBeInTheDocument();
+  });
+
+  it('passes platformVMsCPU prop to CPUConfigStep', async () => {
+    const setPlatformVMsCPU = vi.fn();
+    render(
+      <ScenarioWizard
+        {...defaultProps}
+        selectedResources={['memory', 'cpu']}
+        platformVMsCPU={120}
+        setPlatformVMsCPU={setPlatformVMsCPU}
+      />
+    );
+    // Navigate to CPU Config step
+    await userEvent.click(screen.getByRole('button', { name: /continue/i })); // to Cell Config
+    await userEvent.click(screen.getByRole('button', { name: /continue/i })); // to CPU Config
+    // Verify platformVMsCPU value is displayed
+    const input = screen.getByLabelText(/platform vm vcpus/i);
+    expect(input).toHaveValue(120);
+    // Change value and verify setter is called
+    await userEvent.clear(input);
+    await userEvent.type(input, '200');
+    expect(setPlatformVMsCPU).toHaveBeenCalled();
   });
 });

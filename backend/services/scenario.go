@@ -420,18 +420,43 @@ func findRelevantChange(changes []models.ConfigChange, preferredFields ...string
 	return nil
 }
 
+// isResourceSelected checks if a resource type is in the selected resources list.
+// If selectedResources is nil or empty, returns true (default to all selected).
+func isResourceSelected(selectedResources []string, resource string) bool {
+	if len(selectedResources) == 0 {
+		return true // Default: all resources selected
+	}
+	for _, r := range selectedResources {
+		if r == resource {
+			return true
+		}
+	}
+	return false
+}
+
 // GenerateWarnings produces warnings based on proposed scenario.
 // The constraints parameter is optional - if provided, the warning messages
 // will reflect whether HA Admission Control or N-1 is the limiting factor.
 // The ctx parameter is optional - if provided, warnings will include change
 // context and fix suggestions.
+// Warnings are filtered by selectedResources (ctx.Input.SelectedResources):
+// - CPU warnings only shown when "cpu" is selected
+// - Disk warnings only shown when "disk" is selected
+// - Memory/capacity warnings always shown (memory is the base resource)
 func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioResult, constraints *models.ConstraintAnalysis, ctx *WarningsContext) []models.ScenarioWarning {
 	var warnings []models.ScenarioWarning
+
+	// Get selected resources from context (nil means all resources)
+	var selectedResources []string
+	if ctx != nil {
+		selectedResources = ctx.Input.SelectedResources
+	}
 
 	// Determine which constraint is limiting for the warning message
 	isHALimiting := constraints != nil && constraints.LimitingConstraint == "ha_admission"
 
 	// Capacity utilization warnings - message depends on limiting constraint
+	// These are memory-related and always shown
 	if proposed.N1UtilizationPct > 85 {
 		var message string
 		if isHALimiting {
@@ -494,17 +519,19 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 		})
 	}
 
-	// Disk utilization warnings
-	if proposed.DiskUtilizationPct > 90 {
-		warnings = append(warnings, models.ScenarioWarning{
-			Severity: "critical",
-			Message:  "Disk utilization critically high",
-		})
-	} else if proposed.DiskUtilizationPct > 80 {
-		warnings = append(warnings, models.ScenarioWarning{
-			Severity: "warning",
-			Message:  "Disk utilization elevated",
-		})
+	// Disk utilization warnings (only when disk analysis is selected)
+	if isResourceSelected(selectedResources, "disk") {
+		if proposed.DiskUtilizationPct > 90 {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "critical",
+				Message:  "Disk utilization critically high",
+			})
+		} else if proposed.DiskUtilizationPct > 80 {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "warning",
+				Message:  "Disk utilization elevated",
+			})
+		}
 	}
 
 	// TPS degradation warnings
@@ -535,8 +562,8 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 		})
 	}
 
-	// vCPU:pCPU ratio warnings (only when CPU analysis enabled)
-	if proposed.TotalPCPUs > 0 {
+	// vCPU:pCPU ratio warnings (only when CPU analysis enabled AND cpu resource selected)
+	if proposed.TotalPCPUs > 0 && isResourceSelected(selectedResources, "cpu") {
 		targetRatio := 4.0 // Default target
 		if ctx != nil && ctx.Input.TargetVCPURatio > 0 {
 			targetRatio = float64(ctx.Input.TargetVCPURatio)

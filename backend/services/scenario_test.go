@@ -1691,3 +1691,188 @@ func TestCalculateMaxCellsByCPU(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// SELECTED RESOURCES FILTER TESTS
+// ============================================================================
+
+func TestGenerateWarnings_SelectedResources_DiskFiltered(t *testing.T) {
+	// Test that disk warnings are filtered when "disk" is not in selectedResources
+	current := models.ScenarioResult{
+		N1UtilizationPct:   70,
+		FreeChunks:         500,
+		CellCount:          100,
+		DiskUtilizationPct: 50,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct:   70,
+		FreeChunks:         500,
+		CellCount:          100,
+		DiskUtilizationPct: 92, // > 90% = would normally trigger critical warning
+	}
+
+	calc := NewScenarioCalculator()
+
+	// With disk selected, warning should appear
+	ctxWithDisk := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"memory", "disk"},
+		},
+	}
+	warningsWithDisk := calc.GenerateWarnings(current, proposed, nil, ctxWithDisk)
+
+	foundDiskWarning := false
+	for _, w := range warningsWithDisk {
+		if w.Message == "Disk utilization critically high" {
+			foundDiskWarning = true
+			break
+		}
+	}
+	if !foundDiskWarning {
+		t.Error("Expected disk warning when disk is in selectedResources")
+	}
+
+	// Without disk selected, warning should NOT appear
+	ctxWithoutDisk := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"memory"},
+		},
+	}
+	warningsWithoutDisk := calc.GenerateWarnings(current, proposed, nil, ctxWithoutDisk)
+
+	for _, w := range warningsWithoutDisk {
+		if w.Message == "Disk utilization critically high" {
+			t.Error("Expected disk warning to be filtered when disk is not in selectedResources")
+		}
+	}
+}
+
+func TestGenerateWarnings_SelectedResources_CPUFiltered(t *testing.T) {
+	// Test that CPU ratio warnings are filtered when "cpu" is not in selectedResources
+	current := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+		TotalPCPUs:       96,
+		TotalVCPUs:       1000,
+		VCPURatio:        10.4,
+		CPURiskLevel:     "aggressive", // Would normally trigger critical warning
+	}
+
+	calc := NewScenarioCalculator()
+
+	// With cpu selected, warning should appear
+	ctxWithCPU := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"memory", "cpu"},
+		},
+	}
+	warningsWithCPU := calc.GenerateWarnings(current, proposed, nil, ctxWithCPU)
+
+	foundCPUWarning := false
+	for _, w := range warningsWithCPU {
+		if strings.Contains(w.Message, "aggressive") && strings.Contains(w.Message, "vCPU:pCPU") {
+			foundCPUWarning = true
+			break
+		}
+	}
+	if !foundCPUWarning {
+		t.Error("Expected CPU ratio warning when cpu is in selectedResources")
+	}
+
+	// Without cpu selected, warning should NOT appear
+	ctxWithoutCPU := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"memory"},
+		},
+	}
+	warningsWithoutCPU := calc.GenerateWarnings(current, proposed, nil, ctxWithoutCPU)
+
+	for _, w := range warningsWithoutCPU {
+		if strings.Contains(w.Message, "vCPU:pCPU") {
+			t.Errorf("Expected CPU ratio warning to be filtered when cpu is not in selectedResources, got: %s", w.Message)
+		}
+	}
+}
+
+func TestGenerateWarnings_SelectedResources_MemoryAlwaysShown(t *testing.T) {
+	// Test that memory-related warnings are always shown regardless of selectedResources
+	current := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct: 90, // > 85% = critical warning
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+
+	calc := NewScenarioCalculator()
+
+	// Even with only cpu selected (no memory), N-1 warning should appear
+	ctxOnlyCPU := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"cpu"},
+		},
+	}
+	warningsOnlyCPU := calc.GenerateWarnings(current, proposed, nil, ctxOnlyCPU)
+
+	foundN1Warning := false
+	for _, w := range warningsOnlyCPU {
+		if w.Severity == "critical" && w.Message == "Exceeds N-1 capacity safety margin" {
+			foundN1Warning = true
+			break
+		}
+	}
+	if !foundN1Warning {
+		t.Error("Expected N-1 warning to always appear (memory is always analyzed)")
+	}
+}
+
+func TestGenerateWarnings_SelectedResources_EmptyDefaultsToAll(t *testing.T) {
+	// Test that empty selectedResources defaults to showing all warnings
+	current := models.ScenarioResult{
+		N1UtilizationPct:   70,
+		FreeChunks:         500,
+		CellCount:          100,
+		DiskUtilizationPct: 50,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct:   70,
+		FreeChunks:         500,
+		CellCount:          100,
+		DiskUtilizationPct: 92, // > 90% = critical
+		TotalPCPUs:         96,
+		TotalVCPUs:         1000,
+		VCPURatio:          10.4,
+		CPURiskLevel:       "aggressive",
+	}
+
+	calc := NewScenarioCalculator()
+
+	// With empty selectedResources (nil context), all warnings should show
+	warnings := calc.GenerateWarnings(current, proposed, nil, nil)
+
+	foundDiskWarning := false
+	foundCPUWarning := false
+	for _, w := range warnings {
+		if w.Message == "Disk utilization critically high" {
+			foundDiskWarning = true
+		}
+		if strings.Contains(w.Message, "aggressive") && strings.Contains(w.Message, "vCPU:pCPU") {
+			foundCPUWarning = true
+		}
+	}
+	if !foundDiskWarning {
+		t.Error("Expected disk warning when selectedResources is empty (default to all)")
+	}
+	if !foundCPUWarning {
+		t.Error("Expected CPU warning when selectedResources is empty (default to all)")
+	}
+}
