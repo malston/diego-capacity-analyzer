@@ -3,13 +3,9 @@
   "env": {
     "MAX_MCP_OUTPUT_TOKENS": "60000",
     "BASH_DEFAULT_TIMEOUT_MS": "300000",
-    "BASH_MAX_TIMEOUT_MS": "600000",
-    "MAX_THINKING_TOKENS": "8192",
-    "ENABLE_EXPERIMENTAL_MCP_CLI": "true"
+    "BASH_MAX_TIMEOUT_MS": "600000"
   },
   "includeCoAuthoredBy": false,
-  "dangerously_skip_permissions": false,
-  "verbose": false,
   "hooks": {
     "SessionStart": [
       {
