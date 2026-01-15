@@ -470,6 +470,102 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
         </div>
       </div>
 
+      {/* Capacity Constraints Section - shows max cells by resource with bottleneck */}
+      {selectedResources.includes('cpu') && proposed.max_cells_by_cpu > 0 && comparison.constraints && (
+        <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
+          <div className="flex items-center gap-2 mb-4 text-gray-400">
+            <Server size={16} />
+            <span className="text-xs uppercase tracking-wider font-medium">Maximum Deployable Cells</span>
+          </div>
+
+          {(() => {
+            // Calculate max cells by memory from constraint analysis
+            const constraint = comparison.constraints;
+            const limitingConstraint = constraint.limiting_constraint === 'ha_admission'
+              ? constraint.ha_admission
+              : constraint.n_minus_x;
+            const maxCellsByMemory = proposed.cell_memory_gb > 0
+              ? Math.floor(limitingConstraint.usable_gb / proposed.cell_memory_gb)
+              : 0;
+
+            const maxCellsByCPU = proposed.max_cells_by_cpu;
+
+            // Determine bottleneck (smaller is more constraining)
+            const isMemoryBottleneck = maxCellsByMemory <= maxCellsByCPU;
+            const isCPUBottleneck = maxCellsByCPU < maxCellsByMemory;
+
+            // Calculate headroom for each (cells remaining beyond current)
+            const currentCells = proposed.cell_count;
+            const memoryHeadroom = maxCellsByMemory - currentCells;
+            const cpuHeadroom = proposed.cpu_headroom_cells;
+
+            return (
+              <div className="space-y-3">
+                {/* Memory Constraint */}
+                <div className={`flex items-center justify-between p-3 rounded-lg ${
+                  isMemoryBottleneck ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-slate-700/30'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Database size={16} className={isMemoryBottleneck ? 'text-amber-400' : 'text-gray-400'} />
+                    <span className={`font-medium ${isMemoryBottleneck ? 'text-amber-300' : 'text-gray-300'}`}>
+                      Memory
+                    </span>
+                    {isMemoryBottleneck && (
+                      <span className="text-xs text-amber-400 px-2 py-0.5 bg-amber-500/20 rounded">
+                        ← BOTTLENECK
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className={`font-mono font-bold ${isMemoryBottleneck ? 'text-amber-400' : 'text-gray-300'}`}>
+                      {maxCellsByMemory} cells
+                    </span>
+                    {!isMemoryBottleneck && memoryHeadroom > 0 && (
+                      <span className="text-xs text-gray-500 ml-2">
+                        (+{memoryHeadroom} headroom)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* CPU Constraint */}
+                <div className={`flex items-center justify-between p-3 rounded-lg ${
+                  isCPUBottleneck ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-slate-700/30'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Cpu size={16} className={isCPUBottleneck ? 'text-amber-400' : 'text-gray-400'} />
+                    <span className={`font-medium ${isCPUBottleneck ? 'text-amber-300' : 'text-gray-300'}`}>
+                      CPU
+                    </span>
+                    {isCPUBottleneck && (
+                      <span className="text-xs text-amber-400 px-2 py-0.5 bg-amber-500/20 rounded">
+                        ← BOTTLENECK
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className={`font-mono font-bold ${isCPUBottleneck ? 'text-amber-400' : 'text-gray-300'}`}>
+                      {maxCellsByCPU} cells
+                    </span>
+                    {!isCPUBottleneck && cpuHeadroom > 0 && (
+                      <span className="text-xs text-gray-500 ml-2">
+                        (+{cpuHeadroom} headroom)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          <div className="mt-4 pt-3 border-t border-slate-700/50 text-center">
+            <p className="text-xs text-gray-500">
+              Max cells limited by {comparison.constraints.limiting_constraint === 'ha_admission' ? 'HA Admission' : 'N-1'} memory and target CPU ratio
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Warnings Section */}
       {safeWarnings.length > 0 && (
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
