@@ -106,7 +106,8 @@ type ScenarioDelta struct {
 	DiskCapacityChangeGB     int     `json:"disk_capacity_change_gb"`
 	UtilizationChangePct     float64 `json:"utilization_change_pct"`
 	DiskUtilizationChangePct float64 `json:"disk_utilization_change_pct"`
-	ResilienceChange         string  `json:"resilience_change"` // "low", "moderate", "high" based on blast radius
+	ResilienceChange         string  `json:"resilience_change"`  // "low", "moderate", "high" based on blast radius
+	VCPURatioChange          float64 `json:"vcpu_ratio_change"` // Proposed ratio - current ratio
 }
 
 // ScenarioComparison represents full comparison response

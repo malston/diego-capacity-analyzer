@@ -91,3 +91,16 @@ func TestScenarioResult_CPUFields(t *testing.T) {
 		t.Errorf("CPURiskLevel = %s, want conservative", result.CPURiskLevel)
 	}
 }
+
+func TestScenarioDelta_VCPURatioChange(t *testing.T) {
+	jsonInput := `{"vcpu_ratio_change": 1.5}`
+	var delta ScenarioDelta
+	err := json.Unmarshal([]byte(jsonInput), &delta)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
+	}
+
+	if delta.VCPURatioChange != 1.5 {
+		t.Errorf("VCPURatioChange = %f, want 1.5", delta.VCPURatioChange)
+	}
+}
