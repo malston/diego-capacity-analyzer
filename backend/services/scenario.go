@@ -231,6 +231,8 @@ func (c *ScenarioCalculator) CalculateCurrent(state models.InfrastructureState, 
 		state.TotalN1MemoryGB,
 		DefaultMemoryOverheadPct,
 		tpsCurve,
+		0, // hostCount - not available in current state
+		0, // physicalCoresPerHost - not available in current state
 	)
 }
 
@@ -265,6 +267,8 @@ func (c *ScenarioCalculator) CalculateProposed(state models.InfrastructureState,
 		state.TotalN1MemoryGB,
 		overheadPct,
 		input.TPSCurve,
+		input.HostCount,
+		input.PhysicalCoresPerHost,
 	)
 }
 
@@ -281,6 +285,8 @@ func (c *ScenarioCalculator) calculateFull(
 	n1MemoryGB int,
 	overheadPct float64,
 	tpsCurve []models.TPSPt,
+	hostCount int,            // for CPU ratio calculation
+	physicalCoresPerHost int, // for CPU ratio calculation
 ) models.ScenarioResult {
 	// Memory overhead as percentage
 	memoryOverhead := int(float64(cellMemoryGB) * (overheadPct / 100))
@@ -336,6 +342,18 @@ func (c *ScenarioCalculator) calculateFull(
 		blastRadiusPct = 100.0 / float64(cellCount)
 	}
 
+	// CPU ratio calculations (only when host CPU config provided)
+	var totalVCPUs, totalPCPUs int
+	var vcpuRatio float64
+	var cpuRiskLevel string
+
+	if hostCount > 0 && physicalCoresPerHost > 0 {
+		totalVCPUs = cellCount * cellCPU
+		totalPCPUs = hostCount * physicalCoresPerHost
+		vcpuRatio = float64(totalVCPUs) / float64(totalPCPUs)
+		cpuRiskLevel = CPURiskLevel(vcpuRatio)
+	}
+
 	return models.ScenarioResult{
 		CellCount:          cellCount,
 		CellMemoryGB:       cellMemoryGB,
@@ -352,6 +370,10 @@ func (c *ScenarioCalculator) calculateFull(
 		EstimatedTPS:       estimatedTPS,
 		TPSStatus:          tpsStatus,
 		BlastRadiusPct:     blastRadiusPct,
+		TotalVCPUs:         totalVCPUs,
+		TotalPCPUs:         totalPCPUs,
+		VCPURatio:          vcpuRatio,
+		CPURiskLevel:       cpuRiskLevel,
 	}
 }
 

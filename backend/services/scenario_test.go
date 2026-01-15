@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
@@ -1379,5 +1380,43 @@ func TestCPURiskLevel(t *testing.T) {
 				t.Errorf("CPURiskLevel(%.1f) = %s, want %s", tt.ratio, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestCalculateFull_WithCPUConfig(t *testing.T) {
+	calc := NewScenarioCalculator()
+
+	state := models.InfrastructureState{
+		TotalCellCount: 10,
+		Clusters: []models.ClusterState{
+			{DiegoCellMemoryGB: 32, DiegoCellCPU: 4, DiegoCellDiskGB: 128},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellMemoryGB: 32,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    10,
+		HostCount:            3,
+		PhysicalCoresPerHost: 32,
+	}
+
+	result := calc.CalculateProposed(state, input)
+
+	// 10 cells × 4 vCPU = 40 vCPU
+	// 3 hosts × 32 pCPU = 96 pCPU
+	// Ratio = 40/96 = 0.417
+	if result.TotalVCPUs != 40 {
+		t.Errorf("TotalVCPUs = %d, want 40", result.TotalVCPUs)
+	}
+	if result.TotalPCPUs != 96 {
+		t.Errorf("TotalPCPUs = %d, want 96", result.TotalPCPUs)
+	}
+	expectedRatio := 40.0 / 96.0
+	if math.Abs(result.VCPURatio-expectedRatio) > 0.01 {
+		t.Errorf("VCPURatio = %f, want %f", result.VCPURatio, expectedRatio)
+	}
+	if result.CPURiskLevel != "conservative" {
+		t.Errorf("CPURiskLevel = %s, want conservative", result.CPURiskLevel)
 	}
 }
