@@ -1539,3 +1539,68 @@ func TestCompare_VCPURatioChange(t *testing.T) {
 		t.Errorf("VCPURatioChange = 0, but proposed ratio is %f", comparison.Proposed.VCPURatio)
 	}
 }
+
+// ============================================================================
+// MAX CELLS BY CPU TESTS
+// ============================================================================
+
+func TestCalculateMaxCellsByCPU(t *testing.T) {
+	tests := []struct {
+		name           string
+		targetRatio    float64
+		totalPCPUs     int
+		cellCPU        int
+		platformVMsCPU int
+		want           int
+	}{
+		{
+			name:           "standard case",
+			targetRatio:    4.0,
+			totalPCPUs:     100,
+			cellCPU:        4,
+			platformVMsCPU: 0,
+			want:           100, // 4.0 * 100 / 4 = 100
+		},
+		{
+			name:           "with platform overhead",
+			targetRatio:    4.0,
+			totalPCPUs:     100,
+			cellCPU:        4,
+			platformVMsCPU: 40,
+			want:           90, // (4.0 * 100 - 40) / 4 = 90
+		},
+		{
+			name:           "zero cellCPU disabled",
+			targetRatio:    4.0,
+			totalPCPUs:     100,
+			cellCPU:        0,
+			platformVMsCPU: 0,
+			want:           0,
+		},
+		{
+			name:           "zero totalPCPUs disabled",
+			targetRatio:    4.0,
+			totalPCPUs:     0,
+			cellCPU:        4,
+			platformVMsCPU: 0,
+			want:           0,
+		},
+		{
+			name:           "platform exceeds budget",
+			targetRatio:    4.0,
+			totalPCPUs:     100,
+			cellCPU:        4,
+			platformVMsCPU: 500, // 500 > 400 (4.0 * 100)
+			want:           0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := CalculateMaxCellsByCPU(tt.targetRatio, tt.totalPCPUs, tt.cellCPU, tt.platformVMsCPU)
+			if got != tt.want {
+				t.Errorf("CalculateMaxCellsByCPU() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

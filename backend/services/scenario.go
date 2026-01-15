@@ -817,3 +817,24 @@ func CalculateCapacityFix(state models.InfrastructureState, input models.Scenari
 
 	return fixes
 }
+
+// CalculateMaxCellsByCPU returns max cells before hitting target vCPU:pCPU ratio.
+// Returns 0 if CPU analysis is disabled (cellCPU or totalPCPUs is 0).
+func CalculateMaxCellsByCPU(targetRatio float64, totalPCPUs, cellCPU, platformVMsCPU int) int {
+	if cellCPU == 0 || totalPCPUs == 0 {
+		return 0 // CPU analysis disabled
+	}
+
+	// maxVCPU = targetRatio × totalPCPUs
+	// maxVCPU = (cells × cellCPU) + platformVMsCPU
+	// cells = (maxVCPU - platformVMsCPU) / cellCPU
+
+	maxVCPU := targetRatio * float64(totalPCPUs)
+	availableForCells := maxVCPU - float64(platformVMsCPU)
+
+	if availableForCells <= 0 {
+		return 0 // Platform VMs already exceed target
+	}
+
+	return int(availableForCells) / cellCPU
+}
