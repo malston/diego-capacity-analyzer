@@ -42,6 +42,8 @@ const CPUConfigStep = ({
   setHostCount,
   targetVCPURatio,
   setTargetVCPURatio,
+  platformVMsCPU,
+  setPlatformVMsCPU,
   totalVCPUs, // Total vCPUs from infrastructure (for showing current ratio)
   onContinue,
   onSkip,
@@ -173,6 +175,26 @@ const CPUConfigStep = ({
         <div className="text-xs text-gray-500 mt-2">
           Typical recommendations: ≤4:1 for production, 4-8:1 for dev/test
         </div>
+      </div>
+
+      <div>
+        <label
+          htmlFor="platform-vms-cpu"
+          className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2"
+        >
+          Platform VM vCPUs (optional)
+        </label>
+        <input
+          id="platform-vms-cpu"
+          type="number"
+          value={platformVMsCPU}
+          onChange={(e) => setPlatformVMsCPU(Number(e.target.value))}
+          min={0}
+          className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
+        />
+        <p className="text-xs text-gray-500 mt-2">
+          Total vCPUs allocated to control plane VMs (BOSH, Diego Brain, Router, etc.)
+        </p>
       </div>
 
       <div className="flex justify-end gap-3 pt-4">

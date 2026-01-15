@@ -6,12 +6,12 @@ import { HardDrive, Cpu, Database } from 'lucide-react';
 // Resource types available for analysis
 export const RESOURCE_TYPES = [
   { id: 'memory', label: 'Memory', unit: 'GB', icon: HardDrive, defaultSelected: true },
-  { id: 'cpu', label: 'CPU', unit: 'vCPU', icon: Cpu, defaultSelected: false },
-  { id: 'disk', label: 'Disk', unit: 'GB', icon: Database, defaultSelected: false },
+  { id: 'cpu', label: 'CPU', unit: 'vCPU', icon: Cpu, defaultSelected: true },
+  { id: 'disk', label: 'Disk', unit: 'GB', icon: Database, defaultSelected: true },
 ];
 
-// Default selected resources for backward compatibility
-export const DEFAULT_SELECTED_RESOURCES = ['memory'];
+// Default selected resources - all enabled so users must explicitly disable
+export const DEFAULT_SELECTED_RESOURCES = ['memory', 'cpu', 'disk'];
 
 // Utilization thresholds for warnings
 export const UTILIZATION_THRESHOLDS = {

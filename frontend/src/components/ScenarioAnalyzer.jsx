@@ -55,6 +55,7 @@ const ScenarioAnalyzer = () => {
   const [physicalCoresPerHost, setPhysicalCoresPerHost] = useState(32);
   const [hostCount, setHostCount] = useState(3);
   const [targetVCPURatio, setTargetVCPURatio] = useState(4);
+  const [platformVMsCPU, setPlatformVMsCPU] = useState(0);
 
   // Host configuration state
   const [memoryPerHost, setMemoryPerHost] = useState(512);
@@ -362,6 +363,7 @@ const ScenarioAnalyzer = () => {
         ...(selectedResources.includes('cpu') && {
           physical_cores_per_host: physicalCoresPerHost,
           target_vcpu_ratio: targetVCPURatio,
+          platform_vms_cpu: platformVMsCPU,
         }),
         // Host configuration (for HA and constraint analysis)
         host_count: hostCount,
@@ -606,6 +608,8 @@ const ScenarioAnalyzer = () => {
           setHostCount={setHostCount}
           targetVCPURatio={targetVCPURatio}
           setTargetVCPURatio={setTargetVCPURatio}
+          platformVMsCPU={platformVMsCPU}
+          setPlatformVMsCPU={setPlatformVMsCPU}
           memoryPerHost={memoryPerHost}
           setMemoryPerHost={setMemoryPerHost}
           haAdmissionPct={haAdmissionPct}

@@ -20,6 +20,13 @@ type ScenarioInput struct {
 	HostCount       int `json:"host_count"`
 	MemoryPerHostGB int `json:"memory_per_host_gb"`
 	HAAdmissionPct  int `json:"ha_admission_pct"`
+	// CPU configuration for vCPU:pCPU ratio analysis
+	// PhysicalCoresPerHost is the pCPU count per ESXi host. 0 means not configured (CPU analysis disabled).
+	PhysicalCoresPerHost int `json:"physical_cores_per_host"`
+	// TargetVCPURatio is the user's target vCPU:pCPU ratio (e.g., 4 for 4:1). 0 means use default (4:1).
+	TargetVCPURatio int `json:"target_vcpu_ratio"`
+	// PlatformVMsCPU is total vCPUs allocated to non-Diego platform VMs (BOSH, Diego Brain, Router, etc.)
+	PlatformVMsCPU int `json:"platform_vms_cpu"`
 }
 
 // EnableTPS returns true if TPS analysis should be performed.
@@ -57,8 +64,15 @@ type ScenarioResult struct {
 	FaultImpact        int     `json:"fault_impact"`
 	InstancesPerCell   float64 `json:"instances_per_cell"`
 	EstimatedTPS       int     `json:"estimated_tps"`
-	TPSStatus          string  `json:"tps_status"`      // "optimal", "degraded", "critical"
+	TPSStatus          string  `json:"tps_status"`       // "optimal", "degraded", "critical"
 	BlastRadiusPct     float64 `json:"blast_radius_pct"` // % of capacity lost per single cell failure
+	// CPU ratio metrics (only populated when CPU analysis enabled, i.e., PhysicalCoresPerHost > 0)
+	TotalVCPUs       int     `json:"total_vcpus"`        // cellCount * cellCPU
+	TotalPCPUs       int     `json:"total_pcpus"`        // hostCount * physicalCoresPerHost
+	VCPURatio        float64 `json:"vcpu_ratio"`         // TotalVCPUs / TotalPCPUs (e.g., 4.5 means 4.5:1)
+	CPURiskLevel     string  `json:"cpu_risk_level"`     // "conservative" (<=4:1), "moderate" (4-8:1), "aggressive" (>8:1)
+	MaxCellsByCPU    int     `json:"max_cells_by_cpu"`   // Max cells deployable before hitting target vCPU:pCPU ratio
+	CPUHeadroomCells int     `json:"cpu_headroom_cells"` // Additional cells that can be added within target ratio
 }
 
 // CellSize returns formatted cell size string like "4×32"
@@ -96,7 +110,8 @@ type ScenarioDelta struct {
 	DiskCapacityChangeGB     int     `json:"disk_capacity_change_gb"`
 	UtilizationChangePct     float64 `json:"utilization_change_pct"`
 	DiskUtilizationChangePct float64 `json:"disk_utilization_change_pct"`
-	ResilienceChange         string  `json:"resilience_change"` // "low", "moderate", "high" based on blast radius
+	ResilienceChange         string  `json:"resilience_change"`  // "low", "moderate", "high" based on blast radius
+	VCPURatioChange          float64 `json:"vcpu_ratio_change"` // Proposed ratio - current ratio
 }
 
 // ScenarioComparison represents full comparison response

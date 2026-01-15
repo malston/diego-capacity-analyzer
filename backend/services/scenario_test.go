@@ -1,6 +1,9 @@
 package services
 
 import (
+	"fmt"
+	"math"
+	"strings"
 	"testing"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
@@ -1348,5 +1351,528 @@ func TestCalculateCapacityFix_WithHAConstraint(t *testing.T) {
 			}
 			break
 		}
+	}
+}
+
+// ============================================================================
+// CPU RISK LEVEL TESTS
+// ============================================================================
+
+func TestCPURiskLevel(t *testing.T) {
+	tests := []struct {
+		ratio    float64
+		expected string
+	}{
+		{0.5, "conservative"},
+		{2.0, "conservative"},
+		{4.0, "conservative"},
+		{4.1, "moderate"},
+		{6.0, "moderate"},
+		{8.0, "moderate"},
+		{8.1, "aggressive"},
+		{12.0, "aggressive"},
+		{16.0, "aggressive"},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("ratio_%.1f", tt.ratio), func(t *testing.T) {
+			result := CPURiskLevel(tt.ratio)
+			if result != tt.expected {
+				t.Errorf("CPURiskLevel(%.1f) = %s, want %s", tt.ratio, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCalculateFull_WithCPUConfig(t *testing.T) {
+	calc := NewScenarioCalculator()
+
+	state := models.InfrastructureState{
+		TotalCellCount: 10,
+		Clusters: []models.ClusterState{
+			{DiegoCellMemoryGB: 32, DiegoCellCPU: 4, DiegoCellDiskGB: 128},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellMemoryGB: 32,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    10,
+		HostCount:            3,
+		PhysicalCoresPerHost: 32,
+	}
+
+	result := calc.CalculateProposed(state, input)
+
+	// 10 cells × 4 vCPU = 40 vCPU
+	// 3 hosts × 32 pCPU = 96 pCPU
+	// Ratio = 40/96 = 0.417
+	if result.TotalVCPUs != 40 {
+		t.Errorf("TotalVCPUs = %d, want 40", result.TotalVCPUs)
+	}
+	if result.TotalPCPUs != 96 {
+		t.Errorf("TotalPCPUs = %d, want 96", result.TotalPCPUs)
+	}
+	expectedRatio := 40.0 / 96.0
+	if math.Abs(result.VCPURatio-expectedRatio) > 0.01 {
+		t.Errorf("VCPURatio = %f, want %f", result.VCPURatio, expectedRatio)
+	}
+	if result.CPURiskLevel != "conservative" {
+		t.Errorf("CPURiskLevel = %s, want conservative", result.CPURiskLevel)
+	}
+}
+
+func TestCalculateCPURatioFix(t *testing.T) {
+	state := models.InfrastructureState{}
+
+	// 50 cells × 8 vCPU = 400 vCPU
+	// 3 hosts × 32 pCPU = 96 pCPU
+	// Current ratio = 400/96 = 4.17:1
+	// Target ratio = 4:1
+	input := models.ScenarioInput{
+		ProposedCellCount:    50,
+		ProposedCellCPU:      8,
+		HostCount:            3,
+		PhysicalCoresPerHost: 32,
+		TargetVCPURatio:      4,
+	}
+
+	fixes := CalculateCPURatioFix(state, input, 4.17, 4.0)
+
+	if len(fixes) == 0 {
+		t.Fatal("Expected at least one fix suggestion")
+	}
+
+	// Should suggest reducing cells: 4 * 96 / 8 = 48 cells
+	foundCellFix := false
+	for _, fix := range fixes {
+		if fix.Field == "cell_count" && fix.Value == 48 {
+			foundCellFix = true
+		}
+	}
+	if !foundCellFix {
+		t.Errorf("Expected fix suggestion to reduce to 48 cells, got: %+v", fixes)
+	}
+}
+
+func TestGenerateWarnings_CPURatioExceedsTarget(t *testing.T) {
+	calc := NewScenarioCalculator()
+
+	current := models.ScenarioResult{
+		TotalPCPUs: 96,
+		VCPURatio:  3.0,
+	}
+	proposed := models.ScenarioResult{
+		TotalPCPUs:   96,
+		TotalVCPUs:   624,
+		VCPURatio:    6.5,
+		CPURiskLevel: "moderate",
+	}
+
+	ctx := &WarningsContext{
+		Input: models.ScenarioInput{
+			TargetVCPURatio: 4,
+		},
+	}
+
+	warnings := calc.GenerateWarnings(current, proposed, nil, ctx)
+
+	found := false
+	for _, w := range warnings {
+		if w.Severity == "warning" && strings.Contains(w.Message, "exceeds target") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected warning about ratio exceeding target")
+	}
+}
+
+func TestGenerateWarnings_AggressiveRatio(t *testing.T) {
+	calc := NewScenarioCalculator()
+
+	current := models.ScenarioResult{}
+	proposed := models.ScenarioResult{
+		TotalPCPUs:   96,
+		TotalVCPUs:   1000,
+		VCPURatio:    10.4,
+		CPURiskLevel: "aggressive",
+	}
+
+	warnings := calc.GenerateWarnings(current, proposed, nil, nil)
+
+	found := false
+	for _, w := range warnings {
+		if w.Severity == "critical" && strings.Contains(w.Message, "aggressive") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected critical warning about aggressive ratio")
+	}
+}
+
+func TestCompare_VCPURatioChange(t *testing.T) {
+	calc := NewScenarioCalculator()
+
+	state := models.InfrastructureState{
+		TotalCellCount: 10,
+		Clusters: []models.ClusterState{
+			{DiegoCellMemoryGB: 32, DiegoCellCPU: 4, DiegoCellDiskGB: 128},
+		},
+	}
+
+	input := models.ScenarioInput{
+		ProposedCellMemoryGB: 32,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    20, // Double the cells
+		HostCount:            3,
+		PhysicalCoresPerHost: 32,
+	}
+
+	comparison := calc.Compare(state, input)
+
+	// Current: 0 (no host config for current)
+	// Proposed: 20 * 4 / (3 * 32) = 80/96 = 0.833
+	// Change should be 0.833 - 0 = 0.833
+	if comparison.Delta.VCPURatioChange == 0 && comparison.Proposed.VCPURatio > 0 {
+		t.Errorf("VCPURatioChange = 0, but proposed ratio is %f", comparison.Proposed.VCPURatio)
+	}
+}
+
+// ============================================================================
+// MAX CELLS BY CPU TESTS
+// ============================================================================
+
+func TestCPUHeadroomCells(t *testing.T) {
+	tests := []struct {
+		name              string
+		cellCount         int
+		cellCPU           int
+		hostCount         int
+		physicalCores     int
+		targetRatio       int
+		platformVMsCPU    int
+		wantMaxCells      int
+		wantHeadroomCells int
+	}{
+		{
+			name:              "positive headroom - under target",
+			cellCount:         10,
+			cellCPU:           4,
+			hostCount:         3,
+			physicalCores:     32,  // 96 pCPUs total
+			targetRatio:       4,   // 4:1 = 384 max vCPU
+			platformVMsCPU:    24,  // 360 available for cells
+			wantMaxCells:      90,  // 360 / 4 = 90
+			wantHeadroomCells: 80,  // 90 - 10 = 80
+		},
+		{
+			name:              "zero headroom - at limit",
+			cellCount:         90,
+			cellCPU:           4,
+			hostCount:         3,
+			physicalCores:     32,
+			targetRatio:       4,
+			platformVMsCPU:    24,
+			wantMaxCells:      90,
+			wantHeadroomCells: 0, // 90 - 90 = 0
+		},
+		{
+			name:              "negative headroom - over target",
+			cellCount:         100,
+			cellCPU:           4,
+			hostCount:         3,
+			physicalCores:     32,
+			targetRatio:       4,
+			platformVMsCPU:    24,
+			wantMaxCells:      90,
+			wantHeadroomCells: -10, // 90 - 100 = -10
+		},
+		{
+			name:              "cpu analysis disabled - zero values",
+			cellCount:         10,
+			cellCPU:           4,
+			hostCount:         0, // No hosts configured
+			physicalCores:     0,
+			targetRatio:       4,
+			platformVMsCPU:    0,
+			wantMaxCells:      0,
+			wantHeadroomCells: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create minimal state - CalculateProposed uses input for cell config
+			state := models.InfrastructureState{}
+
+			input := models.ScenarioInput{
+				ProposedCellCount:    tt.cellCount,
+				ProposedCellCPU:      tt.cellCPU,
+				ProposedCellMemoryGB: 32,
+				ProposedCellDiskGB:   100,
+				HostCount:            tt.hostCount,
+				PhysicalCoresPerHost: tt.physicalCores,
+				TargetVCPURatio:      tt.targetRatio,
+				PlatformVMsCPU:       tt.platformVMsCPU,
+			}
+
+			calc := NewScenarioCalculator()
+			result := calc.CalculateProposed(state, input)
+
+			if result.MaxCellsByCPU != tt.wantMaxCells {
+				t.Errorf("MaxCellsByCPU = %d, want %d", result.MaxCellsByCPU, tt.wantMaxCells)
+			}
+			if result.CPUHeadroomCells != tt.wantHeadroomCells {
+				t.Errorf("CPUHeadroomCells = %d, want %d", result.CPUHeadroomCells, tt.wantHeadroomCells)
+			}
+		})
+	}
+}
+
+func TestCalculateMaxCellsByCPU(t *testing.T) {
+	tests := []struct {
+		name           string
+		targetRatio    float64
+		totalPCPUs     int
+		cellCPU        int
+		platformVMsCPU int
+		want           int
+	}{
+		{
+			name:           "standard case",
+			targetRatio:    4.0,
+			totalPCPUs:     100,
+			cellCPU:        4,
+			platformVMsCPU: 0,
+			want:           100, // 4.0 * 100 / 4 = 100
+		},
+		{
+			name:           "with platform overhead",
+			targetRatio:    4.0,
+			totalPCPUs:     100,
+			cellCPU:        4,
+			platformVMsCPU: 40,
+			want:           90, // (4.0 * 100 - 40) / 4 = 90
+		},
+		{
+			name:           "zero cellCPU disabled",
+			targetRatio:    4.0,
+			totalPCPUs:     100,
+			cellCPU:        0,
+			platformVMsCPU: 0,
+			want:           0,
+		},
+		{
+			name:           "zero totalPCPUs disabled",
+			targetRatio:    4.0,
+			totalPCPUs:     0,
+			cellCPU:        4,
+			platformVMsCPU: 0,
+			want:           0,
+		},
+		{
+			name:           "platform exceeds budget",
+			targetRatio:    4.0,
+			totalPCPUs:     100,
+			cellCPU:        4,
+			platformVMsCPU: 500, // 500 > 400 (4.0 * 100)
+			want:           0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := CalculateMaxCellsByCPU(tt.targetRatio, tt.totalPCPUs, tt.cellCPU, tt.platformVMsCPU)
+			if got != tt.want {
+				t.Errorf("CalculateMaxCellsByCPU() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// SELECTED RESOURCES FILTER TESTS
+// ============================================================================
+
+func TestGenerateWarnings_SelectedResources_DiskFiltered(t *testing.T) {
+	// Test that disk warnings are filtered when "disk" is not in selectedResources
+	current := models.ScenarioResult{
+		N1UtilizationPct:   70,
+		FreeChunks:         500,
+		CellCount:          100,
+		DiskUtilizationPct: 50,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct:   70,
+		FreeChunks:         500,
+		CellCount:          100,
+		DiskUtilizationPct: 92, // > 90% = would normally trigger critical warning
+	}
+
+	calc := NewScenarioCalculator()
+
+	// With disk selected, warning should appear
+	ctxWithDisk := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"memory", "disk"},
+		},
+	}
+	warningsWithDisk := calc.GenerateWarnings(current, proposed, nil, ctxWithDisk)
+
+	foundDiskWarning := false
+	for _, w := range warningsWithDisk {
+		if w.Message == "Disk utilization critically high" {
+			foundDiskWarning = true
+			break
+		}
+	}
+	if !foundDiskWarning {
+		t.Error("Expected disk warning when disk is in selectedResources")
+	}
+
+	// Without disk selected, warning should NOT appear
+	ctxWithoutDisk := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"memory"},
+		},
+	}
+	warningsWithoutDisk := calc.GenerateWarnings(current, proposed, nil, ctxWithoutDisk)
+
+	for _, w := range warningsWithoutDisk {
+		if w.Message == "Disk utilization critically high" {
+			t.Error("Expected disk warning to be filtered when disk is not in selectedResources")
+		}
+	}
+}
+
+func TestGenerateWarnings_SelectedResources_CPUFiltered(t *testing.T) {
+	// Test that CPU ratio warnings are filtered when "cpu" is not in selectedResources
+	current := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+		TotalPCPUs:       96,
+		TotalVCPUs:       1000,
+		VCPURatio:        10.4,
+		CPURiskLevel:     "aggressive", // Would normally trigger critical warning
+	}
+
+	calc := NewScenarioCalculator()
+
+	// With cpu selected, warning should appear
+	ctxWithCPU := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"memory", "cpu"},
+		},
+	}
+	warningsWithCPU := calc.GenerateWarnings(current, proposed, nil, ctxWithCPU)
+
+	foundCPUWarning := false
+	for _, w := range warningsWithCPU {
+		if strings.Contains(w.Message, "aggressive") && strings.Contains(w.Message, "vCPU:pCPU") {
+			foundCPUWarning = true
+			break
+		}
+	}
+	if !foundCPUWarning {
+		t.Error("Expected CPU ratio warning when cpu is in selectedResources")
+	}
+
+	// Without cpu selected, warning should NOT appear
+	ctxWithoutCPU := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"memory"},
+		},
+	}
+	warningsWithoutCPU := calc.GenerateWarnings(current, proposed, nil, ctxWithoutCPU)
+
+	for _, w := range warningsWithoutCPU {
+		if strings.Contains(w.Message, "vCPU:pCPU") {
+			t.Errorf("Expected CPU ratio warning to be filtered when cpu is not in selectedResources, got: %s", w.Message)
+		}
+	}
+}
+
+func TestGenerateWarnings_SelectedResources_MemoryAlwaysShown(t *testing.T) {
+	// Test that memory-related warnings are always shown regardless of selectedResources
+	current := models.ScenarioResult{
+		N1UtilizationPct: 70,
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct: 90, // > 85% = critical warning
+		FreeChunks:       500,
+		CellCount:        100,
+	}
+
+	calc := NewScenarioCalculator()
+
+	// Even with only cpu selected (no memory), N-1 warning should appear
+	ctxOnlyCPU := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"cpu"},
+		},
+	}
+	warningsOnlyCPU := calc.GenerateWarnings(current, proposed, nil, ctxOnlyCPU)
+
+	foundN1Warning := false
+	for _, w := range warningsOnlyCPU {
+		if w.Severity == "critical" && w.Message == "Exceeds N-1 capacity safety margin" {
+			foundN1Warning = true
+			break
+		}
+	}
+	if !foundN1Warning {
+		t.Error("Expected N-1 warning to always appear (memory is always analyzed)")
+	}
+}
+
+func TestGenerateWarnings_SelectedResources_EmptyDefaultsToAll(t *testing.T) {
+	// Test that empty selectedResources defaults to showing all warnings
+	current := models.ScenarioResult{
+		N1UtilizationPct:   70,
+		FreeChunks:         500,
+		CellCount:          100,
+		DiskUtilizationPct: 50,
+	}
+	proposed := models.ScenarioResult{
+		N1UtilizationPct:   70,
+		FreeChunks:         500,
+		CellCount:          100,
+		DiskUtilizationPct: 92, // > 90% = critical
+		TotalPCPUs:         96,
+		TotalVCPUs:         1000,
+		VCPURatio:          10.4,
+		CPURiskLevel:       "aggressive",
+	}
+
+	calc := NewScenarioCalculator()
+
+	// With empty selectedResources (nil context), all warnings should show
+	warnings := calc.GenerateWarnings(current, proposed, nil, nil)
+
+	foundDiskWarning := false
+	foundCPUWarning := false
+	for _, w := range warnings {
+		if w.Message == "Disk utilization critically high" {
+			foundDiskWarning = true
+		}
+		if strings.Contains(w.Message, "aggressive") && strings.Contains(w.Message, "vCPU:pCPU") {
+			foundCPUWarning = true
+		}
+	}
+	if !foundDiskWarning {
+		t.Error("Expected disk warning when selectedResources is empty (default to all)")
+	}
+	if !foundCPUWarning {
+		t.Error("Expected CPU warning when selectedResources is empty (default to all)")
 	}
 }

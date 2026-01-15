@@ -21,6 +21,22 @@ const (
 	PeakTPS = 1964
 )
 
+// CPURiskLevel returns risk classification based on vCPU:pCPU ratio.
+// Thresholds based on VMware general guidance (workload-dependent):
+// - Conservative (<=4:1): Safe for production workloads
+// - Moderate (4-8:1): Monitor CPU Ready time
+// - Aggressive (>8:1): Expect contention, requires active monitoring
+func CPURiskLevel(ratio float64) string {
+	switch {
+	case ratio <= 4:
+		return "conservative"
+	case ratio <= 8:
+		return "moderate"
+	default:
+		return "aggressive"
+	}
+}
+
 // DefaultTPSCurve is the default TPS curve - baseline estimates, user can override
 var DefaultTPSCurve = []models.TPSPt{
 	{Cells: 1, TPS: 284},
@@ -215,6 +231,10 @@ func (c *ScenarioCalculator) CalculateCurrent(state models.InfrastructureState, 
 		state.TotalN1MemoryGB,
 		DefaultMemoryOverheadPct,
 		tpsCurve,
+		0, // hostCount - not available in current state
+		0, // physicalCoresPerHost - not available in current state
+		0, // targetVCPURatio - not available in current state
+		0, // platformVMsCPU - not available in current state
 	)
 }
 
@@ -249,6 +269,10 @@ func (c *ScenarioCalculator) CalculateProposed(state models.InfrastructureState,
 		state.TotalN1MemoryGB,
 		overheadPct,
 		input.TPSCurve,
+		input.HostCount,
+		input.PhysicalCoresPerHost,
+		float64(input.TargetVCPURatio),
+		input.PlatformVMsCPU,
 	)
 }
 
@@ -265,6 +289,10 @@ func (c *ScenarioCalculator) calculateFull(
 	n1MemoryGB int,
 	overheadPct float64,
 	tpsCurve []models.TPSPt,
+	hostCount int,            // for CPU ratio calculation
+	physicalCoresPerHost int, // for CPU ratio calculation
+	targetVCPURatio float64,  // for max cells by CPU calculation (0 = default 4:1)
+	platformVMsCPU int,       // for max cells by CPU calculation
 ) models.ScenarioResult {
 	// Memory overhead as percentage
 	memoryOverhead := int(float64(cellMemoryGB) * (overheadPct / 100))
@@ -320,6 +348,29 @@ func (c *ScenarioCalculator) calculateFull(
 		blastRadiusPct = 100.0 / float64(cellCount)
 	}
 
+	// CPU ratio calculations (only when host CPU config provided)
+	var totalVCPUs, totalPCPUs int
+	var vcpuRatio float64
+	var cpuRiskLevel string
+	var maxCellsByCPU, cpuHeadroomCells int
+
+	if hostCount > 0 && physicalCoresPerHost > 0 {
+		totalVCPUs = cellCount * cellCPU
+		totalPCPUs = hostCount * physicalCoresPerHost
+		vcpuRatio = float64(totalVCPUs) / float64(totalPCPUs)
+		cpuRiskLevel = CPURiskLevel(vcpuRatio)
+
+		// Calculate max cells by CPU and headroom
+		if cellCPU > 0 {
+			targetRatio := targetVCPURatio
+			if targetRatio == 0 {
+				targetRatio = 4.0 // default 4:1 ratio
+			}
+			maxCellsByCPU = CalculateMaxCellsByCPU(targetRatio, totalPCPUs, cellCPU, platformVMsCPU)
+			cpuHeadroomCells = maxCellsByCPU - cellCount // Can be negative if over target
+		}
+	}
+
 	return models.ScenarioResult{
 		CellCount:          cellCount,
 		CellMemoryGB:       cellMemoryGB,
@@ -336,6 +387,12 @@ func (c *ScenarioCalculator) calculateFull(
 		EstimatedTPS:       estimatedTPS,
 		TPSStatus:          tpsStatus,
 		BlastRadiusPct:     blastRadiusPct,
+		TotalVCPUs:         totalVCPUs,
+		TotalPCPUs:         totalPCPUs,
+		VCPURatio:          vcpuRatio,
+		CPURiskLevel:       cpuRiskLevel,
+		MaxCellsByCPU:      maxCellsByCPU,
+		CPUHeadroomCells:   cpuHeadroomCells,
 	}
 }
 
@@ -363,18 +420,43 @@ func findRelevantChange(changes []models.ConfigChange, preferredFields ...string
 	return nil
 }
 
+// isResourceSelected checks if a resource type is in the selected resources list.
+// If selectedResources is nil or empty, returns true (default to all selected).
+func isResourceSelected(selectedResources []string, resource string) bool {
+	if len(selectedResources) == 0 {
+		return true // Default: all resources selected
+	}
+	for _, r := range selectedResources {
+		if r == resource {
+			return true
+		}
+	}
+	return false
+}
+
 // GenerateWarnings produces warnings based on proposed scenario.
 // The constraints parameter is optional - if provided, the warning messages
 // will reflect whether HA Admission Control or N-1 is the limiting factor.
 // The ctx parameter is optional - if provided, warnings will include change
 // context and fix suggestions.
+// Warnings are filtered by selectedResources (ctx.Input.SelectedResources):
+// - CPU warnings only shown when "cpu" is selected
+// - Disk warnings only shown when "disk" is selected
+// - Memory/capacity warnings always shown (memory is the base resource)
 func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioResult, constraints *models.ConstraintAnalysis, ctx *WarningsContext) []models.ScenarioWarning {
 	var warnings []models.ScenarioWarning
+
+	// Get selected resources from context (nil means all resources)
+	var selectedResources []string
+	if ctx != nil {
+		selectedResources = ctx.Input.SelectedResources
+	}
 
 	// Determine which constraint is limiting for the warning message
 	isHALimiting := constraints != nil && constraints.LimitingConstraint == "ha_admission"
 
 	// Capacity utilization warnings - message depends on limiting constraint
+	// These are memory-related and always shown
 	if proposed.N1UtilizationPct > 85 {
 		var message string
 		if isHALimiting {
@@ -437,17 +519,19 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 		})
 	}
 
-	// Disk utilization warnings
-	if proposed.DiskUtilizationPct > 90 {
-		warnings = append(warnings, models.ScenarioWarning{
-			Severity: "critical",
-			Message:  "Disk utilization critically high",
-		})
-	} else if proposed.DiskUtilizationPct > 80 {
-		warnings = append(warnings, models.ScenarioWarning{
-			Severity: "warning",
-			Message:  "Disk utilization elevated",
-		})
+	// Disk utilization warnings (only when disk analysis is selected)
+	if isResourceSelected(selectedResources, "disk") {
+		if proposed.DiskUtilizationPct > 90 {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "critical",
+				Message:  "Disk utilization critically high",
+			})
+		} else if proposed.DiskUtilizationPct > 80 {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "warning",
+				Message:  "Disk utilization elevated",
+			})
+		}
 	}
 
 	// TPS degradation warnings
@@ -476,6 +560,41 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 			Severity: "warning",
 			Message:  fmt.Sprintf("Elevated cell failure impact: single cell loss affects %.0f%% of capacity", proposed.BlastRadiusPct),
 		})
+	}
+
+	// vCPU:pCPU ratio warnings (only when CPU analysis enabled AND cpu resource selected)
+	if proposed.TotalPCPUs > 0 && isResourceSelected(selectedResources, "cpu") {
+		targetRatio := 4.0 // Default target
+		if ctx != nil && ctx.Input.TargetVCPURatio > 0 {
+			targetRatio = float64(ctx.Input.TargetVCPURatio)
+		}
+
+		// Warning when ratio exceeds target
+		if proposed.VCPURatio > targetRatio {
+			warning := models.ScenarioWarning{
+				Severity: "warning",
+				Message: fmt.Sprintf(
+					"vCPU:pCPU ratio %.1f:1 exceeds target %.0f:1 - expect CPU contention under load",
+					proposed.VCPURatio, targetRatio,
+				),
+			}
+			if ctx != nil {
+				warning.Change = findRelevantChange(ctx.Changes, "cell_count", "cell_cpu")
+				warning.Fixes = CalculateCPURatioFix(ctx.State, ctx.Input, proposed.VCPURatio, targetRatio)
+			}
+			warnings = append(warnings, warning)
+		}
+
+		// Critical when ratio is aggressive (>8:1)
+		if proposed.CPURiskLevel == "aggressive" {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "critical",
+				Message: fmt.Sprintf(
+					"vCPU:pCPU ratio %.1f:1 is aggressive - monitor CPU Ready time (>5%% indicates problems)",
+					proposed.VCPURatio,
+				),
+			})
+		}
 	}
 
 	return warnings
@@ -535,6 +654,9 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 	utilizationChange := proposed.UtilizationPct - current.UtilizationPct
 	diskUtilizationChange := proposed.DiskUtilizationPct - current.DiskUtilizationPct
 
+	// CPU ratio change
+	vcpuRatioChange := proposed.VCPURatio - current.VCPURatio
+
 	// ResilienceChange based on blast radius: what % of capacity is at risk per cell failure
 	// "low" = ≤5% blast radius (20+ cells), very resilient
 	// "moderate" = 5-15% blast radius (7-20 cells), acceptable for most workloads
@@ -560,6 +682,7 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 			UtilizationChangePct:     utilizationChange,
 			DiskUtilizationChangePct: diskUtilizationChange,
 			ResilienceChange:         resilienceChange,
+			VCPURatioChange:          vcpuRatioChange,
 		},
 	}
 }
@@ -637,6 +760,47 @@ func DetectChanges(state models.InfrastructureState, input models.ScenarioInput)
 	return changes
 }
 
+// CalculateCPURatioFix suggests how to reduce vCPU:pCPU ratio to target.
+// Returns at most 2 fix suggestions.
+func CalculateCPURatioFix(state models.InfrastructureState, input models.ScenarioInput,
+	currentRatio, targetRatio float64) []models.FixSuggestion {
+	var fixes []models.FixSuggestion
+
+	totalPCPUs := input.HostCount * input.PhysicalCoresPerHost
+	if totalPCPUs == 0 || input.ProposedCellCPU == 0 {
+		return fixes
+	}
+
+	// Fix 1: Reduce cell count to achieve target ratio
+	// targetRatio = (cells * cellCPU) / totalPCPUs
+	// cells = (targetRatio * totalPCPUs) / cellCPU
+	targetCells := int(targetRatio * float64(totalPCPUs) / float64(input.ProposedCellCPU))
+	if targetCells > 0 && targetCells < input.ProposedCellCount {
+		fixes = append(fixes, models.FixSuggestion{
+			Description: fmt.Sprintf("Reduce to %d cells to achieve %.0f:1 ratio", targetCells, targetRatio),
+			Field:       "cell_count",
+			Value:       targetCells,
+		})
+	}
+
+	// Fix 2: Reduce vCPU per cell
+	// targetRatio = (cells * cellCPU) / totalPCPUs
+	// cellCPU = (targetRatio * totalPCPUs) / cells
+	targetCellCPU := int(targetRatio * float64(totalPCPUs) / float64(input.ProposedCellCount))
+	if targetCellCPU > 0 && targetCellCPU < input.ProposedCellCPU {
+		fixes = append(fixes, models.FixSuggestion{
+			Description: fmt.Sprintf("Reduce cell vCPU to %d to achieve %.0f:1 ratio", targetCellCPU, targetRatio),
+			Field:       "cell_cpu",
+			Value:       targetCellCPU,
+		})
+	}
+
+	if len(fixes) > 2 {
+		fixes = fixes[:2]
+	}
+	return fixes
+}
+
 // CalculateCapacityFix calculates fix suggestions for N-1/HA capacity warnings.
 // It suggests reducing cell count to achieve 84% utilization, or adding hosts.
 // Returns at most 2 fix suggestions.
@@ -698,4 +862,25 @@ func CalculateCapacityFix(state models.InfrastructureState, input models.Scenari
 	}
 
 	return fixes
+}
+
+// CalculateMaxCellsByCPU returns max cells before hitting target vCPU:pCPU ratio.
+// Returns 0 if CPU analysis is disabled (cellCPU or totalPCPUs is 0).
+func CalculateMaxCellsByCPU(targetRatio float64, totalPCPUs, cellCPU, platformVMsCPU int) int {
+	if cellCPU == 0 || totalPCPUs == 0 {
+		return 0 // CPU analysis disabled
+	}
+
+	// maxVCPU = targetRatio × totalPCPUs
+	// maxVCPU = (cells × cellCPU) + platformVMsCPU
+	// cells = (maxVCPU - platformVMsCPU) / cellCPU
+
+	maxVCPU := targetRatio * float64(totalPCPUs)
+	availableForCells := maxVCPU - float64(platformVMsCPU)
+
+	if availableForCells <= 0 {
+		return 0 // Platform VMs already exceed target
+	}
+
+	return int(availableForCells) / cellCPU
 }

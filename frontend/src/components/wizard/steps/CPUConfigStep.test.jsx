@@ -14,6 +14,8 @@ describe('CPUConfigStep', () => {
     setHostCount: vi.fn(),
     targetVCPURatio: 4,
     setTargetVCPURatio: vi.fn(),
+    platformVMsCPU: 0,
+    setPlatformVMsCPU: vi.fn(),
     onContinue: vi.fn(),
     onSkip: vi.fn(),
   };
@@ -31,6 +33,11 @@ describe('CPUConfigStep', () => {
   it('renders vCPU:pCPU ratio input', () => {
     render(<CPUConfigStep {...defaultProps} />);
     expect(screen.getByLabelText(/target vcpu.*ratio/i)).toBeInTheDocument();
+  });
+
+  it('renders platform VMs CPU input', () => {
+    render(<CPUConfigStep {...defaultProps} />);
+    expect(screen.getByLabelText(/platform vm vcpus/i)).toBeInTheDocument();
   });
 
   it('displays current values in inputs', () => {
@@ -72,6 +79,17 @@ describe('CPUConfigStep', () => {
     await userEvent.type(input, '8');
 
     expect(setTargetVCPURatio).toHaveBeenCalled();
+  });
+
+  it('calls setPlatformVMsCPU when platform VMs CPU input changes', async () => {
+    const setPlatformVMsCPU = vi.fn();
+    render(<CPUConfigStep {...defaultProps} setPlatformVMsCPU={setPlatformVMsCPU} />);
+
+    const input = screen.getByLabelText(/platform vm vcpus/i);
+    await userEvent.clear(input);
+    await userEvent.type(input, '120');
+
+    expect(setPlatformVMsCPU).toHaveBeenCalled();
   });
 
   it('shows ratio risk level indicator - conservative for ratio <= 4', () => {

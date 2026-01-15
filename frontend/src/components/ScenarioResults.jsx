@@ -18,6 +18,7 @@ const TOOLTIPS = {
   appCapacity: "Total memory available for apps after system overhead.",
   faultImpact: "Average app instances displaced if one cell fails. Lower = smaller blast radius.",
   instancesPerCell: "Average app instances per cell. Lower = more distributed workload.",
+  cpuRatio: "vCPU:pCPU ratio measures CPU oversubscription. Conservative (≤4:1): safe for production. Moderate (4-8:1): monitor CPU Ready time. Aggressive (>8:1): expect contention.",
 };
 
 const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] }) => {
@@ -142,9 +143,18 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
 
       {/* Key Gauges Row */}
       <div className={`grid gap-6 ${
-        selectedResources.includes('disk') && proposed.disk_capacity_gb > 0
-          ? 'grid-cols-2 lg:grid-cols-4'
-          : 'grid-cols-3'
+        (() => {
+          // Base gauges: N-1 Capacity + Staging Capacity = 2
+          // Optional: Memory, Disk, CPU based on selectedResources
+          const hasMemory = selectedResources.includes('memory');
+          const hasDisk = selectedResources.includes('disk') && proposed.disk_capacity_gb > 0;
+          const hasCpu = selectedResources.includes('cpu') && proposed.total_pcpus > 0;
+          const count = 2 + (hasMemory ? 1 : 0) + (hasDisk ? 1 : 0) + (hasCpu ? 1 : 0);
+          if (count >= 5) return 'grid-cols-2 lg:grid-cols-5';
+          if (count === 4) return 'grid-cols-2 lg:grid-cols-4';
+          if (count === 3) return 'grid-cols-3';
+          return 'grid-cols-2';
+        })()
       }`}>
         {/* N-1 / Constraint Utilization Gauge */}
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
@@ -173,24 +183,26 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
           </div>
         </div>
 
-        {/* Cell Utilization Gauge */}
-        <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
-          <div className="flex items-center gap-2 mb-4 text-gray-400">
-            <Activity size={16} />
-            <Tooltip text={TOOLTIPS.memoryUtilization} position="bottom" showIcon>
-              <span className="text-xs uppercase tracking-wider font-medium">Memory Utilization</span>
-            </Tooltip>
+        {/* Cell Utilization Gauge - only if memory selected */}
+        {selectedResources.includes('memory') && (
+          <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-4 text-gray-400">
+              <Activity size={16} />
+              <Tooltip text={TOOLTIPS.memoryUtilization} position="bottom" showIcon>
+                <span className="text-xs uppercase tracking-wider font-medium">Memory Utilization</span>
+              </Tooltip>
+            </div>
+            <CapacityGauge
+              value={proposed.utilization_pct}
+              label="Memory Used"
+              thresholds={{ warning: 80, critical: 90 }}
+              inverse={true}
+            />
+            <div className="mt-4 text-center text-xs text-gray-500">
+              App memory / capacity
+            </div>
           </div>
-          <CapacityGauge
-            value={proposed.utilization_pct}
-            label="Memory Used"
-            thresholds={{ warning: 80, critical: 90 }}
-            inverse={true}
-          />
-          <div className="mt-4 text-center text-xs text-gray-500">
-            App memory / capacity
-          </div>
-        </div>
+        )}
 
         {/* Disk Utilization Gauge - only if disk selected and has data */}
         {selectedResources.includes('disk') && proposed.disk_capacity_gb > 0 && (
@@ -244,6 +256,56 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
             4GB chunks for concurrent staging
           </div>
         </div>
+
+        {/* CPU Ratio Gauge - only if cpu selected and data available */}
+        {selectedResources.includes('cpu') && proposed.total_pcpus > 0 && (
+          <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-4 text-gray-400">
+              <Cpu size={16} />
+              <Tooltip text={TOOLTIPS.cpuRatio} position="bottom" showIcon>
+                <span className="text-xs uppercase tracking-wider font-medium">vCPU:pCPU Ratio</span>
+              </Tooltip>
+            </div>
+            <div className="flex flex-col items-center justify-center h-[120px]">
+              <div className={`text-4xl font-mono font-bold ${
+                proposed.cpu_risk_level === 'conservative' ? 'text-emerald-400' :
+                proposed.cpu_risk_level === 'moderate' ? 'text-amber-400' :
+                'text-red-400'
+              }`}>
+                {proposed.vcpu_ratio.toFixed(1)}:1
+              </div>
+              <div className="text-sm text-gray-400 mt-2">
+                {proposed.total_vcpus.toLocaleString()} vCPU / {proposed.total_pcpus.toLocaleString()} pCPU
+              </div>
+              <div className={`text-xs mt-2 px-2 py-0.5 rounded ${
+                proposed.cpu_risk_level === 'conservative' ? 'bg-emerald-900/30 text-emerald-400' :
+                proposed.cpu_risk_level === 'moderate' ? 'bg-amber-900/30 text-amber-400' :
+                'bg-red-900/30 text-red-400'
+              }`}>
+                {proposed.cpu_risk_level}
+              </div>
+            </div>
+            {proposed?.cpu_headroom_cells !== undefined && (
+              <div className="mt-2 text-center">
+                <span className={`text-sm font-medium ${
+                  proposed.cpu_headroom_cells > 0 ? 'text-emerald-400' :
+                  proposed.cpu_headroom_cells < 0 ? 'text-red-400' :
+                  'text-gray-400'
+                }`}>
+                  Headroom: {proposed.cpu_headroom_cells > 0 ? '+' : ''}{proposed.cpu_headroom_cells} cells
+                </span>
+                <p className="text-xs text-gray-500 mt-1">
+                  {proposed.cpu_headroom_cells >= 0
+                    ? 'before reaching target ratio'
+                    : 'over target ratio'}
+                </p>
+              </div>
+            )}
+            <div className="mt-4 text-center text-xs text-gray-500">
+              Physical CPU oversubscription
+            </div>
+          </div>
+        )}
       </div>
 
       {/* TPS Performance Indicator (hidden when TPS model is disabled) */}
@@ -414,6 +476,119 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
           </div>
         </div>
       </div>
+
+      {/* Capacity Constraints Section - shows max cells by resource with bottleneck */}
+      {(
+        (selectedResources.includes('cpu') && proposed.max_cells_by_cpu > 0) ||
+        (selectedResources.includes('memory') && comparison.constraints)
+      ) && comparison.constraints && (
+        <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
+          <div className="flex items-center gap-2 mb-4 text-gray-400">
+            <Server size={16} />
+            <span className="text-xs uppercase tracking-wider font-medium">Maximum Deployable Cells</span>
+          </div>
+
+          {(() => {
+            const memorySelected = selectedResources.includes('memory');
+            const cpuSelected = selectedResources.includes('cpu');
+
+            // Calculate max cells by memory from constraint analysis
+            const constraint = comparison.constraints;
+            const limitingConstraint = constraint.limiting_constraint === 'ha_admission'
+              ? constraint.ha_admission
+              : constraint.n_minus_x;
+            const maxCellsByMemory = proposed.cell_memory_gb > 0
+              ? Math.floor(limitingConstraint.usable_gb / proposed.cell_memory_gb)
+              : 0;
+
+            const maxCellsByCPU = proposed.max_cells_by_cpu;
+
+            // Determine bottleneck only when both resources are selected
+            const bothSelected = memorySelected && cpuSelected;
+            const isMemoryBottleneck = bothSelected && maxCellsByMemory <= maxCellsByCPU;
+            const isCPUBottleneck = bothSelected && maxCellsByCPU < maxCellsByMemory;
+
+            // Calculate headroom for each (cells remaining beyond current)
+            const currentCells = proposed.cell_count;
+            const memoryHeadroom = maxCellsByMemory - currentCells;
+            const cpuHeadroom = proposed.cpu_headroom_cells;
+
+            return (
+              <div className="space-y-3">
+                {/* Memory Constraint - only show if memory is selected */}
+                {memorySelected && (
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${
+                    isMemoryBottleneck ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-slate-700/30'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <Database size={16} className={isMemoryBottleneck ? 'text-amber-400' : 'text-gray-400'} />
+                      <span className={`font-medium ${isMemoryBottleneck ? 'text-amber-300' : 'text-gray-300'}`}>
+                        Memory
+                      </span>
+                      {isMemoryBottleneck && (
+                        <span className="text-xs text-amber-400 px-2 py-0.5 bg-amber-500/20 rounded">
+                          ← BOTTLENECK
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className={`font-mono font-bold ${isMemoryBottleneck ? 'text-amber-400' : 'text-gray-300'}`}>
+                        {maxCellsByMemory} cells
+                      </span>
+                      {!isMemoryBottleneck && memoryHeadroom > 0 && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          (+{memoryHeadroom} headroom)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* CPU Constraint - only show if cpu is selected */}
+                {cpuSelected && maxCellsByCPU > 0 && (
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${
+                    isCPUBottleneck ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-slate-700/30'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <Cpu size={16} className={isCPUBottleneck ? 'text-amber-400' : 'text-gray-400'} />
+                      <span className={`font-medium ${isCPUBottleneck ? 'text-amber-300' : 'text-gray-300'}`}>
+                        CPU
+                      </span>
+                      {isCPUBottleneck && (
+                        <span className="text-xs text-amber-400 px-2 py-0.5 bg-amber-500/20 rounded">
+                          ← BOTTLENECK
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className={`font-mono font-bold ${isCPUBottleneck ? 'text-amber-400' : 'text-gray-300'}`}>
+                        {maxCellsByCPU} cells
+                      </span>
+                      {!isCPUBottleneck && cpuHeadroom > 0 && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          (+{cpuHeadroom} headroom)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <div className="mt-4 pt-3 border-t border-slate-700/50 text-center">
+            <p className="text-xs text-gray-500">
+              Max cells limited by {
+                selectedResources.includes('memory') && selectedResources.includes('cpu')
+                  ? `${comparison.constraints.limiting_constraint === 'ha_admission' ? 'HA Admission' : 'N-1'} memory and target CPU ratio`
+                  : selectedResources.includes('memory')
+                    ? `${comparison.constraints.limiting_constraint === 'ha_admission' ? 'HA Admission' : 'N-1'} memory`
+                    : 'target CPU ratio'
+              }
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Warnings Section */}
       {safeWarnings.length > 0 && (
