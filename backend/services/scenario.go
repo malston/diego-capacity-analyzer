@@ -645,8 +645,8 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 	// Generate warnings - pass constraints and context for actionable messages
 	warnings := c.GenerateWarnings(current, proposed, constraints, ctx)
 
-	// Add warning if HA% is insufficient for N-1 protection
-	if constraints != nil && constraints.InsufficientHAWarning {
+	// Add warning if HA% is insufficient for N-1 protection (only when memory is selected)
+	if constraints != nil && constraints.InsufficientHAWarning && isResourceSelected(input.SelectedResources, "memory") {
 		warnings = append(warnings, models.ScenarioWarning{
 			Severity: "warning",
 			Message: fmt.Sprintf(
