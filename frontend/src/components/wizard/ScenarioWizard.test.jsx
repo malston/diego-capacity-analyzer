@@ -5,6 +5,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ScenarioWizard from './ScenarioWizard';
+import { ToastProvider } from '../../contexts/ToastContext';
+
+// Helper to wrap component with ToastProvider
+const renderWithToast = (ui) => render(<ToastProvider>{ui}</ToastProvider>);
 
 describe('ScenarioWizard', () => {
   const defaultProps = {
@@ -53,25 +57,25 @@ describe('ScenarioWizard', () => {
   };
 
   it('renders step indicator', () => {
-    render(<ScenarioWizard {...defaultProps} />);
+    renderWithToast(<ScenarioWizard {...defaultProps} />);
     expect(screen.getByText('Resources')).toBeInTheDocument();
     expect(screen.getByText('Cell Config')).toBeInTheDocument();
     expect(screen.getByText('Advanced')).toBeInTheDocument();
   });
 
   it('shows ResourceTypesStep initially', () => {
-    render(<ScenarioWizard {...defaultProps} />);
+    renderWithToast(<ScenarioWizard {...defaultProps} />);
     expect(screen.getByText(/which resources to analyze/i)).toBeInTheDocument();
   });
 
   it('advances to CellConfigStep after continuing from Step 1', async () => {
-    render(<ScenarioWizard {...defaultProps} />);
+    renderWithToast(<ScenarioWizard {...defaultProps} />);
     await userEvent.click(screen.getByRole('button', { name: /continue/i }));
     expect(screen.getByLabelText(/vm size/i)).toBeInTheDocument();
   });
 
   it('advances to AdvancedStep after continuing from Step 2', async () => {
-    render(<ScenarioWizard {...defaultProps} />);
+    renderWithToast(<ScenarioWizard {...defaultProps} />);
     // Step 1 (Resources) -> Step 2 (Cell Config)
     await userEvent.click(screen.getByRole('button', { name: /continue/i }));
     // Step 2 (Cell Config) -> Step 3 (Advanced)
@@ -81,19 +85,19 @@ describe('ScenarioWizard', () => {
 
   it('calls onStepComplete after Step 1', async () => {
     const onStepComplete = vi.fn();
-    render(<ScenarioWizard {...defaultProps} onStepComplete={onStepComplete} />);
+    renderWithToast(<ScenarioWizard {...defaultProps} onStepComplete={onStepComplete} />);
     await userEvent.click(screen.getByRole('button', { name: /continue/i }));
     expect(onStepComplete).toHaveBeenCalledWith(0);
   });
 
   it('does not show Skip button on required steps', () => {
-    render(<ScenarioWizard {...defaultProps} />);
+    renderWithToast(<ScenarioWizard {...defaultProps} />);
     // Resources step is required, no Skip button
     expect(screen.queryByRole('button', { name: /skip/i })).not.toBeInTheDocument();
   });
 
   it('allows clicking on completed steps to navigate back', async () => {
-    render(<ScenarioWizard {...defaultProps} />);
+    renderWithToast(<ScenarioWizard {...defaultProps} />);
     // Go to step 2 (Cell Config)
     await userEvent.click(screen.getByRole('button', { name: /continue/i }));
     // Click on step 1 (Resources) in indicator
@@ -103,7 +107,7 @@ describe('ScenarioWizard', () => {
   });
 
   it('shows CPU Config step when cpu resource is selected', async () => {
-    render(<ScenarioWizard {...defaultProps} selectedResources={['memory', 'cpu']} />);
+    renderWithToast(<ScenarioWizard {...defaultProps} selectedResources={['memory', 'cpu']} />);
     // Should have CPU Config step in indicator
     expect(screen.getByText('CPU Config')).toBeInTheDocument();
     // Navigate to CPU Config step: Resources -> Cell Config -> CPU Config
@@ -117,14 +121,14 @@ describe('ScenarioWizard', () => {
   });
 
   it('hides CPU Config step when cpu resource is not selected', () => {
-    render(<ScenarioWizard {...defaultProps} selectedResources={['memory']} />);
+    renderWithToast(<ScenarioWizard {...defaultProps} selectedResources={['memory']} />);
     // Should NOT have CPU Config step in indicator
     expect(screen.queryByText('CPU Config')).not.toBeInTheDocument();
   });
 
   it('passes platformVMsCPU prop to CPUConfigStep', async () => {
     const setPlatformVMsCPU = vi.fn();
-    render(
+    renderWithToast(
       <ScenarioWizard
         {...defaultProps}
         selectedResources={['memory', 'cpu']}
