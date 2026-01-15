@@ -3,6 +3,7 @@
 
 import { ArrowRight } from 'lucide-react';
 import { RESOURCE_TYPES } from '../../../config/resourceConfig';
+import { useToast } from '../../../contexts/ToastContext';
 
 const ResourceTypesStep = ({
   selectedResources,
@@ -12,7 +13,18 @@ const ResourceTypesStep = ({
   onContinue,
   onSkip,
 }) => {
+  const { showToast } = useToast();
   const showDiskInput = selectedResources.includes('disk');
+
+  const handleToggle = (resourceId) => {
+    const isSelected = selectedResources.includes(resourceId);
+    // Prevent deselecting the last remaining resource
+    if (isSelected && selectedResources.length === 1) {
+      showToast('At least one resource must be selected', 'warning');
+      return;
+    }
+    toggleResource(resourceId);
+  };
 
   return (
     <div className="space-y-6">
@@ -28,7 +40,7 @@ const ResourceTypesStep = ({
               <button
                 type="button"
                 key={resource.id}
-                onClick={() => toggleResource(resource.id)}
+                onClick={() => handleToggle(resource.id)}
                 aria-pressed={isSelected}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
                   isSelected

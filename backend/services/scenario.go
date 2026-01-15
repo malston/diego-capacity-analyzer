@@ -442,7 +442,7 @@ func isResourceSelected(selectedResources []string, resource string) bool {
 // Warnings are filtered by selectedResources (ctx.Input.SelectedResources):
 // - CPU warnings only shown when "cpu" is selected
 // - Disk warnings only shown when "disk" is selected
-// - Memory/capacity warnings always shown (memory is the base resource)
+// - Memory/capacity warnings only shown when "memory" is selected
 func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioResult, constraints *models.ConstraintAnalysis, ctx *WarningsContext) []models.ScenarioWarning {
 	var warnings []models.ScenarioWarning
 
@@ -456,67 +456,73 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 	isHALimiting := constraints != nil && constraints.LimitingConstraint == "ha_admission"
 
 	// Capacity utilization warnings - message depends on limiting constraint
-	// These are memory-related and always shown
-	if proposed.N1UtilizationPct > 85 {
-		var message string
-		if isHALimiting {
-			message = fmt.Sprintf("Exceeds HA Admission Control capacity limit (%s)", constraints.LimitingLabel)
-		} else {
-			message = "Exceeds N-1 capacity safety margin"
+	// Only shown when memory is selected
+	if isResourceSelected(selectedResources, "memory") {
+		if proposed.N1UtilizationPct > 85 {
+			var message string
+			if isHALimiting {
+				message = fmt.Sprintf("Exceeds HA Admission Control capacity limit (%s)", constraints.LimitingLabel)
+			} else {
+				message = "Exceeds N-1 capacity safety margin"
+			}
+			warning := models.ScenarioWarning{
+				Severity: "critical",
+				Message:  message,
+			}
+			// Add context if available
+			if ctx != nil {
+				warning.Change = findRelevantChange(ctx.Changes, "cell_count", "cell_memory_gb")
+				warning.Fixes = CalculateCapacityFix(ctx.State, ctx.Input, constraints)
+			}
+			warnings = append(warnings, warning)
+		} else if proposed.N1UtilizationPct > 75 {
+			var message string
+			if isHALimiting {
+				message = fmt.Sprintf("Approaching HA Admission Control capacity limit (%s)", constraints.LimitingLabel)
+			} else {
+				message = "Approaching N-1 capacity limits"
+			}
+			warning := models.ScenarioWarning{
+				Severity: "warning",
+				Message:  message,
+			}
+			// Add context if available
+			if ctx != nil {
+				warning.Change = findRelevantChange(ctx.Changes, "cell_count", "cell_memory_gb")
+				warning.Fixes = CalculateCapacityFix(ctx.State, ctx.Input, constraints)
+			}
+			warnings = append(warnings, warning)
 		}
-		warning := models.ScenarioWarning{
-			Severity: "critical",
-			Message:  message,
-		}
-		// Add context if available
-		if ctx != nil {
-			warning.Change = findRelevantChange(ctx.Changes, "cell_count", "cell_memory_gb")
-			warning.Fixes = CalculateCapacityFix(ctx.State, ctx.Input, constraints)
-		}
-		warnings = append(warnings, warning)
-	} else if proposed.N1UtilizationPct > 75 {
-		var message string
-		if isHALimiting {
-			message = fmt.Sprintf("Approaching HA Admission Control capacity limit (%s)", constraints.LimitingLabel)
-		} else {
-			message = "Approaching N-1 capacity limits"
-		}
-		warning := models.ScenarioWarning{
-			Severity: "warning",
-			Message:  message,
-		}
-		// Add context if available
-		if ctx != nil {
-			warning.Change = findRelevantChange(ctx.Changes, "cell_count", "cell_memory_gb")
-			warning.Fixes = CalculateCapacityFix(ctx.State, ctx.Input, constraints)
-		}
-		warnings = append(warnings, warning)
 	}
 
-	// Free chunks warnings
-	if proposed.FreeChunks < 200 {
-		warnings = append(warnings, models.ScenarioWarning{
-			Severity: "critical",
-			Message:  "Critical: Low staging capacity",
-		})
-	} else if proposed.FreeChunks < 400 {
-		warnings = append(warnings, models.ScenarioWarning{
-			Severity: "warning",
-			Message:  "Low staging capacity",
-		})
+	// Free chunks warnings (only when memory is selected)
+	if isResourceSelected(selectedResources, "memory") {
+		if proposed.FreeChunks < 200 {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "critical",
+				Message:  "Critical: Low staging capacity",
+			})
+		} else if proposed.FreeChunks < 400 {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "warning",
+				Message:  "Low staging capacity",
+			})
+		}
 	}
 
-	// Cell utilization warnings
-	if proposed.UtilizationPct > 90 {
-		warnings = append(warnings, models.ScenarioWarning{
-			Severity: "critical",
-			Message:  "Cell utilization critically high",
-		})
-	} else if proposed.UtilizationPct > 80 {
-		warnings = append(warnings, models.ScenarioWarning{
-			Severity: "warning",
-			Message:  "Cell utilization elevated",
-		})
+	// Cell utilization warnings (only when memory is selected)
+	if isResourceSelected(selectedResources, "memory") {
+		if proposed.UtilizationPct > 90 {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "critical",
+				Message:  "Cell utilization critically high",
+			})
+		} else if proposed.UtilizationPct > 80 {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "warning",
+				Message:  "Cell utilization elevated",
+			})
+		}
 	}
 
 	// Disk utilization warnings (only when disk analysis is selected)
@@ -550,16 +556,19 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 
 	// Blast radius warning: warn when single cell failure impact is high
 	// Thresholds: >20% is critical (5 or fewer cells), >10% is warning (10 or fewer cells)
-	if proposed.BlastRadiusPct > 20 {
-		warnings = append(warnings, models.ScenarioWarning{
-			Severity: "critical",
-			Message:  fmt.Sprintf("High cell failure impact: single cell loss affects %.0f%% of capacity", proposed.BlastRadiusPct),
-		})
-	} else if proposed.BlastRadiusPct > 10 {
-		warnings = append(warnings, models.ScenarioWarning{
-			Severity: "warning",
-			Message:  fmt.Sprintf("Elevated cell failure impact: single cell loss affects %.0f%% of capacity", proposed.BlastRadiusPct),
-		})
+	// Only shown when memory is selected (blast radius is a memory capacity metric)
+	if isResourceSelected(selectedResources, "memory") {
+		if proposed.BlastRadiusPct > 20 {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "critical",
+				Message:  fmt.Sprintf("High cell failure impact: single cell loss affects %.0f%% of capacity", proposed.BlastRadiusPct),
+			})
+		} else if proposed.BlastRadiusPct > 10 {
+			warnings = append(warnings, models.ScenarioWarning{
+				Severity: "warning",
+				Message:  fmt.Sprintf("Elevated cell failure impact: single cell loss affects %.0f%% of capacity", proposed.BlastRadiusPct),
+			})
+		}
 	}
 
 	// vCPU:pCPU ratio warnings (only when CPU analysis enabled AND cpu resource selected)
@@ -636,8 +645,8 @@ func (c *ScenarioCalculator) Compare(state models.InfrastructureState, input mod
 	// Generate warnings - pass constraints and context for actionable messages
 	warnings := c.GenerateWarnings(current, proposed, constraints, ctx)
 
-	// Add warning if HA% is insufficient for N-1 protection
-	if constraints != nil && constraints.InsufficientHAWarning {
+	// Add warning if HA% is insufficient for N-1 protection (only when memory is selected)
+	if constraints != nil && constraints.InsufficientHAWarning && isResourceSelected(input.SelectedResources, "memory") {
 		warnings = append(warnings, models.ScenarioWarning{
 			Severity: "warning",
 			Message: fmt.Sprintf(

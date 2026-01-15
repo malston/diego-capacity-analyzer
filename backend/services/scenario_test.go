@@ -1800,38 +1800,84 @@ func TestGenerateWarnings_SelectedResources_CPUFiltered(t *testing.T) {
 	}
 }
 
-func TestGenerateWarnings_SelectedResources_MemoryAlwaysShown(t *testing.T) {
-	// Test that memory-related warnings are always shown regardless of selectedResources
+func TestGenerateWarnings_SelectedResources_MemoryFiltered(t *testing.T) {
+	// Test that memory-related warnings are filtered when "memory" is not in selectedResources
 	current := models.ScenarioResult{
 		N1UtilizationPct: 70,
 		FreeChunks:       500,
 		CellCount:        100,
+		UtilizationPct:   50,
 	}
 	proposed := models.ScenarioResult{
-		N1UtilizationPct: 90, // > 85% = critical warning
-		FreeChunks:       500,
-		CellCount:        100,
+		N1UtilizationPct: 90,  // > 85% = critical warning (if memory selected)
+		FreeChunks:       100, // < 200 = critical warning (if memory selected)
+		CellCount:        4,   // 25% blast radius = critical (if memory selected)
+		UtilizationPct:   95,  // > 90% = critical (if memory selected)
+		BlastRadiusPct:   25,
 	}
 
 	calc := NewScenarioCalculator()
 
-	// Even with only cpu selected (no memory), N-1 warning should appear
-	ctxOnlyCPU := &WarningsContext{
+	// With memory selected, warnings should appear
+	ctxWithMemory := &WarningsContext{
 		Input: models.ScenarioInput{
-			SelectedResources: []string{"cpu"},
+			SelectedResources: []string{"memory", "cpu"},
 		},
 	}
-	warningsOnlyCPU := calc.GenerateWarnings(current, proposed, nil, ctxOnlyCPU)
+	warningsWithMemory := calc.GenerateWarnings(current, proposed, nil, ctxWithMemory)
 
 	foundN1Warning := false
-	for _, w := range warningsOnlyCPU {
-		if w.Severity == "critical" && w.Message == "Exceeds N-1 capacity safety margin" {
+	foundFreeChunksWarning := false
+	foundUtilizationWarning := false
+	foundBlastRadiusWarning := false
+	for _, w := range warningsWithMemory {
+		if w.Message == "Exceeds N-1 capacity safety margin" {
 			foundN1Warning = true
-			break
+		}
+		if w.Message == "Critical: Low staging capacity" {
+			foundFreeChunksWarning = true
+		}
+		if w.Message == "Cell utilization critically high" {
+			foundUtilizationWarning = true
+		}
+		if strings.Contains(w.Message, "cell failure impact") {
+			foundBlastRadiusWarning = true
 		}
 	}
 	if !foundN1Warning {
-		t.Error("Expected N-1 warning to always appear (memory is always analyzed)")
+		t.Error("Expected N-1 warning when memory is in selectedResources")
+	}
+	if !foundFreeChunksWarning {
+		t.Error("Expected free chunks warning when memory is in selectedResources")
+	}
+	if !foundUtilizationWarning {
+		t.Error("Expected utilization warning when memory is in selectedResources")
+	}
+	if !foundBlastRadiusWarning {
+		t.Error("Expected blast radius warning when memory is in selectedResources")
+	}
+
+	// Without memory selected, memory-related warnings should NOT appear
+	ctxWithoutMemory := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"cpu"}, // Only CPU, no memory
+		},
+	}
+	warningsWithoutMemory := calc.GenerateWarnings(current, proposed, nil, ctxWithoutMemory)
+
+	for _, w := range warningsWithoutMemory {
+		if w.Message == "Exceeds N-1 capacity safety margin" {
+			t.Error("N-1 warning should be filtered when memory is not in selectedResources")
+		}
+		if w.Message == "Critical: Low staging capacity" {
+			t.Error("Free chunks warning should be filtered when memory is not in selectedResources")
+		}
+		if w.Message == "Cell utilization critically high" {
+			t.Error("Utilization warning should be filtered when memory is not in selectedResources")
+		}
+		if strings.Contains(w.Message, "cell failure impact") {
+			t.Error("Blast radius warning should be filtered when memory is not in selectedResources")
+		}
 	}
 }
 
@@ -1874,5 +1920,73 @@ func TestGenerateWarnings_SelectedResources_EmptyDefaultsToAll(t *testing.T) {
 	}
 	if !foundCPUWarning {
 		t.Error("Expected CPU warning when selectedResources is empty (default to all)")
+	}
+}
+
+func TestCompare_HAInsufficientWarning_FilteredWhenMemoryNotSelected(t *testing.T) {
+	// Test that HA Admission Control insufficient warning is filtered when memory is not selected
+	// This warning is added in CompareScenarios, not GenerateWarnings
+
+	// Set up state with 4 hosts at 512GB each
+	// HA 7% reserves: 2048 * 0.07 = 143GB
+	// N-1 reserves: 512GB (one host)
+	// 143GB < 512GB triggers InsufficientHAWarning
+	state := models.InfrastructureState{
+		TotalN1MemoryGB:   1536, // 3 hosts worth (N-1 protection)
+		TotalCellCount:    10,
+		PlatformVMsGB:     100,
+		TotalAppMemoryGB:  200,
+		TotalAppInstances: 50,
+		Clusters: []models.ClusterState{
+			{
+				DiegoCellCount:    10,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+		},
+	}
+
+	// Input with HA% that's insufficient for N-1 (triggers the warning)
+	inputWithMemory := models.ScenarioInput{
+		ProposedCellMemoryGB: 32,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    10,
+		HostCount:            4,
+		MemoryPerHostGB:      512,
+		HAAdmissionPct:       7, // 7% of 2048GB = 143GB, but N-1 needs 512GB
+		SelectedResources:    []string{"memory", "cpu"},
+	}
+
+	inputWithoutMemory := models.ScenarioInput{
+		ProposedCellMemoryGB: 32,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    10,
+		HostCount:            4,
+		MemoryPerHostGB:      512,
+		HAAdmissionPct:       7,
+		SelectedResources:    []string{"cpu"}, // Only CPU, no memory
+	}
+
+	calc := NewScenarioCalculator()
+
+	// With memory selected, HA insufficient warning should appear
+	comparisonWithMemory := calc.Compare(state, inputWithMemory)
+	foundHAWarningWithMemory := false
+	for _, w := range comparisonWithMemory.Warnings {
+		if strings.Contains(w.Message, "HA Admission Control") && strings.Contains(w.Message, "insufficient") {
+			foundHAWarningWithMemory = true
+			break
+		}
+	}
+	if !foundHAWarningWithMemory {
+		t.Error("Expected HA Admission Control insufficient warning when memory is selected")
+	}
+
+	// Without memory selected, HA insufficient warning should NOT appear
+	comparisonWithoutMemory := calc.Compare(state, inputWithoutMemory)
+	for _, w := range comparisonWithoutMemory.Warnings {
+		if strings.Contains(w.Message, "HA Admission Control") && strings.Contains(w.Message, "insufficient") {
+			t.Error("HA Admission Control insufficient warning should be filtered when memory is not in selectedResources")
+		}
 	}
 }
