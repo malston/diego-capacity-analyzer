@@ -1800,38 +1800,84 @@ func TestGenerateWarnings_SelectedResources_CPUFiltered(t *testing.T) {
 	}
 }
 
-func TestGenerateWarnings_SelectedResources_MemoryAlwaysShown(t *testing.T) {
-	// Test that memory-related warnings are always shown regardless of selectedResources
+func TestGenerateWarnings_SelectedResources_MemoryFiltered(t *testing.T) {
+	// Test that memory-related warnings are filtered when "memory" is not in selectedResources
 	current := models.ScenarioResult{
 		N1UtilizationPct: 70,
 		FreeChunks:       500,
 		CellCount:        100,
+		UtilizationPct:   50,
 	}
 	proposed := models.ScenarioResult{
-		N1UtilizationPct: 90, // > 85% = critical warning
-		FreeChunks:       500,
-		CellCount:        100,
+		N1UtilizationPct: 90,  // > 85% = critical warning (if memory selected)
+		FreeChunks:       100, // < 200 = critical warning (if memory selected)
+		CellCount:        4,   // 25% blast radius = critical (if memory selected)
+		UtilizationPct:   95,  // > 90% = critical (if memory selected)
+		BlastRadiusPct:   25,
 	}
 
 	calc := NewScenarioCalculator()
 
-	// Even with only cpu selected (no memory), N-1 warning should appear
-	ctxOnlyCPU := &WarningsContext{
+	// With memory selected, warnings should appear
+	ctxWithMemory := &WarningsContext{
 		Input: models.ScenarioInput{
-			SelectedResources: []string{"cpu"},
+			SelectedResources: []string{"memory", "cpu"},
 		},
 	}
-	warningsOnlyCPU := calc.GenerateWarnings(current, proposed, nil, ctxOnlyCPU)
+	warningsWithMemory := calc.GenerateWarnings(current, proposed, nil, ctxWithMemory)
 
 	foundN1Warning := false
-	for _, w := range warningsOnlyCPU {
-		if w.Severity == "critical" && w.Message == "Exceeds N-1 capacity safety margin" {
+	foundFreeChunksWarning := false
+	foundUtilizationWarning := false
+	foundBlastRadiusWarning := false
+	for _, w := range warningsWithMemory {
+		if w.Message == "Exceeds N-1 capacity safety margin" {
 			foundN1Warning = true
-			break
+		}
+		if w.Message == "Critical: Low staging capacity" {
+			foundFreeChunksWarning = true
+		}
+		if w.Message == "Cell utilization critically high" {
+			foundUtilizationWarning = true
+		}
+		if strings.Contains(w.Message, "cell failure impact") {
+			foundBlastRadiusWarning = true
 		}
 	}
 	if !foundN1Warning {
-		t.Error("Expected N-1 warning to always appear (memory is always analyzed)")
+		t.Error("Expected N-1 warning when memory is in selectedResources")
+	}
+	if !foundFreeChunksWarning {
+		t.Error("Expected free chunks warning when memory is in selectedResources")
+	}
+	if !foundUtilizationWarning {
+		t.Error("Expected utilization warning when memory is in selectedResources")
+	}
+	if !foundBlastRadiusWarning {
+		t.Error("Expected blast radius warning when memory is in selectedResources")
+	}
+
+	// Without memory selected, memory-related warnings should NOT appear
+	ctxWithoutMemory := &WarningsContext{
+		Input: models.ScenarioInput{
+			SelectedResources: []string{"cpu"}, // Only CPU, no memory
+		},
+	}
+	warningsWithoutMemory := calc.GenerateWarnings(current, proposed, nil, ctxWithoutMemory)
+
+	for _, w := range warningsWithoutMemory {
+		if w.Message == "Exceeds N-1 capacity safety margin" {
+			t.Error("N-1 warning should be filtered when memory is not in selectedResources")
+		}
+		if w.Message == "Critical: Low staging capacity" {
+			t.Error("Free chunks warning should be filtered when memory is not in selectedResources")
+		}
+		if w.Message == "Cell utilization critically high" {
+			t.Error("Utilization warning should be filtered when memory is not in selectedResources")
+		}
+		if strings.Contains(w.Message, "cell failure impact") {
+			t.Error("Blast radius warning should be filtered when memory is not in selectedResources")
+		}
 	}
 }
 

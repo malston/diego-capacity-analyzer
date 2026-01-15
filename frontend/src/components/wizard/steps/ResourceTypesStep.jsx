@@ -14,6 +14,15 @@ const ResourceTypesStep = ({
 }) => {
   const showDiskInput = selectedResources.includes('disk');
 
+  const handleToggle = (resourceId) => {
+    const isSelected = selectedResources.includes(resourceId);
+    // Prevent deselecting the last remaining resource
+    if (isSelected && selectedResources.length === 1) {
+      return;
+    }
+    toggleResource(resourceId);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -28,7 +37,7 @@ const ResourceTypesStep = ({
               <button
                 type="button"
                 key={resource.id}
-                onClick={() => toggleResource(resource.id)}
+                onClick={() => handleToggle(resource.id)}
                 aria-pressed={isSelected}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
                   isSelected

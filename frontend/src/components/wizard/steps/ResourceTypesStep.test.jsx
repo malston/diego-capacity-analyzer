@@ -57,4 +57,52 @@ describe('ResourceTypesStep', () => {
     await userEvent.click(screen.getByRole('button', { name: /continue/i }));
     expect(onContinue).toHaveBeenCalled();
   });
+
+  it('does not call toggleResource when deselecting the only selected resource', async () => {
+    const toggleResource = vi.fn();
+    // Only memory is selected
+    render(
+      <ResourceTypesStep
+        {...defaultProps}
+        selectedResources={['memory']}
+        toggleResource={toggleResource}
+      />
+    );
+    // Try to deselect memory (the only selected resource)
+    await userEvent.click(screen.getByRole('button', { name: /memory/i }));
+    // Should NOT call toggleResource because it would leave zero selected
+    expect(toggleResource).not.toHaveBeenCalled();
+  });
+
+  it('allows deselecting a resource when multiple are selected', async () => {
+    const toggleResource = vi.fn();
+    // Both memory and cpu are selected
+    render(
+      <ResourceTypesStep
+        {...defaultProps}
+        selectedResources={['memory', 'cpu']}
+        toggleResource={toggleResource}
+      />
+    );
+    // Try to deselect memory (cpu will still be selected)
+    await userEvent.click(screen.getByRole('button', { name: /memory/i }));
+    // Should call toggleResource because cpu is still selected
+    expect(toggleResource).toHaveBeenCalledWith('memory');
+  });
+
+  it('allows selecting a new resource when one is selected', async () => {
+    const toggleResource = vi.fn();
+    // Only memory is selected
+    render(
+      <ResourceTypesStep
+        {...defaultProps}
+        selectedResources={['memory']}
+        toggleResource={toggleResource}
+      />
+    );
+    // Select cpu (adding, not removing)
+    await userEvent.click(screen.getByRole('button', { name: /cpu/i }));
+    // Should call toggleResource for adding a new resource
+    expect(toggleResource).toHaveBeenCalledWith('cpu');
+  });
 });
