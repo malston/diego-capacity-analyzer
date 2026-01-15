@@ -1544,6 +1544,93 @@ func TestCompare_VCPURatioChange(t *testing.T) {
 // MAX CELLS BY CPU TESTS
 // ============================================================================
 
+func TestCPUHeadroomCells(t *testing.T) {
+	tests := []struct {
+		name              string
+		cellCount         int
+		cellCPU           int
+		hostCount         int
+		physicalCores     int
+		targetRatio       int
+		platformVMsCPU    int
+		wantMaxCells      int
+		wantHeadroomCells int
+	}{
+		{
+			name:              "positive headroom - under target",
+			cellCount:         10,
+			cellCPU:           4,
+			hostCount:         3,
+			physicalCores:     32,  // 96 pCPUs total
+			targetRatio:       4,   // 4:1 = 384 max vCPU
+			platformVMsCPU:    24,  // 360 available for cells
+			wantMaxCells:      90,  // 360 / 4 = 90
+			wantHeadroomCells: 80,  // 90 - 10 = 80
+		},
+		{
+			name:              "zero headroom - at limit",
+			cellCount:         90,
+			cellCPU:           4,
+			hostCount:         3,
+			physicalCores:     32,
+			targetRatio:       4,
+			platformVMsCPU:    24,
+			wantMaxCells:      90,
+			wantHeadroomCells: 0, // 90 - 90 = 0
+		},
+		{
+			name:              "negative headroom - over target",
+			cellCount:         100,
+			cellCPU:           4,
+			hostCount:         3,
+			physicalCores:     32,
+			targetRatio:       4,
+			platformVMsCPU:    24,
+			wantMaxCells:      90,
+			wantHeadroomCells: -10, // 90 - 100 = -10
+		},
+		{
+			name:              "cpu analysis disabled - zero values",
+			cellCount:         10,
+			cellCPU:           4,
+			hostCount:         0, // No hosts configured
+			physicalCores:     0,
+			targetRatio:       4,
+			platformVMsCPU:    0,
+			wantMaxCells:      0,
+			wantHeadroomCells: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create minimal state - CalculateProposed uses input for cell config
+			state := models.InfrastructureState{}
+
+			input := models.ScenarioInput{
+				ProposedCellCount:    tt.cellCount,
+				ProposedCellCPU:      tt.cellCPU,
+				ProposedCellMemoryGB: 32,
+				ProposedCellDiskGB:   100,
+				HostCount:            tt.hostCount,
+				PhysicalCoresPerHost: tt.physicalCores,
+				TargetVCPURatio:      tt.targetRatio,
+				PlatformVMsCPU:       tt.platformVMsCPU,
+			}
+
+			calc := NewScenarioCalculator()
+			result := calc.CalculateProposed(state, input)
+
+			if result.MaxCellsByCPU != tt.wantMaxCells {
+				t.Errorf("MaxCellsByCPU = %d, want %d", result.MaxCellsByCPU, tt.wantMaxCells)
+			}
+			if result.CPUHeadroomCells != tt.wantHeadroomCells {
+				t.Errorf("CPUHeadroomCells = %d, want %d", result.CPUHeadroomCells, tt.wantHeadroomCells)
+			}
+		})
+	}
+}
+
 func TestCalculateMaxCellsByCPU(t *testing.T) {
 	tests := []struct {
 		name           string
