@@ -278,6 +278,22 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
                 {proposed.cpu_risk_level}
               </div>
             </div>
+            {proposed?.cpu_headroom_cells !== undefined && (
+              <div className="mt-2 text-center">
+                <span className={`text-sm font-medium ${
+                  proposed.cpu_headroom_cells > 0 ? 'text-emerald-600 dark:text-emerald-400' :
+                  proposed.cpu_headroom_cells < 0 ? 'text-red-600 dark:text-red-400' :
+                  'text-gray-600 dark:text-gray-400'
+                }`}>
+                  Headroom: {proposed.cpu_headroom_cells > 0 ? '+' : ''}{proposed.cpu_headroom_cells} cells
+                </span>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {proposed.cpu_headroom_cells >= 0
+                    ? 'before reaching target ratio'
+                    : 'over target ratio'}
+                </p>
+              </div>
+            )}
             <div className="mt-4 text-center text-xs text-gray-500">
               Physical CPU oversubscription
             </div>
