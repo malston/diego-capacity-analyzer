@@ -20,6 +20,9 @@ type ScenarioInput struct {
 	HostCount       int `json:"host_count"`
 	MemoryPerHostGB int `json:"memory_per_host_gb"`
 	HAAdmissionPct  int `json:"ha_admission_pct"`
+	// CPU configuration for vCPU:pCPU ratio analysis
+	PhysicalCoresPerHost int `json:"physical_cores_per_host"` // pCPU per ESXi host
+	TargetVCPURatio      int `json:"target_vcpu_ratio"`       // User's target ratio (e.g., 4 for 4:1)
 }
 
 // EnableTPS returns true if TPS analysis should be performed.

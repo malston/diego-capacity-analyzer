@@ -52,3 +52,17 @@ func TestScenarioWarningSeverity(t *testing.T) {
 		t.Errorf("Expected severity 'critical', got '%s'", warning.Severity)
 	}
 }
+
+func TestScenarioInput_CPUFields(t *testing.T) {
+	input := ScenarioInput{
+		PhysicalCoresPerHost: 32,
+		TargetVCPURatio:      4,
+	}
+
+	if input.PhysicalCoresPerHost != 32 {
+		t.Errorf("PhysicalCoresPerHost = %d, want 32", input.PhysicalCoresPerHost)
+	}
+	if input.TargetVCPURatio != 4 {
+		t.Errorf("TargetVCPURatio = %d, want 4", input.TargetVCPURatio)
+	}
+}
