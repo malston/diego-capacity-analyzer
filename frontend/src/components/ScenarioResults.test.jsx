@@ -281,7 +281,7 @@ describe('ScenarioResults Capacity Constraints', () => {
     expect(screen.getByText('(+70 headroom)')).toBeInTheDocument();
   });
 
-  it('hides Capacity Constraints when CPU not selected', () => {
+  it('shows Memory constraint but not CPU when only memory selected', () => {
     render(
       <ScenarioResults
         comparison={constraintsComparison}
@@ -290,7 +290,41 @@ describe('ScenarioResults Capacity Constraints', () => {
       />
     );
 
+    // Section should show because memory is selected
+    expect(screen.getByText('Maximum Deployable Cells')).toBeInTheDocument();
+    // Memory row should be visible
+    expect(screen.getByText('Memory')).toBeInTheDocument();
+    // CPU row should NOT be visible (cpu not in selectedResources)
+    expect(screen.queryByText('CPU')).not.toBeInTheDocument();
+  });
+
+  it('hides Capacity Constraints when neither CPU nor memory selected', () => {
+    render(
+      <ScenarioResults
+        comparison={constraintsComparison}
+        warnings={[]}
+        selectedResources={['disk']}
+      />
+    );
+
     expect(screen.queryByText('Maximum Deployable Cells')).not.toBeInTheDocument();
+  });
+
+  it('shows CPU constraint but not Memory when only CPU selected', () => {
+    render(
+      <ScenarioResults
+        comparison={constraintsComparison}
+        warnings={[]}
+        selectedResources={['cpu']}
+      />
+    );
+
+    // Section should show because cpu is selected
+    expect(screen.getByText('Maximum Deployable Cells')).toBeInTheDocument();
+    // CPU row should be visible
+    expect(screen.getByText('CPU')).toBeInTheDocument();
+    // Memory row should NOT be visible (memory not in selectedResources)
+    expect(screen.queryByText('Memory')).not.toBeInTheDocument();
   });
 
   it('hides Capacity Constraints when no constraints data', () => {
@@ -308,5 +342,71 @@ describe('ScenarioResults Capacity Constraints', () => {
     );
 
     expect(screen.queryByText('Maximum Deployable Cells')).not.toBeInTheDocument();
+  });
+});
+
+describe('ScenarioResults Memory Utilization', () => {
+  const memoryTestComparison = {
+    current: {
+      cell_count: 10,
+      cell_cpu: 4,
+      cell_memory_gb: 32,
+      cell_disk_gb: 100,
+      app_capacity_gb: 298,
+      utilization_pct: 50,
+      fault_impact: 10,
+      instances_per_cell: 5.0,
+      estimated_tps: 0,
+      tps_status: 'disabled',
+    },
+    proposed: {
+      cell_count: 20,
+      cell_cpu: 4,
+      cell_memory_gb: 32,
+      cell_disk_gb: 100,
+      app_capacity_gb: 596,
+      utilization_pct: 25,
+      n1_utilization_pct: 70,
+      free_chunks: 200,
+      fault_impact: 5,
+      instances_per_cell: 2.5,
+      estimated_tps: 0,
+      tps_status: 'disabled',
+      total_pcpus: 0,
+    },
+    delta: {
+      capacity_change_gb: 298,
+      utilization_change_pct: -25,
+      resilience_change: 'improved',
+    },
+    constraints: {
+      ha_admission: { usable_gb: 1280, utilization_pct: 46.5 },
+      limiting_constraint: 'ha_admission',
+      limiting_label: 'HA 25%',
+    },
+  };
+
+  it('shows Memory Utilization gauge when memory is selected', () => {
+    render(
+      <ScenarioResults
+        comparison={memoryTestComparison}
+        warnings={[]}
+        selectedResources={['memory', 'cpu']}
+      />
+    );
+
+    expect(screen.getByText('Memory Utilization')).toBeInTheDocument();
+  });
+
+  it('hides Memory Utilization gauge when memory is not selected', () => {
+    render(
+      <ScenarioResults
+        comparison={memoryTestComparison}
+        warnings={[]}
+        selectedResources={['cpu', 'disk']}
+      />
+    );
+
+    expect(screen.queryByText('Memory Utilization')).not.toBeInTheDocument();
   });
 });

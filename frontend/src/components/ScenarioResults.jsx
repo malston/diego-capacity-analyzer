@@ -144,11 +144,16 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
       {/* Key Gauges Row */}
       <div className={`grid gap-6 ${
         (() => {
+          // Base gauges: N-1 Capacity + Staging Capacity = 2
+          // Optional: Memory, Disk, CPU based on selectedResources
+          const hasMemory = selectedResources.includes('memory');
           const hasDisk = selectedResources.includes('disk') && proposed.disk_capacity_gb > 0;
           const hasCpu = selectedResources.includes('cpu') && proposed.total_pcpus > 0;
-          if (hasDisk && hasCpu) return 'grid-cols-2 lg:grid-cols-5';
-          if (hasDisk || hasCpu) return 'grid-cols-2 lg:grid-cols-4';
-          return 'grid-cols-3';
+          const count = 2 + (hasMemory ? 1 : 0) + (hasDisk ? 1 : 0) + (hasCpu ? 1 : 0);
+          if (count >= 5) return 'grid-cols-2 lg:grid-cols-5';
+          if (count === 4) return 'grid-cols-2 lg:grid-cols-4';
+          if (count === 3) return 'grid-cols-3';
+          return 'grid-cols-2';
         })()
       }`}>
         {/* N-1 / Constraint Utilization Gauge */}
@@ -178,24 +183,26 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
           </div>
         </div>
 
-        {/* Cell Utilization Gauge */}
-        <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
-          <div className="flex items-center gap-2 mb-4 text-gray-400">
-            <Activity size={16} />
-            <Tooltip text={TOOLTIPS.memoryUtilization} position="bottom" showIcon>
-              <span className="text-xs uppercase tracking-wider font-medium">Memory Utilization</span>
-            </Tooltip>
+        {/* Cell Utilization Gauge - only if memory selected */}
+        {selectedResources.includes('memory') && (
+          <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-4 text-gray-400">
+              <Activity size={16} />
+              <Tooltip text={TOOLTIPS.memoryUtilization} position="bottom" showIcon>
+                <span className="text-xs uppercase tracking-wider font-medium">Memory Utilization</span>
+              </Tooltip>
+            </div>
+            <CapacityGauge
+              value={proposed.utilization_pct}
+              label="Memory Used"
+              thresholds={{ warning: 80, critical: 90 }}
+              inverse={true}
+            />
+            <div className="mt-4 text-center text-xs text-gray-500">
+              App memory / capacity
+            </div>
           </div>
-          <CapacityGauge
-            value={proposed.utilization_pct}
-            label="Memory Used"
-            thresholds={{ warning: 80, critical: 90 }}
-            inverse={true}
-          />
-          <div className="mt-4 text-center text-xs text-gray-500">
-            App memory / capacity
-          </div>
-        </div>
+        )}
 
         {/* Disk Utilization Gauge - only if disk selected and has data */}
         {selectedResources.includes('disk') && proposed.disk_capacity_gb > 0 && (
@@ -471,7 +478,10 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
       </div>
 
       {/* Capacity Constraints Section - shows max cells by resource with bottleneck */}
-      {selectedResources.includes('cpu') && proposed.max_cells_by_cpu > 0 && comparison.constraints && (
+      {(
+        (selectedResources.includes('cpu') && proposed.max_cells_by_cpu > 0) ||
+        (selectedResources.includes('memory') && comparison.constraints)
+      ) && comparison.constraints && (
         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-4 text-gray-400">
             <Server size={16} />
@@ -479,6 +489,9 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
           </div>
 
           {(() => {
+            const memorySelected = selectedResources.includes('memory');
+            const cpuSelected = selectedResources.includes('cpu');
+
             // Calculate max cells by memory from constraint analysis
             const constraint = comparison.constraints;
             const limitingConstraint = constraint.limiting_constraint === 'ha_admission'
@@ -490,9 +503,10 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
 
             const maxCellsByCPU = proposed.max_cells_by_cpu;
 
-            // Determine bottleneck (smaller is more constraining)
-            const isMemoryBottleneck = maxCellsByMemory <= maxCellsByCPU;
-            const isCPUBottleneck = maxCellsByCPU < maxCellsByMemory;
+            // Determine bottleneck only when both resources are selected
+            const bothSelected = memorySelected && cpuSelected;
+            const isMemoryBottleneck = bothSelected && maxCellsByMemory <= maxCellsByCPU;
+            const isCPUBottleneck = bothSelected && maxCellsByCPU < maxCellsByMemory;
 
             // Calculate headroom for each (cells remaining beyond current)
             const currentCells = proposed.cell_count;
@@ -501,66 +515,76 @@ const ScenarioResults = ({ comparison, warnings, selectedResources = ['memory'] 
 
             return (
               <div className="space-y-3">
-                {/* Memory Constraint */}
-                <div className={`flex items-center justify-between p-3 rounded-lg ${
-                  isMemoryBottleneck ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-slate-700/30'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <Database size={16} className={isMemoryBottleneck ? 'text-amber-400' : 'text-gray-400'} />
-                    <span className={`font-medium ${isMemoryBottleneck ? 'text-amber-300' : 'text-gray-300'}`}>
-                      Memory
-                    </span>
-                    {isMemoryBottleneck && (
-                      <span className="text-xs text-amber-400 px-2 py-0.5 bg-amber-500/20 rounded">
-                        ← BOTTLENECK
+                {/* Memory Constraint - only show if memory is selected */}
+                {memorySelected && (
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${
+                    isMemoryBottleneck ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-slate-700/30'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <Database size={16} className={isMemoryBottleneck ? 'text-amber-400' : 'text-gray-400'} />
+                      <span className={`font-medium ${isMemoryBottleneck ? 'text-amber-300' : 'text-gray-300'}`}>
+                        Memory
                       </span>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <span className={`font-mono font-bold ${isMemoryBottleneck ? 'text-amber-400' : 'text-gray-300'}`}>
-                      {maxCellsByMemory} cells
-                    </span>
-                    {!isMemoryBottleneck && memoryHeadroom > 0 && (
-                      <span className="text-xs text-gray-500 ml-2">
-                        (+{memoryHeadroom} headroom)
+                      {isMemoryBottleneck && (
+                        <span className="text-xs text-amber-400 px-2 py-0.5 bg-amber-500/20 rounded">
+                          ← BOTTLENECK
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className={`font-mono font-bold ${isMemoryBottleneck ? 'text-amber-400' : 'text-gray-300'}`}>
+                        {maxCellsByMemory} cells
                       </span>
-                    )}
+                      {!isMemoryBottleneck && memoryHeadroom > 0 && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          (+{memoryHeadroom} headroom)
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* CPU Constraint */}
-                <div className={`flex items-center justify-between p-3 rounded-lg ${
-                  isCPUBottleneck ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-slate-700/30'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <Cpu size={16} className={isCPUBottleneck ? 'text-amber-400' : 'text-gray-400'} />
-                    <span className={`font-medium ${isCPUBottleneck ? 'text-amber-300' : 'text-gray-300'}`}>
-                      CPU
-                    </span>
-                    {isCPUBottleneck && (
-                      <span className="text-xs text-amber-400 px-2 py-0.5 bg-amber-500/20 rounded">
-                        ← BOTTLENECK
+                {/* CPU Constraint - only show if cpu is selected */}
+                {cpuSelected && maxCellsByCPU > 0 && (
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${
+                    isCPUBottleneck ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-slate-700/30'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <Cpu size={16} className={isCPUBottleneck ? 'text-amber-400' : 'text-gray-400'} />
+                      <span className={`font-medium ${isCPUBottleneck ? 'text-amber-300' : 'text-gray-300'}`}>
+                        CPU
                       </span>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <span className={`font-mono font-bold ${isCPUBottleneck ? 'text-amber-400' : 'text-gray-300'}`}>
-                      {maxCellsByCPU} cells
-                    </span>
-                    {!isCPUBottleneck && cpuHeadroom > 0 && (
-                      <span className="text-xs text-gray-500 ml-2">
-                        (+{cpuHeadroom} headroom)
+                      {isCPUBottleneck && (
+                        <span className="text-xs text-amber-400 px-2 py-0.5 bg-amber-500/20 rounded">
+                          ← BOTTLENECK
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className={`font-mono font-bold ${isCPUBottleneck ? 'text-amber-400' : 'text-gray-300'}`}>
+                        {maxCellsByCPU} cells
                       </span>
-                    )}
+                      {!isCPUBottleneck && cpuHeadroom > 0 && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          (+{cpuHeadroom} headroom)
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             );
           })()}
 
           <div className="mt-4 pt-3 border-t border-slate-700/50 text-center">
             <p className="text-xs text-gray-500">
-              Max cells limited by {comparison.constraints.limiting_constraint === 'ha_admission' ? 'HA Admission' : 'N-1'} memory and target CPU ratio
+              Max cells limited by {
+                selectedResources.includes('memory') && selectedResources.includes('cpu')
+                  ? `${comparison.constraints.limiting_constraint === 'ha_admission' ? 'HA Admission' : 'N-1'} memory and target CPU ratio`
+                  : selectedResources.includes('memory')
+                    ? `${comparison.constraints.limiting_constraint === 'ha_admission' ? 'HA Admission' : 'N-1'} memory`
+                    : 'target CPU ratio'
+              }
             </p>
           </div>
         </div>
