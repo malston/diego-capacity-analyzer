@@ -233,6 +233,8 @@ func (c *ScenarioCalculator) CalculateCurrent(state models.InfrastructureState, 
 		tpsCurve,
 		0, // hostCount - not available in current state
 		0, // physicalCoresPerHost - not available in current state
+		0, // targetVCPURatio - not available in current state
+		0, // platformVMsCPU - not available in current state
 	)
 }
 
@@ -269,6 +271,8 @@ func (c *ScenarioCalculator) CalculateProposed(state models.InfrastructureState,
 		input.TPSCurve,
 		input.HostCount,
 		input.PhysicalCoresPerHost,
+		float64(input.TargetVCPURatio),
+		input.PlatformVMsCPU,
 	)
 }
 
@@ -287,6 +291,8 @@ func (c *ScenarioCalculator) calculateFull(
 	tpsCurve []models.TPSPt,
 	hostCount int,            // for CPU ratio calculation
 	physicalCoresPerHost int, // for CPU ratio calculation
+	targetVCPURatio float64,  // for max cells by CPU calculation (0 = default 4:1)
+	platformVMsCPU int,       // for max cells by CPU calculation
 ) models.ScenarioResult {
 	// Memory overhead as percentage
 	memoryOverhead := int(float64(cellMemoryGB) * (overheadPct / 100))
@@ -346,12 +352,23 @@ func (c *ScenarioCalculator) calculateFull(
 	var totalVCPUs, totalPCPUs int
 	var vcpuRatio float64
 	var cpuRiskLevel string
+	var maxCellsByCPU, cpuHeadroomCells int
 
 	if hostCount > 0 && physicalCoresPerHost > 0 {
 		totalVCPUs = cellCount * cellCPU
 		totalPCPUs = hostCount * physicalCoresPerHost
 		vcpuRatio = float64(totalVCPUs) / float64(totalPCPUs)
 		cpuRiskLevel = CPURiskLevel(vcpuRatio)
+
+		// Calculate max cells by CPU and headroom
+		if cellCPU > 0 {
+			targetRatio := targetVCPURatio
+			if targetRatio == 0 {
+				targetRatio = 4.0 // default 4:1 ratio
+			}
+			maxCellsByCPU = CalculateMaxCellsByCPU(targetRatio, totalPCPUs, cellCPU, platformVMsCPU)
+			cpuHeadroomCells = maxCellsByCPU - cellCount // Can be negative if over target
+		}
 	}
 
 	return models.ScenarioResult{
@@ -374,6 +391,8 @@ func (c *ScenarioCalculator) calculateFull(
 		TotalPCPUs:         totalPCPUs,
 		VCPURatio:          vcpuRatio,
 		CPURiskLevel:       cpuRiskLevel,
+		MaxCellsByCPU:      maxCellsByCPU,
+		CPUHeadroomCells:   cpuHeadroomCells,
 	}
 }
 
