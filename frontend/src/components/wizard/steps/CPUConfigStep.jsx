@@ -179,13 +179,13 @@ const CPUConfigStep = ({
 
       <div>
         <label
-          htmlFor="platformVMsCPU"
+          htmlFor="platform-vms-cpu"
           className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2"
         >
           Platform VM vCPUs (optional)
         </label>
         <input
-          id="platformVMsCPU"
+          id="platform-vms-cpu"
           type="number"
           value={platformVMsCPU}
           onChange={(e) => setPlatformVMsCPU(Number(e.target.value))}
