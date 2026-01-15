@@ -67,10 +67,12 @@ type ScenarioResult struct {
 	TPSStatus          string  `json:"tps_status"`       // "optimal", "degraded", "critical"
 	BlastRadiusPct     float64 `json:"blast_radius_pct"` // % of capacity lost per single cell failure
 	// CPU ratio metrics (only populated when CPU analysis enabled, i.e., PhysicalCoresPerHost > 0)
-	TotalVCPUs   int     `json:"total_vcpus"`    // cellCount * cellCPU
-	TotalPCPUs   int     `json:"total_pcpus"`    // hostCount * physicalCoresPerHost
-	VCPURatio    float64 `json:"vcpu_ratio"`     // TotalVCPUs / TotalPCPUs (e.g., 4.5 means 4.5:1)
-	CPURiskLevel string  `json:"cpu_risk_level"` // "conservative" (<=4:1), "moderate" (4-8:1), "aggressive" (>8:1)
+	TotalVCPUs       int     `json:"total_vcpus"`        // cellCount * cellCPU
+	TotalPCPUs       int     `json:"total_pcpus"`        // hostCount * physicalCoresPerHost
+	VCPURatio        float64 `json:"vcpu_ratio"`         // TotalVCPUs / TotalPCPUs (e.g., 4.5 means 4.5:1)
+	CPURiskLevel     string  `json:"cpu_risk_level"`     // "conservative" (<=4:1), "moderate" (4-8:1), "aggressive" (>8:1)
+	MaxCellsByCPU    int     `json:"max_cells_by_cpu"`   // Max cells deployable before hitting target vCPU:pCPU ratio
+	CPUHeadroomCells int     `json:"cpu_headroom_cells"` // Additional cells that can be added within target ratio
 }
 
 // CellSize returns formatted cell size string like "4×32"
