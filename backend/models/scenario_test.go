@@ -54,9 +54,12 @@ func TestScenarioWarningSeverity(t *testing.T) {
 }
 
 func TestScenarioInput_CPUFields(t *testing.T) {
-	input := ScenarioInput{
-		PhysicalCoresPerHost: 32,
-		TargetVCPURatio:      4,
+	// Test JSON unmarshaling (actual API contract)
+	jsonInput := `{"physical_cores_per_host": 32, "target_vcpu_ratio": 4}`
+	var input ScenarioInput
+	err := json.Unmarshal([]byte(jsonInput), &input)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
 	}
 
 	if input.PhysicalCoresPerHost != 32 {
