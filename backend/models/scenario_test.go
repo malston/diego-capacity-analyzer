@@ -69,3 +69,25 @@ func TestScenarioInput_CPUFields(t *testing.T) {
 		t.Errorf("TargetVCPURatio = %d, want 4", input.TargetVCPURatio)
 	}
 }
+
+func TestScenarioResult_CPUFields(t *testing.T) {
+	jsonInput := `{"total_vcpus": 160, "total_pcpus": 96, "vcpu_ratio": 1.67, "cpu_risk_level": "conservative"}`
+	var result ScenarioResult
+	err := json.Unmarshal([]byte(jsonInput), &result)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
+	}
+
+	if result.TotalVCPUs != 160 {
+		t.Errorf("TotalVCPUs = %d, want 160", result.TotalVCPUs)
+	}
+	if result.TotalPCPUs != 96 {
+		t.Errorf("TotalPCPUs = %d, want 96", result.TotalPCPUs)
+	}
+	if result.VCPURatio != 1.67 {
+		t.Errorf("VCPURatio = %f, want 1.67", result.VCPURatio)
+	}
+	if result.CPURiskLevel != "conservative" {
+		t.Errorf("CPURiskLevel = %s, want conservative", result.CPURiskLevel)
+	}
+}
