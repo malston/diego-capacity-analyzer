@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
@@ -1348,5 +1349,35 @@ func TestCalculateCapacityFix_WithHAConstraint(t *testing.T) {
 			}
 			break
 		}
+	}
+}
+
+// ============================================================================
+// CPU RISK LEVEL TESTS
+// ============================================================================
+
+func TestCPURiskLevel(t *testing.T) {
+	tests := []struct {
+		ratio    float64
+		expected string
+	}{
+		{0.5, "conservative"},
+		{2.0, "conservative"},
+		{4.0, "conservative"},
+		{4.1, "moderate"},
+		{6.0, "moderate"},
+		{8.0, "moderate"},
+		{8.1, "aggressive"},
+		{12.0, "aggressive"},
+		{16.0, "aggressive"},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("ratio_%.1f", tt.ratio), func(t *testing.T) {
+			result := CPURiskLevel(tt.ratio)
+			if result != tt.expected {
+				t.Errorf("CPURiskLevel(%.1f) = %s, want %s", tt.ratio, result, tt.expected)
+			}
+		})
 	}
 }

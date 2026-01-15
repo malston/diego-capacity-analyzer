@@ -21,6 +21,22 @@ const (
 	PeakTPS = 1964
 )
 
+// CPURiskLevel returns risk classification based on vCPU:pCPU ratio.
+// Thresholds based on VMware general guidance (workload-dependent):
+// - Conservative (<=4:1): Safe for production workloads
+// - Moderate (4-8:1): Monitor CPU Ready time
+// - Aggressive (>8:1): Expect contention, requires active monitoring
+func CPURiskLevel(ratio float64) string {
+	switch {
+	case ratio <= 4:
+		return "conservative"
+	case ratio <= 8:
+		return "moderate"
+	default:
+		return "aggressive"
+	}
+}
+
 // DefaultTPSCurve is the default TPS curve - baseline estimates, user can override
 var DefaultTPSCurve = []models.TPSPt{
 	{Cells: 1, TPS: 284},
