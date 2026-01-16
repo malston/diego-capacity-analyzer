@@ -202,6 +202,19 @@ func TestWindowSizeUpdate(t *testing.T) {
 	}
 }
 
+func TestViewWithZeroWidth(t *testing.T) {
+	// Regression test: View() should not panic when width is 0
+	// (before WindowSizeMsg is received)
+	fp := New([]string{"/path/to/recent.json"}, nil)
+	// Deliberately leave width and height at 0
+
+	// This should not panic
+	view := fp.View()
+	if view == "" {
+		t.Error("View() returned empty string")
+	}
+}
+
 func TestExpandPath(t *testing.T) {
 	home, _ := os.UserHomeDir()
 

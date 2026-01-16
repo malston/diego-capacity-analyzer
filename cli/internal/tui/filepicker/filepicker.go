@@ -288,7 +288,11 @@ func (fp *FilePicker) viewList() string {
 
 	// Divider
 	if len(fp.recentFiles) > 0 {
-		divider := strings.Repeat("─", min(40, fp.width-4))
+		dividerWidth := min(40, fp.width-4)
+		if dividerWidth < 1 {
+			dividerWidth = 40 // Default width if terminal size unknown
+		}
+		divider := strings.Repeat("─", dividerWidth)
 		b.WriteString(dividerStyle.Render(divider))
 		b.WriteString("\n")
 	}
