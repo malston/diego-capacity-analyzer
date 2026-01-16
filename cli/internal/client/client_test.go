@@ -179,3 +179,31 @@ func TestInfrastructureStatus_ContextCancellation(t *testing.T) {
 		t.Error("expected error for canceled context, got nil")
 	}
 }
+
+func TestGetInfrastructure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/infrastructure" {
+			t.Errorf("expected path /api/infrastructure, got %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(InfrastructureState{
+			Source:         "vsphere",
+			Name:           "vcenter.example.com",
+			TotalHostCount: 4,
+			TotalCellCount: 10,
+		})
+	}))
+	defer server.Close()
+
+	c := New(server.URL)
+	infra, err := c.GetInfrastructure(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if infra.Source != "vsphere" {
+		t.Errorf("expected source vsphere, got %s", infra.Source)
+	}
+	if infra.TotalHostCount != 4 {
+		t.Errorf("expected 4 hosts, got %d", infra.TotalHostCount)
+	}
+}
