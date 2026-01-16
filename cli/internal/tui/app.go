@@ -30,6 +30,7 @@ const (
 	ScreenFilePicker
 	ScreenDashboard
 	ScreenComparison
+	ScreenWizard
 )
 
 // Layout constants
@@ -77,8 +78,9 @@ type App struct {
 	repoBasePath      string
 
 	// Child models
-	menu       *menu.Menu
-	filePicker *filepicker.FilePicker
+	menu         *menu.Menu
+	filePicker   *filepicker.FilePicker
+	wizardScreen *wizard.Wizard
 
 	// Recent files manager
 	recentFiles *recentfiles.RecentFiles
@@ -135,6 +137,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a.updateDashboard(msg)
 		case ScreenComparison:
 			return a.updateComparison(msg)
+		case ScreenWizard:
+			return a.updateWizard(msg)
 		}
 
 	case menu.DataSourceSelectedMsg:
@@ -150,6 +154,17 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Go back to menu
 		a.screen = ScreenMenu
 		a.filePicker = nil
+		return a, nil
+
+	case wizard.WizardCompleteMsg:
+		// Wizard finished, call backend to compare scenario
+		a.wizardScreen = nil
+		return a, a.compareScenario(msg.Input)
+
+	case wizard.WizardCancelledMsg:
+		// Go back to dashboard
+		a.screen = ScreenDashboard
+		a.wizardScreen = nil
 		return a, nil
 
 	case fileLoadedMsg:
@@ -238,6 +253,15 @@ func (a *App) updateComparison(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return a, nil
+}
+
+func (a *App) updateWizard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if a.wizardScreen == nil {
+		return a, nil
+	}
+	model, cmd := a.wizardScreen.Update(msg)
+	a.wizardScreen = model.(*wizard.Wizard)
+	return a, cmd
 }
 
 func (a *App) handleDataSourceSelected(msg menu.DataSourceSelectedMsg) (tea.Model, tea.Cmd) {
@@ -377,6 +401,8 @@ func (a *App) View() string {
 		return a.viewDashboard()
 	case ScreenComparison:
 		return a.viewComparison()
+	case ScreenWizard:
+		return a.viewWizard()
 	default:
 		return a.viewMenu()
 	}
@@ -424,6 +450,14 @@ func (a *App) viewDashboard() string {
 	view := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
 
 	return view
+}
+
+// viewWizard renders the wizard screen
+func (a *App) viewWizard() string {
+	if a.wizardScreen != nil {
+		return a.wizardScreen.View()
+	}
+	return ""
 }
 
 // viewComparison renders the dashboard with comparison results
@@ -475,15 +509,17 @@ func (a *App) loadInfrastructure() tea.Cmd {
 	}
 }
 
-// runWizard creates a command to run the scenario wizard
+// runWizard transitions to the wizard screen
 func (a *App) runWizard() tea.Cmd {
-	return func() tea.Msg {
-		w := wizard.New(a.infra)
-		if err := w.Run(); err != nil {
-			return scenarioComparedMsg{err: err}
-		}
+	a.wizardScreen = wizard.New(a.infra)
+	a.screen = ScreenWizard
+	return a.wizardScreen.Init()
+}
 
-		result, err := a.client.CompareScenario(context.Background(), w.GetInput())
+// compareScenario calls the backend to compare the scenario
+func (a *App) compareScenario(input *client.ScenarioInput) tea.Cmd {
+	return func() tea.Msg {
+		result, err := a.client.CompareScenario(context.Background(), input)
 		return scenarioComparedMsg{result: result, err: err}
 	}
 }

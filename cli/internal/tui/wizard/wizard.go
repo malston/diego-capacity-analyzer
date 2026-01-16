@@ -1,5 +1,5 @@
-// ABOUTME: Scenario planning wizard using huh forms
-// ABOUTME: Collects cell sizing, count, and overhead inputs for scenario comparison
+// ABOUTME: Scenario planning wizard as a bubbletea model
+// ABOUTME: Uses huh forms embedded in bubbletea for responsive input handling
 
 package wizard
 
@@ -7,14 +7,58 @@ import (
 	"fmt"
 	"strconv"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/client"
 )
 
-// Wizard manages the scenario planning wizard flow
+// WizardCompleteMsg is sent when the wizard finishes successfully
+type WizardCompleteMsg struct {
+	Input *client.ScenarioInput
+}
+
+// WizardCancelledMsg is sent when the wizard is cancelled
+type WizardCancelledMsg struct{}
+
+// Wizard manages the scenario planning wizard flow as a bubbletea model
 type Wizard struct {
 	infra *client.InfrastructureState
 	input *client.ScenarioInput
+	form  *huh.Form
+	step  int
+
+	// Form field values (strings for huh)
+	cellMemory  string
+	cellCPU     string
+	cellDisk    string
+	cellCount   string
+	overhead    string
+	haAdmission string
+}
+
+// Common cell memory sizes
+var memoryOptions = []huh.Option[string]{
+	huh.NewOption("16 GB", "16"),
+	huh.NewOption("32 GB", "32"),
+	huh.NewOption("64 GB", "64"),
+	huh.NewOption("128 GB", "128"),
+	huh.NewOption("256 GB", "256"),
+}
+
+// Common CPU core counts
+var cpuOptions = []huh.Option[string]{
+	huh.NewOption("4 cores", "4"),
+	huh.NewOption("8 cores", "8"),
+	huh.NewOption("16 cores", "16"),
+	huh.NewOption("32 cores", "32"),
+}
+
+// Common disk sizes
+var diskOptions = []huh.Option[string]{
+	huh.NewOption("100 GB", "100"),
+	huh.NewOption("200 GB", "200"),
+	huh.NewOption("500 GB", "500"),
+	huh.NewOption("1000 GB", "1000"),
 }
 
 // New creates a new wizard with defaults from current infrastructure
@@ -57,122 +101,61 @@ func New(infra *client.InfrastructureState) *Wizard {
 		}
 	}
 
-	return &Wizard{
-		infra: infra,
-		input: input,
+	w := &Wizard{
+		infra:       infra,
+		input:       input,
+		step:        1,
+		cellMemory:  strconv.Itoa(input.ProposedCellMemoryGB),
+		cellCPU:     strconv.Itoa(input.ProposedCellCPU),
+		cellDisk:    strconv.Itoa(input.ProposedCellDiskGB),
+		cellCount:   strconv.Itoa(input.ProposedCellCount),
+		overhead:    fmt.Sprintf("%.0f", input.OverheadPct),
+		haAdmission: strconv.Itoa(input.HAAdmissionPct),
 	}
+
+	w.form = w.createStep1Form()
+	return w
 }
 
-// GetInput returns the collected scenario input
-func (w *Wizard) GetInput() *client.ScenarioInput {
-	return w.input
-}
-
-// Common cell memory sizes
-var memoryOptions = []huh.Option[string]{
-	huh.NewOption("16 GB", "16"),
-	huh.NewOption("32 GB", "32"),
-	huh.NewOption("64 GB", "64"),
-	huh.NewOption("128 GB", "128"),
-	huh.NewOption("256 GB", "256"),
-}
-
-// Common CPU core counts
-var cpuOptions = []huh.Option[string]{
-	huh.NewOption("4 cores", "4"),
-	huh.NewOption("8 cores", "8"),
-	huh.NewOption("16 cores", "16"),
-	huh.NewOption("32 cores", "32"),
-}
-
-// Common disk sizes
-var diskOptions = []huh.Option[string]{
-	huh.NewOption("100 GB", "100"),
-	huh.NewOption("200 GB", "200"),
-	huh.NewOption("500 GB", "500"),
-	huh.NewOption("1000 GB", "1000"),
-}
-
-// findOptionIndex returns the index of a value in options, or 0 if not found
-func findOptionIndex(options []huh.Option[string], value string) int {
-	for i, opt := range options {
-		if opt.Value == value {
-			return i
-		}
-	}
-	return 0
-}
-
-// Run executes the wizard and collects input
-func (w *Wizard) Run() error {
-	// Step 1: Cell sizing using Select for common values
-	cellMemory := strconv.Itoa(w.input.ProposedCellMemoryGB)
-	cellCPU := strconv.Itoa(w.input.ProposedCellCPU)
-	cellDisk := strconv.Itoa(w.input.ProposedCellDiskGB)
-
-	// Pre-select current values if they match options
-	memOpts := make([]huh.Option[string], len(memoryOptions))
-	copy(memOpts, memoryOptions)
-
-	cpuOpts := make([]huh.Option[string], len(cpuOptions))
-	copy(cpuOpts, cpuOptions)
-
-	diskOpts := make([]huh.Option[string], len(diskOptions))
-	copy(diskOpts, diskOptions)
-
-	form1 := huh.NewForm(
+func (w *Wizard) createStep1Form() *huh.Form {
+	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Memory per cell").
-				Description("Use arrow keys to select, Enter to confirm").
-				Options(memOpts...).
-				Value(&cellMemory),
+				Description("Use ↑/↓ to select, Enter to confirm").
+				Options(memoryOptions...).
+				Value(&w.cellMemory),
 			huh.NewSelect[string]().
 				Title("CPU cores per cell").
-				Description("Use arrow keys to select, Enter to confirm").
-				Options(cpuOpts...).
-				Value(&cellCPU),
+				Description("Use ↑/↓ to select, Enter to confirm").
+				Options(cpuOptions...).
+				Value(&w.cellCPU),
 			huh.NewSelect[string]().
 				Title("Disk per cell").
-				Description("Use arrow keys to select, Enter to confirm").
-				Options(diskOpts...).
-				Value(&cellDisk),
+				Description("Use ↑/↓ to select, Enter to confirm").
+				Options(diskOptions...).
+				Value(&w.cellDisk),
 		).Title("Step 1: Cell Sizing").
 			Description("Configure the size of each Diego cell VM"),
 	).WithTheme(huh.ThemeBase())
+}
 
-	if err := form1.Run(); err != nil {
-		return err
-	}
-
-	// Parse values from step 1
-	w.input.ProposedCellMemoryGB, _ = strconv.Atoi(cellMemory)
-	w.input.ProposedCellCPU, _ = strconv.Atoi(cellCPU)
-	w.input.ProposedCellDiskGB, _ = strconv.Atoi(cellDisk)
-
-	// Step 2: Cell count - use Input with better guidance
-	cellCount := strconv.Itoa(w.input.ProposedCellCount)
-
-	form2 := huh.NewForm(
+func (w *Wizard) createStep2Form() *huh.Form {
+	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Proposed cell count").
 				Description("Type a number and press Enter to continue").
 				Placeholder("e.g., 20").
 				CharLimit(5).
-				Value(&cellCount).
+				Value(&w.cellCount).
 				Validate(validatePositiveInt),
 		).Title("Step 2: Cell Count").
 			Description("How many Diego cells do you want in your scenario?"),
 	).WithTheme(huh.ThemeBase())
+}
 
-	if err := form2.Run(); err != nil {
-		return err
-	}
-
-	w.input.ProposedCellCount, _ = strconv.Atoi(cellCount)
-
-	// Step 3: Overhead settings with common presets
+func (w *Wizard) createStep3Form() *huh.Form {
 	overheadOptions := []huh.Option[string]{
 		huh.NewOption("5%", "5"),
 		huh.NewOption("7% (recommended)", "7"),
@@ -188,35 +171,92 @@ func (w *Wizard) Run() error {
 		huh.NewOption("25% (N-1 for 4 hosts)", "25"),
 	}
 
-	overhead := fmt.Sprintf("%.0f", w.input.OverheadPct)
-	haAdmission := strconv.Itoa(w.input.HAAdmissionPct)
-
-	form3 := huh.NewForm(
+	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Memory overhead").
 				Description("Diego cell memory overhead percentage").
 				Options(overheadOptions...).
-				Value(&overhead),
+				Value(&w.overhead),
 			huh.NewSelect[string]().
 				Title("HA admission control").
 				Description("vSphere HA cluster reservation percentage").
 				Options(haOptions...).
-				Value(&haAdmission),
+				Value(&w.haAdmission),
 		).Title("Step 3: Overhead & HA").
 			Description("Configure overhead and high availability settings"),
 	).WithTheme(huh.ThemeBase())
+}
 
-	if err := form3.Run(); err != nil {
-		return err
+// Init implements tea.Model
+func (w *Wizard) Init() tea.Cmd {
+	return w.form.Init()
+}
+
+// Update implements tea.Model
+func (w *Wizard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Handle escape to cancel
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if keyMsg.String() == "esc" {
+			return w, func() tea.Msg { return WizardCancelledMsg{} }
+		}
 	}
 
-	var overheadFloat float64
-	fmt.Sscanf(overhead, "%f", &overheadFloat)
-	w.input.OverheadPct = overheadFloat
-	w.input.HAAdmissionPct, _ = strconv.Atoi(haAdmission)
+	// Update the current form
+	form, cmd := w.form.Update(msg)
+	if f, ok := form.(*huh.Form); ok {
+		w.form = f
+	}
 
-	return nil
+	// Check if form is complete
+	if w.form.State == huh.StateCompleted {
+		return w.advanceStep()
+	}
+
+	return w, cmd
+}
+
+func (w *Wizard) advanceStep() (tea.Model, tea.Cmd) {
+	switch w.step {
+	case 1:
+		// Parse step 1 values and move to step 2
+		w.input.ProposedCellMemoryGB, _ = strconv.Atoi(w.cellMemory)
+		w.input.ProposedCellCPU, _ = strconv.Atoi(w.cellCPU)
+		w.input.ProposedCellDiskGB, _ = strconv.Atoi(w.cellDisk)
+		w.step = 2
+		w.form = w.createStep2Form()
+		return w, w.form.Init()
+
+	case 2:
+		// Parse step 2 values and move to step 3
+		w.input.ProposedCellCount, _ = strconv.Atoi(w.cellCount)
+		w.step = 3
+		w.form = w.createStep3Form()
+		return w, w.form.Init()
+
+	case 3:
+		// Parse step 3 values and complete
+		var overheadFloat float64
+		fmt.Sscanf(w.overhead, "%f", &overheadFloat)
+		w.input.OverheadPct = overheadFloat
+		w.input.HAAdmissionPct, _ = strconv.Atoi(w.haAdmission)
+
+		return w, func() tea.Msg {
+			return WizardCompleteMsg{Input: w.input}
+		}
+	}
+
+	return w, nil
+}
+
+// View implements tea.Model
+func (w *Wizard) View() string {
+	return w.form.View()
+}
+
+// GetInput returns the collected scenario input
+func (w *Wizard) GetInput() *client.ScenarioInput {
+	return w.input
 }
 
 func validatePositiveInt(s string) error {
@@ -232,5 +272,103 @@ func validatePercentage(s string) error {
 	if _, err := fmt.Sscanf(s, "%f", &v); err != nil || v < 0 || v > 100 {
 		return fmt.Errorf("must be between 0 and 100")
 	}
+	return nil
+}
+
+// Run is kept for backward compatibility but should not be used with bubbletea
+// Deprecated: Use the wizard as a tea.Model instead
+func (w *Wizard) Run() error {
+	// This is the old blocking implementation
+	// Step 1: Cell sizing
+	form1 := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Memory per cell").
+				Description("Use arrow keys to select, Enter to confirm").
+				Options(memoryOptions...).
+				Value(&w.cellMemory),
+			huh.NewSelect[string]().
+				Title("CPU cores per cell").
+				Description("Use arrow keys to select, Enter to confirm").
+				Options(cpuOptions...).
+				Value(&w.cellCPU),
+			huh.NewSelect[string]().
+				Title("Disk per cell").
+				Description("Use arrow keys to select, Enter to confirm").
+				Options(diskOptions...).
+				Value(&w.cellDisk),
+		).Title("Step 1: Cell Sizing").
+			Description("Configure the size of each Diego cell VM"),
+	).WithTheme(huh.ThemeBase())
+
+	if err := form1.Run(); err != nil {
+		return err
+	}
+
+	w.input.ProposedCellMemoryGB, _ = strconv.Atoi(w.cellMemory)
+	w.input.ProposedCellCPU, _ = strconv.Atoi(w.cellCPU)
+	w.input.ProposedCellDiskGB, _ = strconv.Atoi(w.cellDisk)
+
+	// Step 2: Cell count
+	form2 := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Proposed cell count").
+				Description("Type a number and press Enter to continue").
+				Placeholder("e.g., 20").
+				CharLimit(5).
+				Value(&w.cellCount).
+				Validate(validatePositiveInt),
+		).Title("Step 2: Cell Count").
+			Description("How many Diego cells do you want in your scenario?"),
+	).WithTheme(huh.ThemeBase())
+
+	if err := form2.Run(); err != nil {
+		return err
+	}
+
+	w.input.ProposedCellCount, _ = strconv.Atoi(w.cellCount)
+
+	// Step 3: Overhead settings
+	overheadOptions := []huh.Option[string]{
+		huh.NewOption("5%", "5"),
+		huh.NewOption("7% (recommended)", "7"),
+		huh.NewOption("10%", "10"),
+		huh.NewOption("15%", "15"),
+	}
+
+	haOptions := []huh.Option[string]{
+		huh.NewOption("0% (no HA reserve)", "0"),
+		huh.NewOption("10%", "10"),
+		huh.NewOption("15%", "15"),
+		huh.NewOption("20%", "20"),
+		huh.NewOption("25% (N-1 for 4 hosts)", "25"),
+	}
+
+	form3 := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Memory overhead").
+				Description("Diego cell memory overhead percentage").
+				Options(overheadOptions...).
+				Value(&w.overhead),
+			huh.NewSelect[string]().
+				Title("HA admission control").
+				Description("vSphere HA cluster reservation percentage").
+				Options(haOptions...).
+				Value(&w.haAdmission),
+		).Title("Step 3: Overhead & HA").
+			Description("Configure overhead and high availability settings"),
+	).WithTheme(huh.ThemeBase())
+
+	if err := form3.Run(); err != nil {
+		return err
+	}
+
+	var overheadFloat float64
+	fmt.Sscanf(w.overhead, "%f", &overheadFloat)
+	w.input.OverheadPct = overheadFloat
+	w.input.HAAdmissionPct, _ = strconv.Atoi(w.haAdmission)
+
 	return nil
 }

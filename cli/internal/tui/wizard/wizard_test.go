@@ -179,27 +179,6 @@ func TestValidatePercentage(t *testing.T) {
 	}
 }
 
-func TestFindOptionIndex(t *testing.T) {
-	tests := []struct {
-		name     string
-		value    string
-		expected int
-	}{
-		{"finds 64GB", "64", 2},
-		{"finds 32GB", "32", 1},
-		{"returns 0 for unknown", "999", 0},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			idx := findOptionIndex(memoryOptions, tc.value)
-			if idx != tc.expected {
-				t.Errorf("expected index %d, got %d", tc.expected, idx)
-			}
-		})
-	}
-}
-
 func TestMemoryOptionsExist(t *testing.T) {
 	// Ensure we have common memory sizes
 	expectedSizes := []string{"16", "32", "64", "128", "256"}
