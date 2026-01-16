@@ -68,28 +68,77 @@ func (w *Wizard) GetInput() *client.ScenarioInput {
 	return w.input
 }
 
+// Common cell memory sizes
+var memoryOptions = []huh.Option[string]{
+	huh.NewOption("16 GB", "16"),
+	huh.NewOption("32 GB", "32"),
+	huh.NewOption("64 GB", "64"),
+	huh.NewOption("128 GB", "128"),
+	huh.NewOption("256 GB", "256"),
+}
+
+// Common CPU core counts
+var cpuOptions = []huh.Option[string]{
+	huh.NewOption("4 cores", "4"),
+	huh.NewOption("8 cores", "8"),
+	huh.NewOption("16 cores", "16"),
+	huh.NewOption("32 cores", "32"),
+}
+
+// Common disk sizes
+var diskOptions = []huh.Option[string]{
+	huh.NewOption("100 GB", "100"),
+	huh.NewOption("200 GB", "200"),
+	huh.NewOption("500 GB", "500"),
+	huh.NewOption("1000 GB", "1000"),
+}
+
+// findOptionIndex returns the index of a value in options, or 0 if not found
+func findOptionIndex(options []huh.Option[string], value string) int {
+	for i, opt := range options {
+		if opt.Value == value {
+			return i
+		}
+	}
+	return 0
+}
+
 // Run executes the wizard and collects input
 func (w *Wizard) Run() error {
-	// Step 1: Cell sizing
+	// Step 1: Cell sizing using Select for common values
 	cellMemory := strconv.Itoa(w.input.ProposedCellMemoryGB)
 	cellCPU := strconv.Itoa(w.input.ProposedCellCPU)
 	cellDisk := strconv.Itoa(w.input.ProposedCellDiskGB)
 
+	// Pre-select current values if they match options
+	memOpts := make([]huh.Option[string], len(memoryOptions))
+	copy(memOpts, memoryOptions)
+
+	cpuOpts := make([]huh.Option[string], len(cpuOptions))
+	copy(cpuOpts, cpuOptions)
+
+	diskOpts := make([]huh.Option[string], len(diskOptions))
+	copy(diskOpts, diskOptions)
+
 	form1 := huh.NewForm(
 		huh.NewGroup(
-			huh.NewInput().
-				Title("Memory per cell (GB)").
-				Value(&cellMemory).
-				Validate(validatePositiveInt),
-			huh.NewInput().
+			huh.NewSelect[string]().
+				Title("Memory per cell").
+				Description("Use arrow keys to select, Enter to confirm").
+				Options(memOpts...).
+				Value(&cellMemory),
+			huh.NewSelect[string]().
 				Title("CPU cores per cell").
-				Value(&cellCPU).
-				Validate(validatePositiveInt),
-			huh.NewInput().
-				Title("Disk per cell (GB)").
-				Value(&cellDisk).
-				Validate(validatePositiveInt),
-		).Title("Step 1: Cell Sizing"),
+				Description("Use arrow keys to select, Enter to confirm").
+				Options(cpuOpts...).
+				Value(&cellCPU),
+			huh.NewSelect[string]().
+				Title("Disk per cell").
+				Description("Use arrow keys to select, Enter to confirm").
+				Options(diskOpts...).
+				Value(&cellDisk),
+		).Title("Step 1: Cell Sizing").
+			Description("Configure the size of each Diego cell VM"),
 	).WithTheme(huh.ThemeBase())
 
 	if err := form1.Run(); err != nil {
@@ -101,16 +150,20 @@ func (w *Wizard) Run() error {
 	w.input.ProposedCellCPU, _ = strconv.Atoi(cellCPU)
 	w.input.ProposedCellDiskGB, _ = strconv.Atoi(cellDisk)
 
-	// Step 2: Cell count
+	// Step 2: Cell count - use Input with better guidance
 	cellCount := strconv.Itoa(w.input.ProposedCellCount)
 
 	form2 := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Proposed cell count").
+				Description("Type a number and press Enter to continue").
+				Placeholder("e.g., 20").
+				CharLimit(5).
 				Value(&cellCount).
 				Validate(validatePositiveInt),
-		).Title("Step 2: Cell Count"),
+		).Title("Step 2: Cell Count").
+			Description("How many Diego cells do you want in your scenario?"),
 	).WithTheme(huh.ThemeBase())
 
 	if err := form2.Run(); err != nil {
@@ -119,21 +172,39 @@ func (w *Wizard) Run() error {
 
 	w.input.ProposedCellCount, _ = strconv.Atoi(cellCount)
 
-	// Step 3: Overhead settings
+	// Step 3: Overhead settings with common presets
+	overheadOptions := []huh.Option[string]{
+		huh.NewOption("5%", "5"),
+		huh.NewOption("7% (recommended)", "7"),
+		huh.NewOption("10%", "10"),
+		huh.NewOption("15%", "15"),
+	}
+
+	haOptions := []huh.Option[string]{
+		huh.NewOption("0% (no HA reserve)", "0"),
+		huh.NewOption("10%", "10"),
+		huh.NewOption("15%", "15"),
+		huh.NewOption("20%", "20"),
+		huh.NewOption("25% (N-1 for 4 hosts)", "25"),
+	}
+
 	overhead := fmt.Sprintf("%.0f", w.input.OverheadPct)
 	haAdmission := strconv.Itoa(w.input.HAAdmissionPct)
 
 	form3 := huh.NewForm(
 		huh.NewGroup(
-			huh.NewInput().
-				Title("Memory overhead %").
-				Value(&overhead).
-				Validate(validatePercentage),
-			huh.NewInput().
-				Title("HA admission control %").
-				Value(&haAdmission).
-				Validate(validatePercentage),
-		).Title("Step 3: Overhead & HA"),
+			huh.NewSelect[string]().
+				Title("Memory overhead").
+				Description("Diego cell memory overhead percentage").
+				Options(overheadOptions...).
+				Value(&overhead),
+			huh.NewSelect[string]().
+				Title("HA admission control").
+				Description("vSphere HA cluster reservation percentage").
+				Options(haOptions...).
+				Value(&haAdmission),
+		).Title("Step 3: Overhead & HA").
+			Description("Configure overhead and high availability settings"),
 	).WithTheme(huh.ThemeBase())
 
 	if err := form3.Run(); err != nil {

@@ -178,3 +178,58 @@ func TestValidatePercentage(t *testing.T) {
 		})
 	}
 }
+
+func TestFindOptionIndex(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected int
+	}{
+		{"finds 64GB", "64", 2},
+		{"finds 32GB", "32", 1},
+		{"returns 0 for unknown", "999", 0},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			idx := findOptionIndex(memoryOptions, tc.value)
+			if idx != tc.expected {
+				t.Errorf("expected index %d, got %d", tc.expected, idx)
+			}
+		})
+	}
+}
+
+func TestMemoryOptionsExist(t *testing.T) {
+	// Ensure we have common memory sizes
+	expectedSizes := []string{"16", "32", "64", "128", "256"}
+	for _, size := range expectedSizes {
+		found := false
+		for _, opt := range memoryOptions {
+			if opt.Value == size {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected memory option %s GB not found", size)
+		}
+	}
+}
+
+func TestCPUOptionsExist(t *testing.T) {
+	// Ensure we have common CPU sizes
+	expectedSizes := []string{"4", "8", "16", "32"}
+	for _, size := range expectedSizes {
+		found := false
+		for _, opt := range cpuOptions {
+			if opt.Value == size {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected CPU option %s cores not found", size)
+		}
+	}
+}
