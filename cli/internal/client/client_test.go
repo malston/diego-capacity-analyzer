@@ -255,3 +255,63 @@ func TestSetManualInfrastructure(t *testing.T) {
 		t.Errorf("expected source manual, got %s", infra.Source)
 	}
 }
+
+func TestCompareScenario(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/scenario/compare" {
+			t.Errorf("expected path /api/scenario/compare, got %s", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+
+		// Validate request body is correctly serialized
+		var input ScenarioInput
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if input.ProposedCellMemoryGB != 64 {
+			t.Errorf("expected proposed_cell_memory_gb 64, got %d", input.ProposedCellMemoryGB)
+		}
+		if input.ProposedCellCount != 15 {
+			t.Errorf("expected proposed_cell_count 15, got %d", input.ProposedCellCount)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(ScenarioComparison{
+			Current: ScenarioResult{
+				CellCount:      10,
+				CellMemoryGB:   64,
+				UtilizationPct: 75.0,
+			},
+			Proposed: ScenarioResult{
+				CellCount:      15,
+				CellMemoryGB:   64,
+				UtilizationPct: 50.0,
+			},
+			Delta: ScenarioDelta{
+				CapacityChangeGB:     320,
+				UtilizationChangePct: -25.0,
+			},
+		})
+	}))
+	defer server.Close()
+
+	c := New(server.URL)
+	input := &ScenarioInput{
+		ProposedCellMemoryGB: 64,
+		ProposedCellCPU:      8,
+		ProposedCellCount:    15,
+	}
+
+	result, err := c.CompareScenario(context.Background(), input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Current.CellCount != 10 {
+		t.Errorf("expected current cell count 10, got %d", result.Current.CellCount)
+	}
+	if result.Proposed.CellCount != 15 {
+		t.Errorf("expected proposed cell count 15, got %d", result.Proposed.CellCount)
+	}
+}

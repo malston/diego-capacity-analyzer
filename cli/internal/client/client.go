@@ -284,3 +284,91 @@ func (c *Client) handleErrorResponse(resp *http.Response) error {
 	}
 	return fmt.Errorf("backend error: %s", errResp.Error)
 }
+
+// ScenarioInput represents proposed changes for what-if analysis
+type ScenarioInput struct {
+	ProposedCellMemoryGB int      `json:"proposed_cell_memory_gb"`
+	ProposedCellCPU      int      `json:"proposed_cell_cpu"`
+	ProposedCellDiskGB   int      `json:"proposed_cell_disk_gb"`
+	ProposedCellCount    int      `json:"proposed_cell_count"`
+	TargetCluster        string   `json:"target_cluster"`
+	SelectedResources    []string `json:"selected_resources"`
+	OverheadPct          float64  `json:"overhead_pct"`
+	HostCount            int      `json:"host_count"`
+	MemoryPerHostGB      int      `json:"memory_per_host_gb"`
+	HAAdmissionPct       int      `json:"ha_admission_pct"`
+	PhysicalCoresPerHost int      `json:"physical_cores_per_host"`
+	TargetVCPURatio      int      `json:"target_vcpu_ratio"`
+	PlatformVMsCPU       int      `json:"platform_vms_cpu"`
+}
+
+// ScenarioResult represents computed metrics for a scenario
+type ScenarioResult struct {
+	CellCount        int     `json:"cell_count"`
+	CellMemoryGB     int     `json:"cell_memory_gb"`
+	CellCPU          int     `json:"cell_cpu"`
+	CellDiskGB       int     `json:"cell_disk_gb"`
+	AppCapacityGB    int     `json:"app_capacity_gb"`
+	UtilizationPct   float64 `json:"utilization_pct"`
+	FreeChunks       int     `json:"free_chunks"`
+	N1UtilizationPct float64 `json:"n1_utilization_pct"`
+	FaultImpact      int     `json:"fault_impact"`
+	BlastRadiusPct   float64 `json:"blast_radius_pct"`
+	TotalVCPUs       int     `json:"total_vcpus"`
+	TotalPCPUs       int     `json:"total_pcpus"`
+	VCPURatio        float64 `json:"vcpu_ratio"`
+	CPURiskLevel     string  `json:"cpu_risk_level"`
+}
+
+// ScenarioDelta represents changes between current and proposed
+type ScenarioDelta struct {
+	CapacityChangeGB     int     `json:"capacity_change_gb"`
+	UtilizationChangePct float64 `json:"utilization_change_pct"`
+	ResilienceChange     string  `json:"resilience_change"`
+	VCPURatioChange      float64 `json:"vcpu_ratio_change"`
+}
+
+// ScenarioWarning represents a tradeoff warning
+type ScenarioWarning struct {
+	Severity string `json:"severity"`
+	Message  string `json:"message"`
+}
+
+// ScenarioComparison represents full comparison response
+type ScenarioComparison struct {
+	Current  ScenarioResult    `json:"current"`
+	Proposed ScenarioResult    `json:"proposed"`
+	Delta    ScenarioDelta     `json:"delta"`
+	Warnings []ScenarioWarning `json:"warnings"`
+}
+
+// CompareScenario calls POST /api/scenario/compare
+func (c *Client) CompareScenario(ctx context.Context, input *ScenarioInput) (*ScenarioComparison, error) {
+	body, err := json.Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal input: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/scenario/compare", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, c.handleRequestError(ctx, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.handleErrorResponse(resp)
+	}
+
+	var comparison ScenarioComparison
+	if err := json.NewDecoder(resp.Body).Decode(&comparison); err != nil {
+		return nil, fmt.Errorf("invalid response from backend: %w", err)
+	}
+
+	return &comparison, nil
+}
