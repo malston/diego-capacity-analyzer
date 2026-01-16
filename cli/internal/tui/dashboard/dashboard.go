@@ -65,11 +65,25 @@ func (d *Dashboard) View() string {
 	sb.WriteString(fmt.Sprintf(" %.1f%%\n", d.infra.HostMemoryUtilizationPercent))
 	sb.WriteString("\n")
 
-	// CPU utilization
-	sb.WriteString("CPU Utilization\n")
-	sb.WriteString(styles.ProgressBar(d.infra.HostCPUUtilizationPercent, 20))
-	sb.WriteString(fmt.Sprintf(" %.1f%%\n", d.infra.HostCPUUtilizationPercent))
-	sb.WriteString("\n")
+	// vCPU:pCPU Ratio (matches frontend representation)
+	if d.infra.TotalCPUCores > 0 {
+		riskStyle := styles.StatusOK
+		riskLabel := "conservative"
+		if d.infra.CPURiskLevel == "moderate" {
+			riskStyle = styles.StatusWarning
+			riskLabel = "moderate"
+		} else if d.infra.CPURiskLevel == "aggressive" {
+			riskStyle = styles.StatusCritical
+			riskLabel = "aggressive"
+		} else if d.infra.CPURiskLevel != "" {
+			riskLabel = d.infra.CPURiskLevel
+		}
+		sb.WriteString("vCPU:pCPU Ratio\n")
+		sb.WriteString(fmt.Sprintf("  %s", riskStyle.Render(fmt.Sprintf("%.1f:1", d.infra.VCPURatio))))
+		sb.WriteString(fmt.Sprintf(" (%s)\n", riskLabel))
+		sb.WriteString(fmt.Sprintf("  %d vCPU / %d pCPU\n", d.infra.TotalVCPUs, d.infra.TotalCPUCores))
+		sb.WriteString("\n")
+	}
 
 	// HA Status
 	haStyle := styles.StatusOK
@@ -80,18 +94,6 @@ func (d *Dashboard) View() string {
 	}
 	sb.WriteString(fmt.Sprintf("HA Status: %s\n", haStyle.Render(haIcon+" "+strings.ToUpper(d.infra.HAStatus))))
 	sb.WriteString(fmt.Sprintf("  Can survive %d host failure(s)\n", d.infra.HAMinHostFailuresSurvived))
-
-	// vCPU Ratio
-	if d.infra.VCPURatio > 0 {
-		sb.WriteString("\n")
-		riskStyle := styles.StatusOK
-		if d.infra.CPURiskLevel == "moderate" {
-			riskStyle = styles.StatusWarning
-		} else if d.infra.CPURiskLevel == "aggressive" {
-			riskStyle = styles.StatusCritical
-		}
-		sb.WriteString(fmt.Sprintf("vCPU Ratio: %s\n", riskStyle.Render(fmt.Sprintf("%.1f:1", d.infra.VCPURatio))))
-	}
 
 	return lipgloss.NewStyle().
 		Width(d.width).

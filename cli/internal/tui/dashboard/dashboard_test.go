@@ -112,17 +112,71 @@ func TestDashboardHAStatus(t *testing.T) {
 }
 
 func TestDashboardVCPURatio(t *testing.T) {
-	infra := &client.InfrastructureState{
-		Name:         "test",
-		VCPURatio:    4.5,
-		CPURiskLevel: "conservative",
+	tests := []struct {
+		name          string
+		vcpuRatio     float64
+		riskLevel     string
+		totalVCPUs    int
+		totalCPUCores int
+		wantRatio     string
+		wantRisk      string
+		wantBreakdown string
+	}{
+		{
+			name:          "conservative ratio",
+			vcpuRatio:     2.5,
+			riskLevel:     "conservative",
+			totalVCPUs:    80,
+			totalCPUCores: 32,
+			wantRatio:     "2.5:1",
+			wantRisk:      "conservative",
+			wantBreakdown: "80 vCPU / 32 pCPU",
+		},
+		{
+			name:          "moderate ratio",
+			vcpuRatio:     5.0,
+			riskLevel:     "moderate",
+			totalVCPUs:    160,
+			totalCPUCores: 32,
+			wantRatio:     "5.0:1",
+			wantRisk:      "moderate",
+			wantBreakdown: "160 vCPU / 32 pCPU",
+		},
+		{
+			name:          "aggressive ratio",
+			vcpuRatio:     10.0,
+			riskLevel:     "aggressive",
+			totalVCPUs:    320,
+			totalCPUCores: 32,
+			wantRatio:     "10.0:1",
+			wantRisk:      "aggressive",
+			wantBreakdown: "320 vCPU / 32 pCPU",
+		},
 	}
 
-	d := New(infra, 80, 24)
-	view := d.View()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			infra := &client.InfrastructureState{
+				Name:          "test",
+				VCPURatio:     tc.vcpuRatio,
+				CPURiskLevel:  tc.riskLevel,
+				TotalVCPUs:    tc.totalVCPUs,
+				TotalCPUCores: tc.totalCPUCores,
+			}
 
-	if !strings.Contains(view, "4.5:1") {
-		t.Error("expected view to contain vCPU ratio '4.5:1'")
+			d := New(infra, 80, 24)
+			view := d.View()
+
+			if !strings.Contains(view, tc.wantRatio) {
+				t.Errorf("expected view to contain ratio %q", tc.wantRatio)
+			}
+			if !strings.Contains(view, tc.wantRisk) {
+				t.Errorf("expected view to contain risk level %q", tc.wantRisk)
+			}
+			if !strings.Contains(view, tc.wantBreakdown) {
+				t.Errorf("expected view to contain breakdown %q", tc.wantBreakdown)
+			}
+		})
 	}
 }
 
