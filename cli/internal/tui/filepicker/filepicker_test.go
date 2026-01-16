@@ -201,3 +201,27 @@ func TestWindowSizeUpdate(t *testing.T) {
 		t.Errorf("expected height 50, got %d", updated.height)
 	}
 }
+
+func TestExpandPath(t *testing.T) {
+	home, _ := os.UserHomeDir()
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"~/Documents/test.json", home + "/Documents/test.json"},
+		{"~", home},
+		{"/absolute/path.json", "/absolute/path.json"},
+		{"relative/path.json", "relative/path.json"},
+		{"./local.json", "./local.json"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			result := expandPath(tc.input)
+			if result != tc.expected {
+				t.Errorf("expandPath(%q) = %q, want %q", tc.input, result, tc.expected)
+			}
+		})
+	}
+}

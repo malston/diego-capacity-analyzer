@@ -208,7 +208,10 @@ func (fp *FilePicker) selectListItem() (tea.Model, tea.Cmd) {
 }
 
 func (fp *FilePicker) loadFile(path string) (tea.Model, tea.Cmd) {
-	data, err := os.ReadFile(path)
+	// Expand ~ to home directory
+	expandedPath := expandPath(path)
+
+	data, err := os.ReadFile(expandedPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			fp.err = "File not found: " + path
@@ -221,8 +224,22 @@ func (fp *FilePicker) loadFile(path string) (tea.Model, tea.Cmd) {
 	}
 
 	return fp, func() tea.Msg {
-		return FileSelectedMsg{Path: path, Data: data}
+		return FileSelectedMsg{Path: expandedPath, Data: data}
 	}
+}
+
+// expandPath expands ~ to home directory and resolves relative paths
+func expandPath(path string) string {
+	if strings.HasPrefix(path, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return home + path[1:]
+		}
+	} else if path == "~" {
+		if home, err := os.UserHomeDir(); err == nil {
+			return home
+		}
+	}
+	return path
 }
 
 // SetError sets an error message to display
