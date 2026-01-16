@@ -277,7 +277,28 @@ func (a *App) handleFileSelected(msg filepicker.FileSelectedMsg) (tea.Model, tea
 }
 
 func (a *App) handleFileLoaded(msg fileLoadedMsg) (tea.Model, tea.Cmd) {
-	// Parse the infrastructure JSON
+	// Try to detect the JSON format - ManualInput vs InfrastructureState
+	// ManualInput has clusters[].memory_gb_per_host, InfrastructureState has clusters[].memory_gb
+	if isManualInputFormat(msg.data) {
+		// Parse as ManualInput and send to backend for computation
+		var input client.ManualInput
+		if err := json.Unmarshal(msg.data, &input); err != nil {
+			a.err = err
+			if a.filePicker != nil {
+				a.filePicker.SetError("Invalid JSON: " + err.Error())
+			}
+			return a, nil
+		}
+
+		// Transition to dashboard with loading state
+		a.screen = ScreenDashboard
+		a.filePicker = nil
+
+		// Call backend to compute infrastructure state
+		return a, a.computeManualInfrastructure(&input)
+	}
+
+	// Parse as InfrastructureState (pre-computed format)
 	var infra client.InfrastructureState
 	if err := json.Unmarshal(msg.data, &infra); err != nil {
 		a.err = err
@@ -295,6 +316,41 @@ func (a *App) handleFileLoaded(msg fileLoadedMsg) (tea.Model, tea.Cmd) {
 
 	// POST infrastructure state to backend so scenario comparison works
 	return a, a.postInfrastructureState(&infra)
+}
+
+// isManualInputFormat detects if JSON is ManualInput format (has memory_gb_per_host)
+func isManualInputFormat(data []byte) bool {
+	// Quick check: ManualInput has "memory_gb_per_host", InfrastructureState has "memory_gb"
+	// but NOT "memory_gb_per_host"
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return false
+	}
+
+	clusters, ok := raw["clusters"].([]interface{})
+	if !ok || len(clusters) == 0 {
+		return false
+	}
+
+	firstCluster, ok := clusters[0].(map[string]interface{})
+	if !ok {
+		return false
+	}
+
+	// ManualInput format has memory_gb_per_host
+	_, hasPerHost := firstCluster["memory_gb_per_host"]
+	return hasPerHost
+}
+
+// computeManualInfrastructure calls the backend to compute infrastructure from manual input
+func (a *App) computeManualInfrastructure(input *client.ManualInput) tea.Cmd {
+	return func() tea.Msg {
+		infra, err := a.client.SetManualInfrastructure(context.Background(), input)
+		if err != nil {
+			return infraLoadedMsg{err: err}
+		}
+		return infraLoadedMsg{infra: infra}
+	}
 }
 
 // postInfrastructureState sends the loaded infrastructure to the backend

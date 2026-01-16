@@ -138,3 +138,48 @@ func TestAppVSphereConfigured(t *testing.T) {
 		t.Errorf("expected repoBasePath to be '/some/path', got %s", app.repoBasePath)
 	}
 }
+
+func TestIsManualInputFormat(t *testing.T) {
+	tests := []struct {
+		name     string
+		json     string
+		expected bool
+	}{
+		{
+			name: "ManualInput format",
+			json: `{
+				"name": "Test",
+				"clusters": [{"name": "c1", "host_count": 4, "memory_gb_per_host": 256}]
+			}`,
+			expected: true,
+		},
+		{
+			name: "InfrastructureState format",
+			json: `{
+				"name": "Test",
+				"clusters": [{"name": "c1", "host_count": 4, "memory_gb": 1024}],
+				"total_host_count": 4
+			}`,
+			expected: false,
+		},
+		{
+			name:     "Empty clusters",
+			json:     `{"name": "Test", "clusters": []}`,
+			expected: false,
+		},
+		{
+			name:     "Invalid JSON",
+			json:     `{invalid}`,
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isManualInputFormat([]byte(tc.json))
+			if result != tc.expected {
+				t.Errorf("isManualInputFormat() = %v, want %v", result, tc.expected)
+			}
+		})
+	}
+}
