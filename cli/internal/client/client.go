@@ -342,6 +342,37 @@ type ScenarioComparison struct {
 	Warnings []ScenarioWarning `json:"warnings"`
 }
 
+// SetInfrastructureState calls POST /api/infrastructure/state
+func (c *Client) SetInfrastructureState(ctx context.Context, state *InfrastructureState) (*InfrastructureState, error) {
+	body, err := json.Marshal(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal state: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/infrastructure/state", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, c.handleRequestError(ctx, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.handleErrorResponse(resp)
+	}
+
+	var infra InfrastructureState
+	if err := json.NewDecoder(resp.Body).Decode(&infra); err != nil {
+		return nil, fmt.Errorf("invalid response from backend: %w", err)
+	}
+
+	return &infra, nil
+}
+
 // CompareScenario calls POST /api/scenario/compare
 func (c *Client) CompareScenario(ctx context.Context, input *ScenarioInput) (*ScenarioComparison, error) {
 	body, err := json.Marshal(input)

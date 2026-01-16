@@ -12,10 +12,13 @@ import (
 
 func TestAppInitialState(t *testing.T) {
 	c := client.New("http://localhost:8080")
-	app := New(c)
+	app := New(c, false, "")
 
 	if app.screen != ScreenMenu {
 		t.Errorf("expected initial screen to be ScreenMenu, got %d", app.screen)
+	}
+	if app.menu == nil {
+		t.Error("expected menu to be initialized")
 	}
 }
 
@@ -24,17 +27,20 @@ func TestScreenConstants(t *testing.T) {
 	if ScreenMenu != 0 {
 		t.Errorf("expected ScreenMenu to be 0, got %d", ScreenMenu)
 	}
-	if ScreenDashboard != 1 {
-		t.Errorf("expected ScreenDashboard to be 1, got %d", ScreenDashboard)
+	if ScreenFilePicker != 1 {
+		t.Errorf("expected ScreenFilePicker to be 1, got %d", ScreenFilePicker)
 	}
-	if ScreenComparison != 2 {
-		t.Errorf("expected ScreenComparison to be 2, got %d", ScreenComparison)
+	if ScreenDashboard != 2 {
+		t.Errorf("expected ScreenDashboard to be 2, got %d", ScreenDashboard)
+	}
+	if ScreenComparison != 3 {
+		t.Errorf("expected ScreenComparison to be 3, got %d", ScreenComparison)
 	}
 }
 
 func TestAppInfraLoadedMsg(t *testing.T) {
 	c := client.New("http://localhost:8080")
-	app := New(c)
+	app := New(c, false, "")
 	app.width = 100
 	app.height = 40
 
@@ -62,7 +68,7 @@ func TestAppInfraLoadedMsg(t *testing.T) {
 
 func TestAppScenarioComparedMsg(t *testing.T) {
 	c := client.New("http://localhost:8080")
-	app := New(c)
+	app := New(c, false, "")
 	app.width = 100
 	app.height = 40
 	app.screen = ScreenDashboard
@@ -90,7 +96,7 @@ func TestAppScenarioComparedMsg(t *testing.T) {
 
 func TestAppViewReturnsContent(t *testing.T) {
 	c := client.New("http://localhost:8080")
-	app := New(c)
+	app := New(c, false, "")
 	app.width = 100
 	app.height = 40
 
@@ -118,5 +124,17 @@ func TestAppViewReturnsContent(t *testing.T) {
 	}
 	if !strings.Contains(view, "Back") {
 		t.Error("expected comparison view to contain 'Back'")
+	}
+}
+
+func TestAppVSphereConfigured(t *testing.T) {
+	c := client.New("http://localhost:8080")
+	app := New(c, true, "/some/path")
+
+	if !app.vsphereConfigured {
+		t.Error("expected vsphereConfigured to be true")
+	}
+	if app.repoBasePath != "/some/path" {
+		t.Errorf("expected repoBasePath to be '/some/path', got %s", app.repoBasePath)
 	}
 }

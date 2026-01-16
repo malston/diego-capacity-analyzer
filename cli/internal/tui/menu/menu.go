@@ -4,9 +4,10 @@
 package menu
 
 import (
-	"fmt"
+	"strings"
 
-	"github.com/charmbracelet/huh"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // DataSource represents the selected data source
@@ -18,6 +19,14 @@ const (
 	SourceManual
 )
 
+// DataSourceSelectedMsg is sent when a data source is selected
+type DataSourceSelectedMsg struct {
+	Source DataSource
+}
+
+// CancelledMsg is sent when the user cancels
+type CancelledMsg struct{}
+
 type option struct {
 	label   string
 	value   DataSource
@@ -26,9 +35,22 @@ type option struct {
 
 // Menu represents the data source selection menu
 type Menu struct {
-	options  []option
-	selected DataSource
+	options []option
+	cursor  int
+	err     string
+	width   int
+	height  int
 }
+
+// Styles
+var (
+	titleStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
+	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
+	normalStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+	disabledStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+	helpStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+)
 
 // New creates a new data source menu
 func New(vsphereConfigured bool) *Menu {
@@ -38,42 +60,98 @@ func New(vsphereConfigured bool) *Menu {
 			{label: "Load JSON file", value: SourceJSON, enabled: true},
 			{label: "Manual input", value: SourceManual, enabled: true},
 		},
-		selected: SourceVSphere,
+		cursor: 0,
 	}
 }
 
-// Run displays the menu and returns the selected data source
-func (m *Menu) Run() (DataSource, error) {
-	var options []huh.Option[DataSource]
-	for _, opt := range m.options {
+// Init implements tea.Model
+func (m *Menu) Init() tea.Cmd {
+	return nil
+}
+
+// Update implements tea.Model
+func (m *Menu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
+
+	case tea.KeyMsg:
+		// Clear error on any key press
+		m.err = ""
+
+		switch msg.String() {
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case "down", "j":
+			if m.cursor < len(m.options)-1 {
+				m.cursor++
+			}
+		case "enter":
+			return m.selectOption()
+		case "esc", "q":
+			return m, func() tea.Msg { return CancelledMsg{} }
+		}
+	}
+
+	return m, nil
+}
+
+func (m *Menu) selectOption() (tea.Model, tea.Cmd) {
+	opt := m.options[m.cursor]
+
+	if !opt.enabled {
+		m.err = "vSphere is not configured"
+		return m, nil
+	}
+
+	return m, func() tea.Msg {
+		return DataSourceSelectedMsg{Source: opt.value}
+	}
+}
+
+// View implements tea.Model
+func (m *Menu) View() string {
+	var b strings.Builder
+
+	b.WriteString(titleStyle.Render("Diego Capacity Analyzer"))
+	b.WriteString("\n\n")
+	b.WriteString(helpStyle.Render("Select data source:"))
+	b.WriteString("\n\n")
+
+	for i, opt := range m.options {
+		cursor := "  "
+		style := normalStyle
+
+		if i == m.cursor {
+			cursor = "> "
+			style = selectedStyle
+		}
+
 		label := opt.label
 		if !opt.enabled {
-			label = fmt.Sprintf("%s (not configured)", label)
+			label = opt.label + " (not configured)"
+			if i != m.cursor {
+				style = disabledStyle
+			}
 		}
-		options = append(options, huh.NewOption(label, opt.value))
+
+		b.WriteString(cursor + style.Render(label) + "\n")
 	}
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[DataSource]().
-				Title("Select data source").
-				Options(options...).
-				Value(&m.selected),
-		),
-	).WithTheme(huh.ThemeBase())
-
-	if err := form.Run(); err != nil {
-		return 0, err
+	if m.err != "" {
+		b.WriteString("\n")
+		b.WriteString(errorStyle.Render("Error: " + m.err))
+		b.WriteString("\n")
 	}
 
-	// Check if selected option is enabled
-	for _, opt := range m.options {
-		if opt.value == m.selected && !opt.enabled {
-			return 0, fmt.Errorf("vSphere is not configured")
-		}
-	}
+	b.WriteString("\n")
+	b.WriteString(helpStyle.Render("↑/↓ navigate • enter select • esc quit"))
 
-	return m.selected, nil
+	return b.String()
 }
 
 // String returns the string representation of a DataSource

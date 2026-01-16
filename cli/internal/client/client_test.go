@@ -256,6 +256,48 @@ func TestSetManualInfrastructure(t *testing.T) {
 	}
 }
 
+func TestSetInfrastructureState(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/infrastructure/state" {
+			t.Errorf("expected path /api/infrastructure/state, got %s", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+
+		var state InfrastructureState
+		if err := json.NewDecoder(r.Body).Decode(&state); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if state.Name != "Test Infrastructure" {
+			t.Errorf("expected name 'Test Infrastructure', got %s", state.Name)
+		}
+		if state.TotalHostCount != 8 {
+			t.Errorf("expected 8 hosts, got %d", state.TotalHostCount)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(state)
+	}))
+	defer server.Close()
+
+	c := New(server.URL)
+	state := &InfrastructureState{
+		Source:         "json",
+		Name:           "Test Infrastructure",
+		TotalHostCount: 8,
+		TotalCellCount: 20,
+	}
+
+	result, err := c.SetInfrastructureState(context.Background(), state)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Name != "Test Infrastructure" {
+		t.Errorf("expected name 'Test Infrastructure', got %s", result.Name)
+	}
+}
+
 func TestCompareScenario(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/scenario/compare" {
