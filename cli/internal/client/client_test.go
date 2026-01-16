@@ -207,3 +207,51 @@ func TestGetInfrastructure(t *testing.T) {
 		t.Errorf("expected 4 hosts, got %d", infra.TotalHostCount)
 	}
 }
+
+func TestSetManualInfrastructure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/infrastructure/manual" {
+			t.Errorf("expected path /api/infrastructure/manual, got %s", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+
+		var input ManualInput
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if input.Name != "Test Infra" {
+			t.Errorf("expected name 'Test Infra', got %s", input.Name)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(InfrastructureState{
+			Source: "manual",
+			Name:   input.Name,
+		})
+	}))
+	defer server.Close()
+
+	c := New(server.URL)
+	input := &ManualInput{
+		Name: "Test Infra",
+		Clusters: []ClusterInput{{
+			Name:              "cluster-1",
+			HostCount:         4,
+			MemoryGBPerHost:   256,
+			CPUCoresPerHost:   32,
+			DiegoCellCount:    10,
+			DiegoCellMemoryGB: 64,
+			DiegoCellCPU:      8,
+		}},
+	}
+
+	infra, err := c.SetManualInfrastructure(context.Background(), input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if infra.Source != "manual" {
+		t.Errorf("expected source manual, got %s", infra.Source)
+	}
+}

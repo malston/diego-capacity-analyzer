@@ -4,6 +4,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -115,6 +116,29 @@ type InfrastructureState struct {
 	Cached                       bool           `json:"cached"`
 }
 
+// ClusterInput represents user-provided cluster configuration
+type ClusterInput struct {
+	Name                         string `json:"name"`
+	HostCount                    int    `json:"host_count"`
+	MemoryGBPerHost              int    `json:"memory_gb_per_host"`
+	CPUCoresPerHost              int    `json:"cpu_cores_per_host"`
+	HAAdmissionControlPercentage int    `json:"ha_admission_control_percentage"`
+	DiegoCellCount               int    `json:"diego_cell_count"`
+	DiegoCellMemoryGB            int    `json:"diego_cell_memory_gb"`
+	DiegoCellCPU                 int    `json:"diego_cell_cpu"`
+	DiegoCellDiskGB              int    `json:"diego_cell_disk_gb"`
+}
+
+// ManualInput represents user-provided infrastructure data
+type ManualInput struct {
+	Name              string         `json:"name"`
+	Clusters          []ClusterInput `json:"clusters"`
+	PlatformVMsGB     int            `json:"platform_vms_gb"`
+	TotalAppMemoryGB  int            `json:"total_app_memory_gb"`
+	TotalAppDiskGB    int            `json:"total_app_disk_gb"`
+	TotalAppInstances int            `json:"total_app_instances"`
+}
+
 // Health calls the /api/health endpoint
 func (c *Client) Health(ctx context.Context) (*HealthResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/health", nil)
@@ -191,6 +215,37 @@ func (c *Client) GetInfrastructure(ctx context.Context) (*InfrastructureState, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, c.handleRequestError(ctx, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.handleErrorResponse(resp)
+	}
+
+	var infra InfrastructureState
+	if err := json.NewDecoder(resp.Body).Decode(&infra); err != nil {
+		return nil, fmt.Errorf("invalid response from backend: %w", err)
+	}
+
+	return &infra, nil
+}
+
+// SetManualInfrastructure calls POST /api/infrastructure/manual
+func (c *Client) SetManualInfrastructure(ctx context.Context, input *ManualInput) (*InfrastructureState, error) {
+	body, err := json.Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal input: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/infrastructure/manual", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
