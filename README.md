@@ -263,6 +263,7 @@ GitHub Actions workflows run automatically:
 
 ## Documentation
 
+- **[CLI Guide](docs/CLI.md)** - CLI tool and TUI usage, CI/CD integration
 - **[UI Guide](docs/UI-GUIDE.md)** - Dashboard metrics and visualizations
 - **[API Reference](docs/API.md)** - Backend REST API documentation
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Cloud Foundry deployment
