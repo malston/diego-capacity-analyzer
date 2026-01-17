@@ -273,21 +273,22 @@ func (d *Dashboard) renderHAPanel(width int) string {
 func (d *Dashboard) buildPanel(title, content string, innerWidth int) string {
 	borderStyle := lipgloss.NewStyle().Foreground(styles.Muted)
 
-	// Top border with title
-	topBorder := fmt.Sprintf("┌─ %s %s┐",
-		title,
-		strings.Repeat("─", max(0, innerWidth-lipgloss.Width(title)-1)))
+	// Top border with title - use lipgloss.Width for styled title
+	titleWidth := lipgloss.Width(title)
+	fillWidth := max(0, innerWidth-titleWidth-1)
+	topBorder := "┌─ " + title + " " + strings.Repeat("─", fillWidth) + "┐"
 
 	// Content lines with side borders
 	lines := strings.Split(content, "\n")
 	var contentLines []string
 	for _, line := range lines {
-		padding := max(0, innerWidth-lipgloss.Width(line))
-		contentLines = append(contentLines, fmt.Sprintf("│ %s%s │", line, strings.Repeat(" ", padding)))
+		lineWidth := lipgloss.Width(line)
+		padding := max(0, innerWidth-lineWidth)
+		contentLines = append(contentLines, "│ "+line+strings.Repeat(" ", padding)+" │")
 	}
 
 	// Bottom border
-	bottomBorder := fmt.Sprintf("└%s┘", strings.Repeat("─", innerWidth+2))
+	bottomBorder := "└" + strings.Repeat("─", innerWidth+2) + "┘"
 
 	allLines := []string{topBorder}
 	allLines = append(allLines, contentLines...)

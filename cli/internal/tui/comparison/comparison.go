@@ -188,22 +188,24 @@ func (c *Comparison) buildPanel(title string, icon icons.Icon, content string, w
 
 	innerWidth := width - 4
 	fullTitle := fmt.Sprintf("%s %s", icon.String(), title)
+	titleWidth := lipgloss.Width(fullTitle)
+	styledTitle := titleStyle.Render(fullTitle)
 
-	// Top border with title
-	topBorder := fmt.Sprintf("┌─ %s %s┐",
-		titleStyle.Render(fullTitle),
-		strings.Repeat("─", max(0, innerWidth-len(fullTitle)-1)))
+	// Top border with title - use lipgloss.Width for accurate width
+	fillWidth := max(0, innerWidth-titleWidth-1)
+	topBorder := "┌─ " + styledTitle + " " + strings.Repeat("─", fillWidth) + "┐"
 
 	// Content lines with side borders
 	lines := strings.Split(content, "\n")
 	var contentLines []string
 	for _, line := range lines {
-		padding := max(0, innerWidth-lipgloss.Width(line))
-		contentLines = append(contentLines, fmt.Sprintf("│ %s%s │", line, strings.Repeat(" ", padding)))
+		lineWidth := lipgloss.Width(line)
+		padding := max(0, innerWidth-lineWidth)
+		contentLines = append(contentLines, "│ "+line+strings.Repeat(" ", padding)+" │")
 	}
 
 	// Bottom border
-	bottomBorder := fmt.Sprintf("└%s┘", strings.Repeat("─", innerWidth+2))
+	bottomBorder := "└" + strings.Repeat("─", innerWidth+2) + "┘"
 
 	allLines := []string{topBorder}
 	allLines = append(allLines, contentLines...)

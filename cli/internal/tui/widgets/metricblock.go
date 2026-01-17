@@ -40,37 +40,45 @@ func MetricBlock(icon icons.Icon, title string, value string, subtitle string, c
 
 	// Title with icon
 	titleStr := fmt.Sprintf("%s %s", icon.String(), title)
-	if len(titleStr) > innerWidth {
+	titleWidth := lipgloss.Width(titleStr)
+	if titleWidth > innerWidth {
 		titleStr = titleStr[:innerWidth]
+		titleWidth = innerWidth
 	}
 
 	// Style for title line in border
 	titleStyle := lipgloss.NewStyle().Foreground(config.TitleColor)
+	styledTitle := titleStyle.Render(titleStr)
 
 	// Build the box manually for title-in-border effect
-	topBorder := fmt.Sprintf("┌─ %s %s┐",
-		titleStyle.Render(titleStr),
-		strings.Repeat("─", max(0, innerWidth-len(titleStr)-1)))
+	fillWidth := max(0, innerWidth-titleWidth-1)
+	topBorder := "┌─ " + styledTitle + " " + strings.Repeat("─", fillWidth) + "┐"
 
-	// Value line (centered or left-aligned based on length)
+	// Value line - calculate padding manually for styled content
 	valueStyle := lipgloss.NewStyle().Foreground(config.ValueColor).Bold(true)
-	valueLine := fmt.Sprintf("│  %-*s│", innerWidth, valueStyle.Render(value))
+	styledValue := valueStyle.Render(value)
+	valueWidth := lipgloss.Width(styledValue)
+	valuePadding := max(0, innerWidth-valueWidth)
+	valueLine := "│  " + styledValue + strings.Repeat(" ", valuePadding) + "│"
 
 	// Subtitle line
 	subtitleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280"))
-	subtitleLine := fmt.Sprintf("│  %-*s│", innerWidth, subtitleStyle.Render(subtitle))
+	styledSubtitle := subtitleStyle.Render(subtitle)
+	subtitleWidth := lipgloss.Width(styledSubtitle)
+	subtitlePadding := max(0, innerWidth-subtitleWidth)
+	subtitleLine := "│  " + styledSubtitle + strings.Repeat(" ", subtitlePadding) + "│"
 
-	bottomBorder := fmt.Sprintf("└%s┘", strings.Repeat("─", config.Width-2))
+	bottomBorder := "└" + strings.Repeat("─", config.Width-2) + "┘"
 
-	// Apply border color
+	// Apply border color to entire block
 	borderStyle := lipgloss.NewStyle().Foreground(config.BorderColor)
 
-	return strings.Join([]string{
-		borderStyle.Render(topBorder),
-		borderStyle.Render(valueLine),
-		borderStyle.Render(subtitleLine),
-		borderStyle.Render(bottomBorder),
-	}, "\n")
+	return borderStyle.Render(strings.Join([]string{
+		topBorder,
+		valueLine,
+		subtitleLine,
+		bottomBorder,
+	}, "\n"))
 }
 
 // MetricBlockWithBar renders a metric block with a progress bar
@@ -80,20 +88,20 @@ func MetricBlockWithBar(icon icons.Icon, title string, percent float64, details 
 	}
 
 	innerWidth := config.Width - 4
-	barWidth := innerWidth - 6 // Leave room for percentage
+	barWidth := innerWidth - 4 // Leave room for bracket spacing
 
 	// Title with icon
 	titleStr := fmt.Sprintf("%s %s", icon.String(), title)
+	titleWidth := lipgloss.Width(titleStr)
 
 	titleStyle := lipgloss.NewStyle().Foreground(config.TitleColor)
+	styledTitle := titleStyle.Render(titleStr)
 
 	// Top border with title
-	topBorder := fmt.Sprintf("┌─ %s %s┐",
-		titleStyle.Render(titleStr),
-		strings.Repeat("─", max(0, innerWidth-len(titleStr)-1)))
+	fillWidth := max(0, innerWidth-titleWidth-1)
+	topBorder := "┌─ " + styledTitle + " " + strings.Repeat("─", fillWidth) + "┐"
 
 	// Value line with percentage
-	valueStyle := lipgloss.NewStyle().Bold(true)
 	var statusColor lipgloss.Color
 	var statusIcon string
 
@@ -109,32 +117,38 @@ func MetricBlockWithBar(icon icons.Icon, title string, percent float64, details 
 	}
 
 	percentStr := fmt.Sprintf("%3.0f%%", percent)
-	valueLine := fmt.Sprintf("│  %s %s %s│",
-		valueStyle.Foreground(statusColor).Render(percentStr),
-		lipgloss.NewStyle().Foreground(statusColor).Render(statusIcon),
-		strings.Repeat(" ", max(0, innerWidth-7)))
+	styledPercent := lipgloss.NewStyle().Bold(true).Foreground(statusColor).Render(percentStr)
+	styledIcon := lipgloss.NewStyle().Foreground(statusColor).Render(statusIcon)
+	valueContent := styledPercent + " " + styledIcon
+	valueContentWidth := lipgloss.Width(valueContent)
+	valuePadding := max(0, innerWidth-valueContentWidth)
+	valueLine := "│  " + valueContent + strings.Repeat(" ", valuePadding) + "│"
 
 	// Progress bar line
-	barConfig := DefaultProgressBarConfig()
-	barConfig.Width = barWidth
 	bar := CompactProgressBar(percent, barWidth, statusColor)
-	barLine := fmt.Sprintf("│  %s│", bar+strings.Repeat(" ", max(0, innerWidth-barWidth)))
+	barContentWidth := lipgloss.Width(bar)
+	barPadding := max(0, innerWidth-barContentWidth)
+	barLine := "│  " + bar + strings.Repeat(" ", barPadding) + "│"
 
 	// Details line
 	detailStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280"))
-	detailsLine := fmt.Sprintf("│  %-*s│", innerWidth, detailStyle.Render(truncate(details, innerWidth)))
+	truncatedDetails := truncate(details, innerWidth)
+	styledDetails := detailStyle.Render(truncatedDetails)
+	detailsWidth := lipgloss.Width(styledDetails)
+	detailsPadding := max(0, innerWidth-detailsWidth)
+	detailsLine := "│  " + styledDetails + strings.Repeat(" ", detailsPadding) + "│"
 
-	bottomBorder := fmt.Sprintf("└%s┘", strings.Repeat("─", config.Width-2))
+	bottomBorder := "└" + strings.Repeat("─", config.Width-2) + "┘"
 
 	borderStyle := lipgloss.NewStyle().Foreground(config.BorderColor)
 
-	return strings.Join([]string{
-		borderStyle.Render(topBorder),
-		borderStyle.Render(valueLine),
-		borderStyle.Render(barLine),
-		borderStyle.Render(detailsLine),
-		borderStyle.Render(bottomBorder),
-	}, "\n")
+	return borderStyle.Render(strings.Join([]string{
+		topBorder,
+		valueLine,
+		barLine,
+		detailsLine,
+		bottomBorder,
+	}, "\n"))
 }
 
 // MetricBlockWithSparkline renders a metric block with a sparkline
@@ -147,36 +161,41 @@ func MetricBlockWithSparkline(icon icons.Icon, title string, value string, spark
 	sparkWidth := 8
 
 	titleStr := fmt.Sprintf("%s %s", icon.String(), title)
+	titleWidth := lipgloss.Width(titleStr)
 	titleStyle := lipgloss.NewStyle().Foreground(config.TitleColor)
+	styledTitle := titleStyle.Render(titleStr)
 
-	topBorder := fmt.Sprintf("┌─ %s %s┐",
-		titleStyle.Render(titleStr),
-		strings.Repeat("─", max(0, innerWidth-len(titleStr)-1)))
+	fillWidth := max(0, innerWidth-titleWidth-1)
+	topBorder := "┌─ " + styledTitle + " " + strings.Repeat("─", fillWidth) + "┐"
 
 	// Value + sparkline
 	valueStyle := lipgloss.NewStyle().Foreground(config.ValueColor).Bold(true)
+	styledValue := valueStyle.Render(value)
 	spark := Sparkline(sparkData, sparkWidth, lipgloss.Color("#7C3AED"))
 
-	valueWithSpark := fmt.Sprintf("%s  %s", valueStyle.Render(value), spark)
-	// Calculate display width (value + 2 spaces + sparkline)
-	displayWidth := len(value) + 2 + sparkWidth
-	padding := max(0, innerWidth-displayWidth)
-	valueLine := fmt.Sprintf("│  %s%s│", valueWithSpark, strings.Repeat(" ", padding))
+	valueWithSpark := styledValue + "  " + spark
+	contentWidth := lipgloss.Width(valueWithSpark)
+	padding := max(0, innerWidth-contentWidth)
+	valueLine := "│  " + valueWithSpark + strings.Repeat(" ", padding) + "│"
 
 	// Subtitle
 	subtitleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280"))
-	subtitleLine := fmt.Sprintf("│  %-*s│", innerWidth, subtitleStyle.Render(truncate(subtitle, innerWidth)))
+	truncatedSubtitle := truncate(subtitle, innerWidth)
+	styledSubtitle := subtitleStyle.Render(truncatedSubtitle)
+	subtitleWidth := lipgloss.Width(styledSubtitle)
+	subtitlePadding := max(0, innerWidth-subtitleWidth)
+	subtitleLine := "│  " + styledSubtitle + strings.Repeat(" ", subtitlePadding) + "│"
 
-	bottomBorder := fmt.Sprintf("└%s┘", strings.Repeat("─", config.Width-2))
+	bottomBorder := "└" + strings.Repeat("─", config.Width-2) + "┘"
 
 	borderStyle := lipgloss.NewStyle().Foreground(config.BorderColor)
 
-	return strings.Join([]string{
-		borderStyle.Render(topBorder),
-		borderStyle.Render(valueLine),
-		borderStyle.Render(subtitleLine),
-		borderStyle.Render(bottomBorder),
-	}, "\n")
+	return borderStyle.Render(strings.Join([]string{
+		topBorder,
+		valueLine,
+		subtitleLine,
+		bottomBorder,
+	}, "\n"))
 }
 
 // CountBlock renders a simple count metric (like cluster/host counts)
