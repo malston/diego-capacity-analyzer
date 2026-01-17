@@ -41,26 +41,39 @@ func (c *Comparison) View() string {
 	sb.WriteString(titleStyle.Render(fmt.Sprintf("%s Scenario Comparison", icons.Chart.String())))
 	sb.WriteString("\n\n")
 
-	// Side by side panels
-	colWidth := (c.width - 6) / 2
-	if colWidth < 30 {
-		colWidth = 30
+	// Account for outer ActivePanel borders/padding (about 6 chars)
+	contentWidth := c.width - 6
+	if contentWidth < 40 {
+		contentWidth = 40
 	}
 
-	currentPanel := c.renderScenarioPanel("Current", icons.Server, &c.result.Current, colWidth)
-	proposedPanel := c.renderScenarioPanel("Proposed", icons.TrendUp, &c.result.Proposed, colWidth)
+	// For side-by-side panels: each panel = (contentWidth - 2) / 2
+	colWidth := (contentWidth - 2) / 2
 
-	sb.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, currentPanel, "  ", proposedPanel))
+	// If columns too narrow, stack vertically instead
+	if colWidth < 25 {
+		// Stack vertically
+		currentPanel := c.renderScenarioPanel("Current", icons.Server, &c.result.Current, contentWidth-2)
+		proposedPanel := c.renderScenarioPanel("Proposed", icons.TrendUp, &c.result.Proposed, contentWidth-2)
+		sb.WriteString(currentPanel)
+		sb.WriteString("\n")
+		sb.WriteString(proposedPanel)
+	} else {
+		// Side by side
+		currentPanel := c.renderScenarioPanel("Current", icons.Server, &c.result.Current, colWidth)
+		proposedPanel := c.renderScenarioPanel("Proposed", icons.TrendUp, &c.result.Proposed, colWidth)
+		sb.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, currentPanel, "  ", proposedPanel))
+	}
 	sb.WriteString("\n\n")
 
-	// Impact summary panel
-	impactPanel := c.renderImpactPanel()
+	// Impact summary panel - use full content width
+	impactPanel := c.renderImpactPanel(contentWidth - 2)
 	sb.WriteString(impactPanel)
 	sb.WriteString("\n\n")
 
 	// Warnings panel
 	if len(c.result.Warnings) > 0 {
-		warningsPanel := c.renderWarningsPanel()
+		warningsPanel := c.renderWarningsPanel(contentWidth - 2)
 		sb.WriteString(warningsPanel)
 	}
 
@@ -77,8 +90,17 @@ func (c *Comparison) renderScenarioPanel(title string, icon icons.Icon, s *clien
 	sb.WriteString("\n")
 
 	// Utilization with progress bar
+	// Content width inside panel = width - 4 (for borders) - 2 (for "│ " and " │" padding)
+	// Bar width = content width - label width (about 10 chars for " 100% ✓")
+	contentWidth := width - 6
+	barWidth := contentWidth - 10
+	if barWidth < 10 {
+		barWidth = 10 // minimum bar width
+	}
+
 	barConfig := widgets.DefaultProgressBarConfig()
-	barConfig.Width = width - 8
+	barConfig.Width = barWidth
+	barConfig.ShowZones = false // Disable zones for compact display
 	bar := widgets.ProgressBarWithLabel(s.UtilizationPct, barConfig, true)
 	sb.WriteString(fmt.Sprintf("Utilization\n%s", bar))
 
@@ -90,7 +112,7 @@ func (c *Comparison) renderScenarioPanel(title string, icon icons.Icon, s *clien
 	return c.buildPanel(title, icon, sb.String(), width)
 }
 
-func (c *Comparison) renderImpactPanel() string {
+func (c *Comparison) renderImpactPanel(width int) string {
 	var sb strings.Builder
 	delta := c.result.Delta
 
@@ -159,11 +181,17 @@ func (c *Comparison) renderImpactPanel() string {
 	sb.WriteString(fmt.Sprintf("Headroom:      %s",
 		headroomStyle.Render(fmt.Sprintf("%+.1f%% available", headroomChange))))
 
-	return c.buildPanel("Impact Summary", icons.TrendUp, sb.String(), c.width-4)
+	return c.buildPanel("Impact Summary", icons.TrendUp, sb.String(), width)
 }
 
-func (c *Comparison) renderWarningsPanel() string {
+func (c *Comparison) renderWarningsPanel(width int) string {
 	var sb strings.Builder
+
+	// Calculate available text width inside the panel (minus borders and padding)
+	textWidth := width - 8
+	if textWidth < 20 {
+		textWidth = 20
+	}
 
 	for i, w := range c.result.Warnings {
 		var status widgets.StatusLevel
@@ -173,13 +201,50 @@ func (c *Comparison) renderWarningsPanel() string {
 			status = widgets.StatusWarning
 		}
 
-		sb.WriteString(widgets.StatusText(w.Message, status))
+		// Word-wrap long messages to fit within panel
+		message := w.Message
+		wrappedLines := wrapText(message, textWidth)
+		for j, line := range wrappedLines {
+			if j == 0 {
+				sb.WriteString(widgets.StatusText(line, status))
+			} else {
+				// Continuation lines without the status icon
+				sb.WriteString("\n  " + line)
+			}
+		}
 		if i < len(c.result.Warnings)-1 {
 			sb.WriteString("\n")
 		}
 	}
 
-	return c.buildPanel("Warnings", icons.Warning, sb.String(), c.width-4)
+	return c.buildPanel("Warnings", icons.Warning, sb.String(), width)
+}
+
+// wrapText wraps text to fit within the specified width
+func wrapText(text string, width int) []string {
+	if width <= 0 {
+		return []string{text}
+	}
+
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return []string{""}
+	}
+
+	var lines []string
+	currentLine := words[0]
+
+	for _, word := range words[1:] {
+		if len(currentLine)+1+len(word) <= width {
+			currentLine += " " + word
+		} else {
+			lines = append(lines, currentLine)
+			currentLine = word
+		}
+	}
+	lines = append(lines, currentLine)
+
+	return lines
 }
 
 func (c *Comparison) buildPanel(title string, icon icons.Icon, content string, width int) string {
@@ -187,6 +252,10 @@ func (c *Comparison) buildPanel(title string, icon icons.Icon, content string, w
 	titleStyle := lipgloss.NewStyle().Foreground(styles.Primary)
 
 	innerWidth := width - 4
+	if innerWidth < 10 {
+		innerWidth = 10
+	}
+
 	fullTitle := fmt.Sprintf("%s %s", icon.String(), title)
 	titleWidth := lipgloss.Width(fullTitle)
 	styledTitle := titleStyle.Render(fullTitle)
@@ -200,6 +269,11 @@ func (c *Comparison) buildPanel(title string, icon icons.Icon, content string, w
 	var contentLines []string
 	for _, line := range lines {
 		lineWidth := lipgloss.Width(line)
+		if lineWidth > innerWidth {
+			// Truncate line to fit - use lipgloss to handle ANSI codes
+			line = lipgloss.NewStyle().MaxWidth(innerWidth).Render(line)
+			lineWidth = lipgloss.Width(line)
+		}
 		padding := max(0, innerWidth-lineWidth)
 		contentLines = append(contentLines, "│ "+line+strings.Repeat(" ", padding)+" │")
 	}

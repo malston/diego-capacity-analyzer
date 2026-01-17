@@ -203,9 +203,18 @@ func (w *Wizard) Init() tea.Cmd {
 
 // Update implements tea.Model
 func (w *Wizard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle escape to cancel
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if keyMsg.String() == "esc" {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		w.width = msg.Width
+		// Forward to form
+		form, cmd := w.form.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			w.form = f
+		}
+		return w, cmd
+
+	case tea.KeyMsg:
+		if msg.String() == "esc" {
 			return w, func() tea.Msg { return WizardCancelledMsg{} }
 		}
 	}

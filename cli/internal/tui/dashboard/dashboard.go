@@ -92,15 +92,26 @@ func (d *Dashboard) View() string {
 	row2 := d.renderCapacityRow()
 	sb.WriteString(row2)
 
+	// Only constrain width - let height flow naturally so header/footer aren't pushed off
 	return lipgloss.NewStyle().
 		Width(d.width).
-		Height(d.height).
 		Render(sb.String())
 }
 
 // renderMetricsRow renders the top row of metric blocks
 func (d *Dashboard) renderMetricsRow() string {
-	blockWidth := 20
+	// Calculate block width based on available space
+	// Available content width = d.width - some margin for internal spacing
+	// For 2 blocks per row with 2-char gap: blockWidth = (contentWidth - 2) / 2
+	contentWidth := d.width - 4 // margin for internal content
+	blockWidth := (contentWidth - 2) / 2
+	if blockWidth < 18 {
+		blockWidth = 18 // minimum readable width
+	}
+	if blockWidth > 24 {
+		blockWidth = 24 // maximum for aesthetic
+	}
+
 	config := widgets.DefaultMetricBlockConfig()
 	config.Width = blockWidth
 
@@ -156,25 +167,34 @@ func (d *Dashboard) renderMetricsRow() string {
 		config,
 	)
 
-	// Join blocks horizontally
-	return lipgloss.JoinHorizontal(
+	// Arrange in 2 rows of 2 blocks each
+	row1 := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		memoryBlock,
 		"  ",
 		cpuBlock,
-		"  ",
+	)
+	row2 := lipgloss.JoinHorizontal(
+		lipgloss.Top,
 		clusterBlock,
 		"  ",
 		hostBlock,
 	)
+
+	return lipgloss.JoinVertical(lipgloss.Left, row1, row2)
 }
 
 // renderCapacityRow renders the bottom row with capacity and HA panels
 func (d *Dashboard) renderCapacityRow() string {
-	panelWidth := (d.width - 4) / 2
-	if panelWidth < 30 {
-		panelWidth = 30
+	// Account for the fact that the outer ActivePanel style adds borders and padding
+	// Available content width is roughly d.width - 6 (2 border + 4 padding)
+	contentWidth := d.width - 6
+	if contentWidth < 40 {
+		contentWidth = 40 // minimum for any reasonable layout
 	}
+
+	// Use full content width for each panel, stacked vertically
+	panelWidth := contentWidth - 2 // leave margin
 
 	// N-1 Capacity panel
 	capacityPanel := d.renderCapacityPanel(panelWidth)
@@ -182,12 +202,8 @@ func (d *Dashboard) renderCapacityRow() string {
 	// HA Status panel
 	haPanel := d.renderHAPanel(panelWidth)
 
-	return lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		capacityPanel,
-		"  ",
-		haPanel,
-	)
+	// Stack vertically for better fit
+	return lipgloss.JoinVertical(lipgloss.Left, capacityPanel, haPanel)
 }
 
 // renderCapacityPanel renders the N-1 capacity information
@@ -283,6 +299,11 @@ func (d *Dashboard) buildPanel(title, content string, innerWidth int) string {
 	var contentLines []string
 	for _, line := range lines {
 		lineWidth := lipgloss.Width(line)
+		if lineWidth > innerWidth {
+			// Truncate line to fit - use lipgloss to handle ANSI codes
+			line = lipgloss.NewStyle().MaxWidth(innerWidth).Render(line)
+			lineWidth = lipgloss.Width(line)
+		}
 		padding := max(0, innerWidth-lineWidth)
 		contentLines = append(contentLines, "│ "+line+strings.Repeat(" ", padding)+" │")
 	}

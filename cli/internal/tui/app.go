@@ -561,11 +561,11 @@ func (a *App) renderHeader() string {
 	titleStyle := lipgloss.NewStyle().Foreground(styles.Primary).Bold(true)
 	contextStyle := lipgloss.NewStyle().Foreground(styles.Secondary)
 
-	icon := icons.App.String()
+	// Use plain ASCII for consistent width calculation
 	title := "Diego Capacity Analyzer"
 
-	// Build left content
-	leftText := fmt.Sprintf(" %s %s", icon, titleStyle.Render(title))
+	// Build left content - avoid icons in header for width consistency
+	leftText := " " + titleStyle.Render(title)
 
 	// Build right content (only on certain screens)
 	rightText := ""
@@ -713,6 +713,7 @@ func (a *App) loadInfrastructure() tea.Cmd {
 // runWizard transitions to the wizard screen
 func (a *App) runWizard() tea.Cmd {
 	a.wizardScreen = wizard.New(a.infra)
+	a.wizardScreen.SetWidth(a.width) // Set width for proper rendering
 	a.screen = ScreenWizard
 	return a.wizardScreen.Init()
 }
