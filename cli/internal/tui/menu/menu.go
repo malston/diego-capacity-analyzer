@@ -117,9 +117,8 @@ func (m *Menu) selectOption() (tea.Model, tea.Cmd) {
 func (m *Menu) View() string {
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render("Diego Capacity Analyzer"))
-	b.WriteString("\n\n")
-	b.WriteString(helpStyle.Render("Select data source:"))
+	// Title and prompt (header frame now has app name)
+	b.WriteString(titleStyle.Render("Select Data Source"))
 	b.WriteString("\n\n")
 
 	for i, opt := range m.options {
@@ -145,11 +144,9 @@ func (m *Menu) View() string {
 	if m.err != "" {
 		b.WriteString("\n")
 		b.WriteString(errorStyle.Render("Error: " + m.err))
-		b.WriteString("\n")
 	}
 
-	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("↑/↓ navigate • enter select • esc quit"))
+	// Footer frame now has keyboard shortcuts, so we don't need them here
 
 	return b.String()
 }

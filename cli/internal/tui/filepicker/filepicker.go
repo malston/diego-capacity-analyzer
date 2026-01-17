@@ -323,12 +323,9 @@ func (fp *FilePicker) viewList() string {
 	if fp.err != "" {
 		b.WriteString("\n")
 		b.WriteString(errorStyle.Render("Error: " + fp.err))
-		b.WriteString("\n")
 	}
 
-	// Help
-	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("↑/↓ navigate • enter select • esc back"))
+	// Footer frame now has keyboard shortcuts
 
 	return b.String()
 }
@@ -339,16 +336,13 @@ func (fp *FilePicker) viewInput() string {
 	b.WriteString(titleStyle.Render("Enter file path"))
 	b.WriteString("\n\n")
 	b.WriteString(fp.textInput.View())
-	b.WriteString("\n")
 
 	if fp.err != "" {
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 		b.WriteString(errorStyle.Render("Error: " + fp.err))
-		b.WriteString("\n")
 	}
 
-	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("enter load • esc back"))
+	// Footer frame now has keyboard shortcuts
 
 	return b.String()
 }
@@ -381,11 +375,9 @@ func (fp *FilePicker) viewSamples() string {
 	if fp.err != "" {
 		b.WriteString("\n")
 		b.WriteString(errorStyle.Render("Error: " + fp.err))
-		b.WriteString("\n")
 	}
 
-	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("↑/↓ navigate • enter select • esc back"))
+	// Footer frame now has keyboard shortcuts
 
 	return b.String()
 }

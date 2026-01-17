@@ -1,15 +1,19 @@
 // ABOUTME: Scenario planning wizard as a bubbletea model
-// ABOUTME: Uses huh forms embedded in bubbletea for responsive input handling
+// ABOUTME: Uses huh forms with visual progress indicator for step navigation
 
 package wizard
 
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/client"
+	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/icons"
+	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/styles"
 )
 
 // WizardCompleteMsg is sent when the wizard finishes successfully
@@ -26,6 +30,7 @@ type Wizard struct {
 	input *client.ScenarioInput
 	form  *huh.Form
 	step  int
+	width int
 
 	// Form field values (strings for huh)
 	cellMemory  string
@@ -35,6 +40,9 @@ type Wizard struct {
 	overhead    string
 	haAdmission string
 }
+
+// Step names for progress indicator
+var stepNames = []string{"Cell Sizing", "Cell Count", "Overhead & HA"}
 
 // Common cell memory sizes
 var memoryOptions = []huh.Option[string]{
@@ -249,9 +257,97 @@ func (w *Wizard) advanceStep() (tea.Model, tea.Cmd) {
 	return w, nil
 }
 
+// SetWidth sets the wizard width for proper rendering
+func (w *Wizard) SetWidth(width int) {
+	w.width = width
+}
+
 // View implements tea.Model
 func (w *Wizard) View() string {
-	return w.form.View()
+	var sb strings.Builder
+
+	// Progress indicator
+	sb.WriteString(w.renderProgress())
+	sb.WriteString("\n\n")
+
+	// Form content
+	sb.WriteString(w.form.View())
+
+	return sb.String()
+}
+
+// renderProgress renders the step progress indicator
+func (w *Wizard) renderProgress() string {
+	width := w.width
+	if width < 60 {
+		width = 60
+	}
+
+	borderStyle := lipgloss.NewStyle().Foreground(styles.Muted)
+	titleStyle := lipgloss.NewStyle().Foreground(styles.Primary)
+
+	// Build step indicators
+	var steps []string
+	for i, name := range stepNames {
+		stepNum := i + 1
+		var indicator string
+		var nameStyle lipgloss.Style
+
+		if stepNum < w.step {
+			// Completed step
+			indicator = lipgloss.NewStyle().Foreground(styles.Secondary).Render(icons.CheckOK.String())
+			nameStyle = lipgloss.NewStyle().Foreground(styles.Muted)
+		} else if stepNum == w.step {
+			// Current step
+			indicator = lipgloss.NewStyle().Foreground(styles.Primary).Bold(true).Render("●")
+			nameStyle = lipgloss.NewStyle().Foreground(styles.Primary).Bold(true)
+		} else {
+			// Future step
+			indicator = lipgloss.NewStyle().Foreground(styles.Muted).Render("○")
+			nameStyle = lipgloss.NewStyle().Foreground(styles.Muted)
+		}
+
+		steps = append(steps, fmt.Sprintf("%s %s", indicator, nameStyle.Render(name)))
+	}
+
+	stepsLine := strings.Join(steps, "    ")
+
+	// Progress bar
+	totalSteps := len(stepNames)
+	progressWidth := width - 8
+	filledWidth := (w.step * progressWidth) / totalSteps
+	emptyWidth := progressWidth - filledWidth
+
+	filledBar := lipgloss.NewStyle().Foreground(styles.Primary).Render(strings.Repeat("━", filledWidth))
+	currentMark := lipgloss.NewStyle().Foreground(styles.Primary).Bold(true).Render("╸")
+	emptyBar := lipgloss.NewStyle().Foreground(styles.Surface).Render(strings.Repeat("━", emptyWidth))
+	progressBar := filledBar + currentMark + emptyBar
+
+	innerWidth := width - 4
+
+	// Build panel
+	topBorder := fmt.Sprintf("┌─ %s %s┐",
+		titleStyle.Render("Progress"),
+		strings.Repeat("─", max(0, innerWidth-len("Progress")-3)))
+
+	stepsLinePadded := fmt.Sprintf("│   %s%s│", stepsLine, strings.Repeat(" ", max(0, innerWidth-len(stepsLine)-1)))
+	progressLinePadded := fmt.Sprintf("│   %s%s│", progressBar, strings.Repeat(" ", max(0, innerWidth-progressWidth-2)))
+
+	bottomBorder := fmt.Sprintf("└%s┘", strings.Repeat("─", innerWidth+2))
+
+	return borderStyle.Render(strings.Join([]string{
+		topBorder,
+		stepsLinePadded,
+		progressLinePadded,
+		bottomBorder,
+	}, "\n"))
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // GetInput returns the collected scenario input

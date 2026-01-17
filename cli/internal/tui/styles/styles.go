@@ -6,7 +6,7 @@ package styles
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	// Colors
+	// Colors - Core palette
 	Primary   = lipgloss.Color("#7C3AED") // Purple
 	Secondary = lipgloss.Color("#10B981") // Green
 	Warning   = lipgloss.Color("#F59E0B") // Amber
@@ -14,6 +14,14 @@ var (
 	Muted     = lipgloss.Color("#6B7280") // Gray
 	Text      = lipgloss.Color("#F9FAFB") // Light
 	BgDark    = lipgloss.Color("#1F2937") // Dark gray
+
+	// Colors - Extended palette
+	Accent        = lipgloss.Color("#8B5CF6") // Lighter purple for highlights
+	Surface       = lipgloss.Color("#374151") // Elevated surface background
+	DeltaPositive = lipgloss.Color("#10B981") // Green - improvements
+	DeltaNegative = lipgloss.Color("#F59E0B") // Amber - costs/increases
+	DeltaNeutral  = lipgloss.Color("#6B7280") // Gray - no change
+	Info          = lipgloss.Color("#3B82F6") // Blue - informational
 
 	// Base styles
 	Title = lipgloss.NewStyle().
@@ -53,6 +61,54 @@ var (
 	Help = lipgloss.NewStyle().
 		Foreground(Muted).
 		MarginTop(1)
+
+	// Frame styles for header/footer
+	HeaderStyle = lipgloss.NewStyle().
+			Border(lipgloss.Border{
+			Top:         "─",
+			Bottom:      "",
+			Left:        "╭",
+			Right:       "╮",
+			TopLeft:     "",
+			TopRight:    "",
+			BottomLeft:  "",
+			BottomRight: "",
+		}).
+		BorderForeground(Muted).
+		Padding(0, 1)
+
+	FooterStyle = lipgloss.NewStyle().
+			Border(lipgloss.Border{
+			Top:         "",
+			Bottom:      "─",
+			Left:        "╰",
+			Right:       "╯",
+			TopLeft:     "",
+			TopRight:    "",
+			BottomLeft:  "",
+			BottomRight: "",
+		}).
+		BorderForeground(Muted).
+		Padding(0, 1)
+
+	// Key style for keyboard shortcuts
+	KeyStyle = lipgloss.NewStyle().
+			Foreground(Accent).
+			Bold(true)
+
+	// Value style for emphasized data
+	ValueStyle = lipgloss.NewStyle().
+			Foreground(Text).
+			Bold(true)
+
+	// Delta styles for change indicators
+	DeltaPositiveStyle = lipgloss.NewStyle().
+				Foreground(DeltaPositive).
+				Bold(true)
+
+	DeltaNegativeStyle = lipgloss.NewStyle().
+				Foreground(DeltaNegative).
+				Bold(true)
 )
 
 // ProgressBar returns a styled progress bar string

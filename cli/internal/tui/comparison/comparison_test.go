@@ -110,11 +110,12 @@ func TestComparisonViewWithVCPURatio(t *testing.T) {
 	c := New(result, 80)
 	view := c.View()
 
-	if !strings.Contains(view, "vCPU Ratio") {
-		t.Error("expected view to contain 'vCPU Ratio'")
+	// New format shows vCPU as "vCPU:      X.X:1"
+	if !strings.Contains(view, "vCPU") {
+		t.Error("expected view to contain 'vCPU'")
 	}
-	if !strings.Contains(view, "4.5") {
-		t.Error("expected view to contain current vCPU ratio")
+	if !strings.Contains(view, "4.5:1") {
+		t.Error("expected view to contain current vCPU ratio '4.5:1'")
 	}
 }
 

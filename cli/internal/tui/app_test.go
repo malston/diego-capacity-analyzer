@@ -112,18 +112,17 @@ func TestAppViewReturnsContent(t *testing.T) {
 	if !strings.Contains(view, "Actions") {
 		t.Error("expected dashboard view to contain 'Actions'")
 	}
-	if !strings.Contains(view, "[w]") {
-		t.Error("expected dashboard view to contain '[w]' keybinding")
+	// Footer shows "w Wizard" keybinding
+	if !strings.Contains(view, "Wizard") {
+		t.Error("expected dashboard view to contain 'Wizard' keybinding")
 	}
 
-	// Comparison view should contain back navigation help
+	// Comparison view should contain back navigation help in footer
 	app.screen = ScreenComparison
 	view = app.View()
-	if !strings.Contains(view, "[b]") {
-		t.Error("expected comparison view to contain '[b]' keybinding")
-	}
+	// Footer shows "b Back" keybinding
 	if !strings.Contains(view, "Back") {
-		t.Error("expected comparison view to contain 'Back'")
+		t.Error("expected comparison view to contain 'Back' keybinding")
 	}
 }
 

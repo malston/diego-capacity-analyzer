@@ -6,8 +6,11 @@ package tui
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -15,6 +18,7 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/comparison"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/dashboard"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/filepicker"
+	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/icons"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/menu"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/recentfiles"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/samples"
@@ -76,6 +80,8 @@ type App struct {
 	dataSource        menu.DataSource
 	vsphereConfigured bool
 	repoBasePath      string
+	lastUpdate        time.Time
+	infraName         string // Name of the infrastructure source for header
 
 	// Child models
 	menu         *menu.Menu
@@ -110,7 +116,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.width = msg.Width
 		a.height = msg.Height
 		if a.dashboard != nil {
-			a.dashboard.SetSize(a.dashboardWidth(), a.height-4)
+			a.dashboard.SetSize(a.dashboardWidth(), a.contentHeight())
 		}
 		// Forward to child models
 		if a.menu != nil {
@@ -179,7 +185,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 		a.infra = msg.infra
-		a.dashboard = dashboard.New(a.infra, a.dashboardWidth(), a.height-4)
+		a.lastUpdate = time.Now()
+		a.infraName = a.deriveInfraName()
+		a.dashboard = dashboard.New(a.infra, a.dashboardWidth(), a.contentHeight())
 		a.screen = ScreenDashboard
 		return a, nil
 
@@ -343,7 +351,9 @@ func (a *App) handleFileLoaded(msg fileLoadedMsg) (tea.Model, tea.Cmd) {
 
 	// Store infrastructure and transition to dashboard
 	a.infra = &infra
-	a.dashboard = dashboard.New(a.infra, a.dashboardWidth(), a.height-4)
+	a.lastUpdate = time.Now()
+	a.infraName = a.deriveInfraName()
+	a.dashboard = dashboard.New(a.infra, a.dashboardWidth(), a.contentHeight())
 	a.screen = ScreenDashboard
 	a.filePicker = nil
 
@@ -401,20 +411,24 @@ func (a *App) postInfrastructureState(infra *client.InfrastructureState) tea.Cmd
 
 // View implements tea.Model
 func (a *App) View() string {
+	var content string
+
 	switch a.screen {
 	case ScreenMenu:
-		return a.viewMenu()
+		content = a.viewMenu()
 	case ScreenFilePicker:
-		return a.viewFilePicker()
+		content = a.viewFilePicker()
 	case ScreenDashboard:
-		return a.viewDashboard()
+		content = a.viewDashboard()
 	case ScreenComparison:
-		return a.viewComparison()
+		content = a.viewComparison()
 	case ScreenWizard:
-		return a.viewWizard()
+		content = a.viewWizard()
 	default:
-		return a.viewMenu()
+		content = a.viewMenu()
 	}
+
+	return a.wrapWithFrame(content)
 }
 
 // viewMenu renders the menu screen
@@ -436,8 +450,7 @@ func (a *App) viewFilePicker() string {
 // viewDashboard renders the dashboard with actions pane
 func (a *App) viewDashboard() string {
 	if a.err != nil {
-		return styles.StatusCritical.Render("Error: "+a.err.Error()) + "\n\n" +
-			styles.Help.Render("Press 'b' to go back, 'q' to quit")
+		return styles.StatusCritical.Render("Error: " + a.err.Error())
 	}
 
 	leftPane := ""
@@ -447,18 +460,16 @@ func (a *App) viewDashboard() string {
 		leftPane = styles.Panel.Width(a.dashboardWidth()).Render("Loading...")
 	}
 
-	// Actions pane on the right
-	rightContent := styles.Title.Render("Actions") + "\n\n"
-	rightContent += "[r] Refresh data\n"
-	rightContent += "[w] Run scenario wizard\n"
-	rightContent += "[b] Back to menu\n"
-	rightContent += "[q] Quit\n"
+	// Actions pane on the right - shows available actions
+	rightContent := styles.Title.Render(icons.Settings.String()+" Actions") + "\n\n"
+	rightContent += icons.Refresh.String() + " Refresh data\n"
+	rightContent += icons.Wizard.String() + " Run scenario wizard\n"
+	rightContent += icons.Back.String() + " Back to menu\n"
+	rightContent += icons.Quit.String() + " Quit application\n"
 	rightPane := styles.Panel.Width(a.actionsWidth()).Render(rightContent)
 
 	// Join panes side by side
-	view := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
-
-	return view
+	return lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
 }
 
 // viewWizard renders the wizard screen
@@ -472,8 +483,7 @@ func (a *App) viewWizard() string {
 // viewComparison renders the dashboard with comparison results
 func (a *App) viewComparison() string {
 	if a.err != nil {
-		return styles.StatusCritical.Render("Error: "+a.err.Error()) + "\n\n" +
-			styles.Help.Render("Press 'b' to go back, 'q' to quit")
+		return styles.StatusCritical.Render("Error: " + a.err.Error())
 	}
 
 	leftPane := ""
@@ -486,10 +496,7 @@ func (a *App) viewComparison() string {
 		rightPane = styles.ActivePanel.Width(a.comparisonWidth()).Render(a.compView.View())
 	}
 
-	view := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
-	view += "\n" + styles.Help.Render("[b] Back to dashboard  [w] New scenario  [q] Quit")
-
-	return view
+	return lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
 }
 
 // dashboardWidth calculates the width for the dashboard pane
@@ -508,6 +515,185 @@ func (a *App) actionsWidth() int {
 // comparisonWidth calculates the width for the comparison pane
 func (a *App) comparisonWidth() int {
 	return a.width - a.dashboardWidth() - 4
+}
+
+// contentHeight calculates the height available for content (minus header/footer)
+func (a *App) contentHeight() int {
+	// Header: 1 line, Footer: 1 line, blank lines: 2
+	return a.height - 4
+}
+
+// deriveInfraName extracts a display name for the infrastructure source
+func (a *App) deriveInfraName() string {
+	switch a.dataSource {
+	case menu.SourceVSphere:
+		return "vSphere"
+	case menu.SourceJSON:
+		if a.infra != nil && len(a.infra.Clusters) > 0 {
+			return a.infra.Clusters[0].Name
+		}
+		return "JSON File"
+	case menu.SourceManual:
+		return "Manual Input"
+	default:
+		if a.infra != nil && len(a.infra.Clusters) > 0 {
+			return a.infra.Clusters[0].Name
+		}
+		return "Infrastructure"
+	}
+}
+
+// renderHeader creates the header bar with app branding and context
+func (a *App) renderHeader() string {
+	// Guard against zero/small width before WindowSizeMsg is received
+	width := a.width
+	if width < minTerminalWidth {
+		width = minTerminalWidth
+	}
+
+	borderStyle := lipgloss.NewStyle().Foreground(styles.Muted)
+	titleStyle := lipgloss.NewStyle().Foreground(styles.Primary).Bold(true)
+	contextStyle := lipgloss.NewStyle().Foreground(styles.Secondary)
+
+	icon := icons.App.String()
+	title := "Diego Capacity Analyzer"
+
+	// Build left content
+	leftText := fmt.Sprintf(" %s %s", icon, titleStyle.Render(title))
+
+	// Build right content (only on certain screens)
+	rightText := ""
+	if a.infraName != "" && a.screen != ScreenMenu && a.screen != ScreenFilePicker {
+		rightText = contextStyle.Render(a.infraName) + " "
+	}
+
+	// Use lipgloss to handle the width properly
+	// Create a style that fills the width with the border character
+	leftStyle := lipgloss.NewStyle()
+	rightStyle := lipgloss.NewStyle().Align(lipgloss.Right)
+
+	leftRendered := leftStyle.Render(leftText)
+	rightRendered := rightStyle.Render(rightText)
+
+	// Calculate fill needed
+	leftWidth := lipgloss.Width(leftRendered)
+	rightWidth := lipgloss.Width(rightRendered)
+	fillWidth := width - 4 - leftWidth - rightWidth // -4 for ╭─ and ─╮
+	if fillWidth < 0 {
+		fillWidth = 0
+	}
+
+	fill := strings.Repeat("─", fillWidth)
+
+	header := "╭─" + leftRendered + fill + rightRendered + "─╮"
+
+	return borderStyle.Render(header)
+}
+
+// renderFooter creates the footer with keyboard shortcuts and status
+func (a *App) renderFooter() string {
+	// Guard against zero/small width before WindowSizeMsg is received
+	width := a.width
+	if width < minTerminalWidth {
+		width = minTerminalWidth
+	}
+
+	borderStyle := lipgloss.NewStyle().Foreground(styles.Muted)
+	keyStyle := lipgloss.NewStyle().Foreground(styles.Primary)
+	labelStyle := lipgloss.NewStyle().Foreground(styles.Muted)
+	statusStyle := lipgloss.NewStyle().Foreground(styles.Secondary)
+
+	// Build keyboard shortcuts based on current screen
+	var shortcuts []string
+	switch a.screen {
+	case ScreenMenu:
+		shortcuts = []string{"↑↓ Navigate", "Enter Select", "q Quit"}
+	case ScreenFilePicker:
+		shortcuts = []string{"↑↓ Navigate", "Enter Select", "b Back", "q Quit"}
+	case ScreenDashboard:
+		shortcuts = []string{"r Refresh", "w Wizard", "b Back", "q Quit"}
+	case ScreenComparison:
+		shortcuts = []string{"w New scenario", "b Back", "q Quit"}
+	case ScreenWizard:
+		shortcuts = []string{"↑↓ Select", "Enter Confirm", "Esc Cancel"}
+	}
+
+	// Build styled shortcuts
+	var styledShortcuts []string
+	for _, s := range shortcuts {
+		parts := strings.SplitN(s, " ", 2)
+		if len(parts) == 2 {
+			styledShortcuts = append(styledShortcuts, keyStyle.Render(parts[0])+" "+labelStyle.Render(parts[1]))
+		} else {
+			styledShortcuts = append(styledShortcuts, s)
+		}
+	}
+
+	leftText := " " + strings.Join(styledShortcuts, "  ")
+	leftPlainText := " " + strings.Join(shortcuts, "  ")
+
+	// Right side status (last update time)
+	rightText := ""
+	rightPlainText := ""
+	if !a.lastUpdate.IsZero() && a.screen != ScreenMenu && a.screen != ScreenFilePicker && a.screen != ScreenWizard {
+		elapsed := a.formatTimeSince(a.lastUpdate)
+		rightText = statusStyle.Render("Updated "+elapsed) + " "
+		rightPlainText = "Updated " + elapsed + " "
+	}
+
+	// Calculate widths
+	leftWidth := lipgloss.Width(leftPlainText)
+	rightWidth := lipgloss.Width(rightPlainText)
+	fillWidth := width - 4 - leftWidth - rightWidth // -4 for ╰─ and ─╯
+	if fillWidth < 0 {
+		fillWidth = 0
+	}
+
+	fill := strings.Repeat("─", fillWidth)
+
+	footer := "╰─" + leftText + fill + rightText + "─╯"
+
+	return borderStyle.Render(footer)
+}
+
+// formatTimeSince formats a duration since the given time in human-readable form
+func (a *App) formatTimeSince(t time.Time) string {
+	d := time.Since(t)
+
+	if d < time.Minute {
+		secs := int(d.Seconds())
+		if secs < 5 {
+			return "just now"
+		}
+		return fmt.Sprintf("%ds ago", secs)
+	}
+
+	if d < time.Hour {
+		mins := int(d.Minutes())
+		if mins == 1 {
+			return "1m ago"
+		}
+		return fmt.Sprintf("%dm ago", mins)
+	}
+
+	hours := int(d.Hours())
+	if hours == 1 {
+		return "1h ago"
+	}
+	return fmt.Sprintf("%dh ago", hours)
+}
+
+// wrapWithFrame wraps content with header and footer
+func (a *App) wrapWithFrame(content string) string {
+	var sb strings.Builder
+
+	sb.WriteString(a.renderHeader())
+	sb.WriteString("\n")
+	sb.WriteString(content)
+	sb.WriteString("\n")
+	sb.WriteString(a.renderFooter())
+
+	return sb.String()
 }
 
 // loadInfrastructure creates a command to fetch infrastructure data

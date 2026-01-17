@@ -1,5 +1,5 @@
 // ABOUTME: Tests for dashboard component
-// ABOUTME: Validates infrastructure metrics display
+// ABOUTME: Validates infrastructure metrics display with visual widgets
 
 package dashboard
 
@@ -16,23 +16,30 @@ func TestDashboardView(t *testing.T) {
 		Name:                         "vcenter.test.com",
 		TotalHostCount:               4,
 		TotalCellCount:               10,
+		TotalMemoryGB:                512,
 		HostMemoryUtilizationPercent: 75.5,
 		HAStatus:                     "ok",
 		HAMinHostFailuresSurvived:    1,
 	}
 
-	d := New(infra, 80, 24)
+	d := New(infra, 120, 24)
 	view := d.View()
 
 	if view == "" {
 		t.Error("expected non-empty view")
 	}
 
-	// Check for key metrics in output
-	tests := []string{"Hosts: 4", "Diego Cells: 10", "75.5%"}
+	// Check for key content in new widget-based output
+	// The new format shows metrics in compact blocks
+	tests := []string{
+		"Memory",        // Memory metric block title
+		"Hosts",         // Host count block title
+		"75.5%",         // Utilization percentage
+		"vcenter.test.com", // Infrastructure name
+	}
 	for _, expected := range tests {
 		if !strings.Contains(view, expected) {
-			t.Errorf("expected view to contain %q", expected)
+			t.Errorf("expected view to contain %q\nView:\n%s", expected, view)
 		}
 	}
 }
@@ -47,7 +54,7 @@ func TestDashboardNilInfra(t *testing.T) {
 }
 
 func TestDashboardUpdate(t *testing.T) {
-	d := New(nil, 80, 24)
+	d := New(nil, 120, 24)
 
 	// Initial state should show loading
 	view := d.View()
@@ -66,8 +73,9 @@ func TestDashboardUpdate(t *testing.T) {
 	if strings.Contains(view, "Loading") {
 		t.Error("should not show loading after update")
 	}
-	if !strings.Contains(view, "Hosts: 2") {
-		t.Error("expected view to show updated host count")
+	// New format shows count and label separately in metric blocks
+	if !strings.Contains(view, "2") || !strings.Contains(view, "hosts") {
+		t.Errorf("expected view to show host count 2\nView:\n%s", view)
 	}
 }
 
@@ -90,9 +98,10 @@ func TestDashboardHAStatus(t *testing.T) {
 		haStatus string
 		expected string
 	}{
-		{"ok status", "ok", "OK"},
-		{"warning status", "warning", "WARNING"},
-		{"critical status", "critical", "CRITICAL"},
+		// New format uses descriptive status text from StatusText widget
+		{"ok status", "ok", "survive"},      // "Can survive X host failure(s)"
+		{"warning status", "warning", "HA"}, // Shows HA Status panel
+		{"critical status", "critical", "Cannot survive"}, // "Cannot survive host failure"
 	}
 
 	for _, tc := range tests {
@@ -101,11 +110,11 @@ func TestDashboardHAStatus(t *testing.T) {
 				Name:     "test",
 				HAStatus: tc.haStatus,
 			}
-			d := New(infra, 80, 24)
+			d := New(infra, 120, 24)
 			view := d.View()
 
 			if !strings.Contains(view, tc.expected) {
-				t.Errorf("expected view to contain %q for HA status %q", tc.expected, tc.haStatus)
+				t.Errorf("expected view to contain %q for HA status %q\nView:\n%s", tc.expected, tc.haStatus, view)
 			}
 		})
 	}
@@ -120,7 +129,6 @@ func TestDashboardVCPURatio(t *testing.T) {
 		totalCPUCores int
 		wantRatio     string
 		wantRisk      string
-		wantBreakdown string
 	}{
 		{
 			name:          "conservative ratio",
@@ -129,8 +137,7 @@ func TestDashboardVCPURatio(t *testing.T) {
 			totalVCPUs:    80,
 			totalCPUCores: 32,
 			wantRatio:     "2.5:1",
-			wantRisk:      "conservative",
-			wantBreakdown: "80 vCPU / 32 pCPU",
+			wantRisk:      "Conservative", // Widget uses title case
 		},
 		{
 			name:          "moderate ratio",
@@ -139,8 +146,7 @@ func TestDashboardVCPURatio(t *testing.T) {
 			totalVCPUs:    160,
 			totalCPUCores: 32,
 			wantRatio:     "5.0:1",
-			wantRisk:      "moderate",
-			wantBreakdown: "160 vCPU / 32 pCPU",
+			wantRisk:      "Moderate",
 		},
 		{
 			name:          "aggressive ratio",
@@ -149,8 +155,7 @@ func TestDashboardVCPURatio(t *testing.T) {
 			totalVCPUs:    320,
 			totalCPUCores: 32,
 			wantRatio:     "10.0:1",
-			wantRisk:      "aggressive",
-			wantBreakdown: "320 vCPU / 32 pCPU",
+			wantRisk:      "Aggressive",
 		},
 	}
 
@@ -164,18 +169,16 @@ func TestDashboardVCPURatio(t *testing.T) {
 				TotalCPUCores: tc.totalCPUCores,
 			}
 
-			d := New(infra, 80, 24)
+			d := New(infra, 120, 24)
 			view := d.View()
 
 			if !strings.Contains(view, tc.wantRatio) {
-				t.Errorf("expected view to contain ratio %q", tc.wantRatio)
+				t.Errorf("expected view to contain ratio %q\nView:\n%s", tc.wantRatio, view)
 			}
 			if !strings.Contains(view, tc.wantRisk) {
-				t.Errorf("expected view to contain risk level %q", tc.wantRisk)
+				t.Errorf("expected view to contain risk level %q\nView:\n%s", tc.wantRisk, view)
 			}
-			if !strings.Contains(view, tc.wantBreakdown) {
-				t.Errorf("expected view to contain breakdown %q", tc.wantBreakdown)
-			}
+			// Note: New format doesn't show the breakdown "X vCPU / Y pCPU" inline
 		})
 	}
 }
@@ -190,10 +193,37 @@ func TestDashboardClusters(t *testing.T) {
 		},
 	}
 
-	d := New(infra, 80, 24)
+	d := New(infra, 120, 24)
 	view := d.View()
 
-	if !strings.Contains(view, "Clusters: 3") {
-		t.Error("expected view to show cluster count")
+	// New format shows cluster count in a metric block
+	if !strings.Contains(view, "3") || !strings.Contains(view, "clusters") {
+		t.Errorf("expected view to show cluster count 3\nView:\n%s", view)
+	}
+}
+
+func TestDashboardHistoryTracking(t *testing.T) {
+	infra := &client.InfrastructureState{
+		Name:                         "test",
+		HostMemoryUtilizationPercent: 50.0,
+		VCPURatio:                    2.5,
+	}
+
+	d := New(infra, 120, 24)
+
+	// Initial history should have one entry
+	if len(d.historyMemory) != 1 {
+		t.Errorf("expected 1 history entry, got %d", len(d.historyMemory))
+	}
+
+	// Update multiple times
+	for i := 0; i < 10; i++ {
+		infra.HostMemoryUtilizationPercent = 50.0 + float64(i)
+		d.Update(infra)
+	}
+
+	// History should be capped at 8 entries
+	if len(d.historyMemory) != 8 {
+		t.Errorf("expected 8 history entries (capped), got %d", len(d.historyMemory))
 	}
 }
