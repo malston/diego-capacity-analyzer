@@ -119,6 +119,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.filePicker != nil {
 			a.filePicker.Update(msg)
 		}
+		if a.wizardScreen != nil {
+			return a.updateWizard(msg)
+		}
 		return a, nil
 
 	case tea.KeyMsg:
@@ -194,6 +197,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.compView = comparison.New(a.comparison, a.comparisonWidth())
 		a.screen = ScreenComparison
 		return a, nil
+
+	default:
+		// Forward unknown messages to wizard when active (needed for huh form internals)
+		if a.screen == ScreenWizard && a.wizardScreen != nil {
+			return a.updateWizard(msg)
+		}
 	}
 
 	return a, nil
@@ -255,7 +264,7 @@ func (a *App) updateComparison(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return a, nil
 }
 
-func (a *App) updateWizard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (a *App) updateWizard(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if a.wizardScreen == nil {
 		return a, nil
 	}
