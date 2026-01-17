@@ -517,10 +517,16 @@ func (a *App) comparisonWidth() int {
 	return a.width - a.dashboardWidth() - 4
 }
 
-// contentHeight calculates the height available for content (minus header/footer)
+// contentHeight calculates the height available for dashboard content
 func (a *App) contentHeight() int {
-	// Header: 1 line, Footer: 1 line, blank lines: 2
-	return a.height - 4
+	// Total overhead:
+	// - Header: 1 line
+	// - Newline after header: 1 line
+	// - ActivePanel border+padding: 4 lines (top border, top padding, bottom padding, bottom border)
+	// - Newline before footer: 1 line
+	// - Footer: 1 line
+	// Total: 8 lines overhead
+	return a.height - 8
 }
 
 // deriveInfraName extracts a display name for the infrastructure source

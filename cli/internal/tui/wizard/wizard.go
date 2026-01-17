@@ -325,15 +325,21 @@ func (w *Wizard) renderProgress() string {
 
 	innerWidth := width - 4
 
-	// Build panel
-	topBorder := fmt.Sprintf("┌─ %s %s┐",
-		titleStyle.Render("Progress"),
-		strings.Repeat("─", max(0, innerWidth-len("Progress")-3)))
+	// Build panel - use lipgloss.Width for styled content
+	styledTitle := titleStyle.Render("Progress")
+	titleWidth := lipgloss.Width("Progress")
+	fillWidth := max(0, innerWidth-titleWidth-3)
+	topBorder := "┌─ " + styledTitle + " " + strings.Repeat("─", fillWidth) + "┐"
 
-	stepsLinePadded := fmt.Sprintf("│   %s%s│", stepsLine, strings.Repeat(" ", max(0, innerWidth-len(stepsLine)-1)))
-	progressLinePadded := fmt.Sprintf("│   %s%s│", progressBar, strings.Repeat(" ", max(0, innerWidth-progressWidth-2)))
+	stepsLineWidth := lipgloss.Width(stepsLine)
+	stepsPadding := max(0, innerWidth-stepsLineWidth-1)
+	stepsLinePadded := "│   " + stepsLine + strings.Repeat(" ", stepsPadding) + "│"
 
-	bottomBorder := fmt.Sprintf("└%s┘", strings.Repeat("─", innerWidth+2))
+	progressBarWidth := lipgloss.Width(progressBar)
+	progressPadding := max(0, innerWidth-progressBarWidth-1)
+	progressLinePadded := "│   " + progressBar + strings.Repeat(" ", progressPadding) + "│"
+
+	bottomBorder := "└" + strings.Repeat("─", innerWidth+2) + "┘"
 
 	return borderStyle.Render(strings.Join([]string{
 		topBorder,
