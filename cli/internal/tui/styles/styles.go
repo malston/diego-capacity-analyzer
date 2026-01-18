@@ -6,22 +6,22 @@ package styles
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	// Colors - Core palette
-	Primary   = lipgloss.Color("#7C3AED") // Purple
-	Secondary = lipgloss.Color("#10B981") // Green
-	Warning   = lipgloss.Color("#F59E0B") // Amber
-	Danger    = lipgloss.Color("#EF4444") // Red
-	Muted     = lipgloss.Color("#6B7280") // Gray
-	Text      = lipgloss.Color("#F9FAFB") // Light
-	BgDark    = lipgloss.Color("#1F2937") // Dark gray
+	// Colors - Core palette (matches frontend React theme)
+	Primary   = lipgloss.Color("#06B6D4") // Cyan-500 - primary accent (matching frontend)
+	Secondary = lipgloss.Color("#34D399") // Emerald-400 - success/positive
+	Warning   = lipgloss.Color("#FBBF24") // Amber-400 - warnings
+	Danger    = lipgloss.Color("#F87171") // Red-400 - errors/critical
+	Muted     = lipgloss.Color("#9CA3AF") // Gray-400 - muted text
+	Text      = lipgloss.Color("#E5E7EB") // Gray-200 - primary text
+	BgDark    = lipgloss.Color("#1E293B") // Slate-800 - dark background
 
 	// Colors - Extended palette
-	Accent        = lipgloss.Color("#8B5CF6") // Lighter purple for highlights
-	Surface       = lipgloss.Color("#374151") // Elevated surface background
-	DeltaPositive = lipgloss.Color("#10B981") // Green - improvements
-	DeltaNegative = lipgloss.Color("#F59E0B") // Amber - costs/increases
-	DeltaNeutral  = lipgloss.Color("#6B7280") // Gray - no change
-	Info          = lipgloss.Color("#3B82F6") // Blue - informational
+	Accent        = lipgloss.Color("#22D3EE") // Cyan-400 - highlights/emphasis
+	Surface       = lipgloss.Color("#334155") // Slate-700 - elevated surfaces
+	DeltaPositive = lipgloss.Color("#34D399") // Emerald-400 - improvements
+	DeltaNegative = lipgloss.Color("#FBBF24") // Amber-400 - costs/increases
+	DeltaNeutral  = lipgloss.Color("#9CA3AF") // Gray-400 - no change
+	Info          = lipgloss.Color("#3B82F6") // Blue-500 - informational
 
 	// Base styles
 	Title = lipgloss.NewStyle().
@@ -111,7 +111,7 @@ var (
 				Bold(true)
 )
 
-// ProgressBar returns a styled progress bar string
+// ProgressBar returns a styled progress bar string (matches frontend blue progress bars)
 func ProgressBar(percent float64, width int) string {
 	filled := int(percent / 100.0 * float64(width))
 	if filled > width {
@@ -130,7 +130,7 @@ func ProgressBar(percent float64, width int) string {
 		}
 	}
 
-	color := Secondary
+	color := Info // Blue-500 for normal utilization
 	if percent >= 80 {
 		color = Warning
 	}

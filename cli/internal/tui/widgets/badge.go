@@ -21,17 +21,17 @@ const (
 	StatusNeutral
 )
 
-// Badge colors
+// Badge colors (matches frontend React theme)
 var (
-	BadgeOKBg       = lipgloss.Color("#10B981")
+	BadgeOKBg       = lipgloss.Color("#34D399") // Emerald-400 - success
 	BadgeOKFg       = lipgloss.Color("#FFFFFF")
-	BadgeWarnBg     = lipgloss.Color("#F59E0B")
+	BadgeWarnBg     = lipgloss.Color("#FBBF24") // Amber-400 - warning
 	BadgeWarnFg     = lipgloss.Color("#000000")
-	BadgeCritBg     = lipgloss.Color("#EF4444")
+	BadgeCritBg     = lipgloss.Color("#F87171") // Red-400 - critical
 	BadgeCritFg     = lipgloss.Color("#FFFFFF")
-	BadgeInfoBg     = lipgloss.Color("#3B82F6")
+	BadgeInfoBg     = lipgloss.Color("#3B82F6") // Blue-500 - info
 	BadgeInfoFg     = lipgloss.Color("#FFFFFF")
-	BadgeNeutralBg  = lipgloss.Color("#6B7280")
+	BadgeNeutralBg  = lipgloss.Color("#9CA3AF") // Gray-400 - neutral
 	BadgeNeutralFg  = lipgloss.Color("#FFFFFF")
 )
 
@@ -106,24 +106,30 @@ func StatusIcon(level StatusLevel) string {
 
 // StatusText returns styled status text with icon
 func StatusText(text string, level StatusLevel) string {
-	icon := StatusIcon(level)
-
+	var iconStr string
 	var color lipgloss.Color
+
 	switch level {
 	case StatusOK:
+		iconStr = icons.CheckOK.String()
 		color = BadgeOKBg
 	case StatusWarning:
+		iconStr = icons.Warning.String()
 		color = BadgeWarnBg
 	case StatusCritical:
+		iconStr = icons.Critical.String()
 		color = BadgeCritBg
 	case StatusInfo:
+		iconStr = icons.Info.String()
 		color = BadgeInfoBg
 	default:
+		iconStr = "•"
 		color = BadgeNeutralBg
 	}
 
+	// Style icon and text together (matching how buildPanel renders titles)
 	textStyle := lipgloss.NewStyle().Foreground(color)
-	return fmt.Sprintf("%s %s", icon, textStyle.Render(text))
+	return textStyle.Render(fmt.Sprintf("%s %s", iconStr, text))
 }
 
 // DeltaBadge renders a change indicator with color

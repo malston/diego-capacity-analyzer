@@ -28,6 +28,11 @@ func New(result *client.ScenarioComparison, width int) *Comparison {
 	}
 }
 
+// SetSize updates the view dimensions for terminal resize
+func (c *Comparison) SetSize(width int) {
+	c.width = width
+}
+
 // View renders the comparison
 func (c *Comparison) View() string {
 	if c.result == nil {
@@ -204,12 +209,25 @@ func (c *Comparison) renderWarningsPanel(width int) string {
 		// Word-wrap long messages to fit within panel
 		message := w.Message
 		wrappedLines := wrapText(message, textWidth)
+
+		// Determine the color for this warning based on status
+		var statusColor lipgloss.Color
+		switch status {
+		case widgets.StatusCritical:
+			statusColor = widgets.BadgeCritBg
+		case widgets.StatusWarning:
+			statusColor = widgets.BadgeWarnBg
+		default:
+			statusColor = widgets.BadgeNeutralBg
+		}
+		textStyle := lipgloss.NewStyle().Foreground(statusColor)
+
 		for j, line := range wrappedLines {
 			if j == 0 {
 				sb.WriteString(widgets.StatusText(line, status))
 			} else {
-				// Continuation lines without the status icon
-				sb.WriteString("\n  " + line)
+				// Continuation lines with same color but indented to align with first line
+				sb.WriteString("\n  " + textStyle.Render(line))
 			}
 		}
 		if i < len(c.result.Warnings)-1 {

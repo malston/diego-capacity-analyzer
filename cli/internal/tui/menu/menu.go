@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/styles"
 )
 
 // DataSource represents the selected data source
@@ -42,14 +43,14 @@ type Menu struct {
 	height  int
 }
 
-// Styles
+// Styles using theme colors
 var (
-	titleStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
-	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
-	normalStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
-	disabledStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	helpStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	titleStyle    = lipgloss.NewStyle().Bold(true).Foreground(styles.Primary)
+	selectedStyle = lipgloss.NewStyle().Foreground(styles.Primary)
+	normalStyle   = lipgloss.NewStyle().Foreground(styles.Text)
+	disabledStyle = lipgloss.NewStyle().Foreground(styles.Muted)
+	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171"))
+	helpStyle     = lipgloss.NewStyle().Foreground(styles.Muted)
 )
 
 // New creates a new data source menu

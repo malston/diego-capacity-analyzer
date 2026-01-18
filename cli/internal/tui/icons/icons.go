@@ -82,11 +82,11 @@ var (
 	Cell    = Icon{"󰆧", "□"} // nf-md-cube_outline
 	Host    = Icon{"󰇄", "▢"} // nf-md-desktop_classic
 
-	// Status indicators
-	CheckOK   = Icon{"", "✓"} // nf-oct-check_circle
-	Warning   = Icon{"", "⚠"} // nf-oct-alert
-	Critical  = Icon{"", "✗"} // nf-oct-x_circle
-	Info      = Icon{"", "ℹ"} // nf-oct-info
+	// Status indicators (using Material Design icons for better font support)
+	CheckOK  = Icon{"󰄬", "✓"} // nf-md-check
+	Warning  = Icon{"󰀦", "⚠"} // nf-md-alert
+	Critical = Icon{"󰅖", "✗"} // nf-md-close_circle
+	Info     = Icon{"󰋽", "ℹ"} // nf-md-information
 
 	// Trends and charts
 	TrendUp   = Icon{"󰄬", "↗"} // nf-md-trending_up

@@ -22,16 +22,16 @@ type ProgressBarConfig struct {
 	ShowZones     bool // Show threshold markers in the bar
 }
 
-// DefaultProgressBarConfig returns sensible defaults
+// DefaultProgressBarConfig returns sensible defaults (colors match frontend React theme)
 func DefaultProgressBarConfig() ProgressBarConfig {
 	return ProgressBarConfig{
 		Width:         20,
 		WarnThreshold: 80,
 		CritThreshold: 95,
-		OKColor:       lipgloss.Color("#10B981"), // Green
-		WarnColor:     lipgloss.Color("#F59E0B"), // Amber
-		CritColor:     lipgloss.Color("#EF4444"), // Red
-		EmptyColor:    lipgloss.Color("#374151"), // Dark gray
+		OKColor:       lipgloss.Color("#3B82F6"), // Blue-500 - matches frontend progress bars
+		WarnColor:     lipgloss.Color("#FBBF24"), // Amber-400 - warnings
+		CritColor:     lipgloss.Color("#F87171"), // Red-400 - critical
+		EmptyColor:    lipgloss.Color("#334155"), // Slate-700 - empty portion
 		ShowZones:     true,
 	}
 }

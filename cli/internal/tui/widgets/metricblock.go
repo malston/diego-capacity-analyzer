@@ -19,13 +19,13 @@ type MetricBlockConfig struct {
 	ValueColor  lipgloss.Color
 }
 
-// DefaultMetricBlockConfig returns sensible defaults
+// DefaultMetricBlockConfig returns sensible defaults (matches frontend React theme)
 func DefaultMetricBlockConfig() MetricBlockConfig {
 	return MetricBlockConfig{
 		Width:       22,
-		BorderColor: lipgloss.Color("#6B7280"), // Muted gray
-		TitleColor:  lipgloss.Color("#7C3AED"), // Purple
-		ValueColor:  lipgloss.Color("#F9FAFB"), // Light
+		BorderColor: lipgloss.Color("#9CA3AF"), // Gray-400 - muted
+		TitleColor:  lipgloss.Color("#06B6D4"), // Cyan-500 - primary accent
+		ValueColor:  lipgloss.Color("#E5E7EB"), // Gray-200 - primary text
 	}
 }
 
@@ -62,7 +62,7 @@ func MetricBlock(icon icons.Icon, title string, value string, subtitle string, c
 	valueLine := "│  " + styledValue + strings.Repeat(" ", valuePadding) + "│"
 
 	// Subtitle line
-	subtitleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280"))
+	subtitleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF"))
 	styledSubtitle := subtitleStyle.Render(subtitle)
 	subtitleWidth := lipgloss.Width(styledSubtitle)
 	subtitlePadding := max(0, innerWidth-subtitleWidth)
@@ -101,18 +101,18 @@ func MetricBlockWithBar(icon icons.Icon, title string, percent float64, details 
 	fillWidth := max(0, innerWidth-titleWidth-1)
 	topBorder := "┌─ " + styledTitle + " " + strings.Repeat("─", fillWidth) + "┐"
 
-	// Value line with percentage
+	// Value line with percentage (colors match frontend React theme)
 	var statusColor lipgloss.Color
 	var statusIcon string
 
 	if percent >= 95 {
-		statusColor = lipgloss.Color("#EF4444")
+		statusColor = lipgloss.Color("#F87171") // Red-400 - critical
 		statusIcon = "✗"
 	} else if percent >= 80 {
-		statusColor = lipgloss.Color("#F59E0B")
+		statusColor = lipgloss.Color("#FBBF24") // Amber-400 - warning
 		statusIcon = "⚠"
 	} else {
-		statusColor = lipgloss.Color("#10B981")
+		statusColor = lipgloss.Color("#3B82F6") // Blue-500 - normal
 		statusIcon = "✓"
 	}
 
@@ -131,7 +131,7 @@ func MetricBlockWithBar(icon icons.Icon, title string, percent float64, details 
 	barLine := "│  " + bar + strings.Repeat(" ", barPadding) + "│"
 
 	// Details line
-	detailStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280"))
+	detailStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF"))
 	truncatedDetails := truncate(details, innerWidth)
 	styledDetails := detailStyle.Render(truncatedDetails)
 	detailsWidth := lipgloss.Width(styledDetails)
@@ -171,7 +171,7 @@ func MetricBlockWithSparkline(icon icons.Icon, title string, value string, spark
 	// Value + sparkline
 	valueStyle := lipgloss.NewStyle().Foreground(config.ValueColor).Bold(true)
 	styledValue := valueStyle.Render(value)
-	spark := Sparkline(sparkData, sparkWidth, lipgloss.Color("#7C3AED"))
+	spark := Sparkline(sparkData, sparkWidth, lipgloss.Color("#06B6D4"))
 
 	valueWithSpark := styledValue + "  " + spark
 	contentWidth := lipgloss.Width(valueWithSpark)
@@ -179,7 +179,7 @@ func MetricBlockWithSparkline(icon icons.Icon, title string, value string, spark
 	valueLine := "│  " + valueWithSpark + strings.Repeat(" ", padding) + "│"
 
 	// Subtitle
-	subtitleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280"))
+	subtitleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF"))
 	truncatedSubtitle := truncate(subtitle, innerWidth)
 	styledSubtitle := subtitleStyle.Render(truncatedSubtitle)
 	subtitleWidth := lipgloss.Width(styledSubtitle)
