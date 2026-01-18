@@ -107,58 +107,6 @@ func (h *Handler) EnableCORS(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// HandleBottleneckAnalysis returns multi-resource bottleneck analysis
-func (h *Handler) HandleBottleneckAnalysis(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	h.infraMutex.RLock()
-	state := h.infrastructureState
-	h.infraMutex.RUnlock()
-
-	if state == nil {
-		writeError(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
-		return
-	}
-
-	analysis := models.AnalyzeBottleneck(*state)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(analysis)
-}
-
-// HandleRecommendations returns upgrade path recommendations
-func (h *Handler) HandleRecommendations(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	h.infraMutex.RLock()
-	state := h.infrastructureState
-	h.infraMutex.RUnlock()
-
-	if state == nil {
-		writeError(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
-		return
-	}
-
-	analysis := models.AnalyzeBottleneck(*state)
-	recommendations := models.GenerateRecommendations(*state)
-
-	response := models.RecommendationsResponse{
-		Recommendations:      recommendations,
-		ConstrainingResource: analysis.ConstrainingResource,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
-}
-
 func writeError(w http.ResponseWriter, message string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

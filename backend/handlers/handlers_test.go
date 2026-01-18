@@ -1059,7 +1059,7 @@ func TestDashboardHandler_AppMemoryCalculation(t *testing.T) {
 	}
 }
 
-func TestHandleBottleneckAnalysis(t *testing.T) {
+func TestAnalyzeBottleneck(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
@@ -1093,7 +1093,7 @@ func TestHandleBottleneckAnalysis(t *testing.T) {
 	// Now get bottleneck analysis
 	req2 := httptest.NewRequest("GET", "/api/bottleneck", nil)
 	w2 := httptest.NewRecorder()
-	handler.HandleBottleneckAnalysis(w2, req2)
+	handler.AnalyzeBottleneck(w2, req2)
 
 	if w2.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())
@@ -1117,21 +1117,21 @@ func TestHandleBottleneckAnalysis(t *testing.T) {
 	}
 }
 
-func TestHandleBottleneckAnalysis_NoData(t *testing.T) {
+func TestAnalyzeBottleneck_NoData(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
 
 	req := httptest.NewRequest("GET", "/api/bottleneck", nil)
 	w := httptest.NewRecorder()
-	handler.HandleBottleneckAnalysis(w, req)
+	handler.AnalyzeBottleneck(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w.Code)
 	}
 }
 
-func TestHandleRecommendations(t *testing.T) {
+func TestGetRecommendations(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
@@ -1165,7 +1165,7 @@ func TestHandleRecommendations(t *testing.T) {
 	// Now get recommendations
 	req2 := httptest.NewRequest("GET", "/api/recommendations", nil)
 	w2 := httptest.NewRecorder()
-	handler.HandleRecommendations(w2, req2)
+	handler.GetRecommendations(w2, req2)
 
 	if w2.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())
@@ -1192,14 +1192,14 @@ func TestHandleRecommendations(t *testing.T) {
 	}
 }
 
-func TestHandleRecommendations_NoData(t *testing.T) {
+func TestGetRecommendations_NoData(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
 
 	req := httptest.NewRequest("GET", "/api/recommendations", nil)
 	w := httptest.NewRecorder()
-	handler.HandleRecommendations(w, req)
+	handler.GetRecommendations(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w.Code)
