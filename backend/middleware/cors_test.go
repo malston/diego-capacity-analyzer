@@ -65,3 +65,56 @@ func TestCORS_PassesThroughNonOptions(t *testing.T) {
 		t.Errorf("Status = %d, want %d", rec.Code, http.StatusCreated)
 	}
 }
+
+func TestChain_AppliesMiddlewareInOrder(t *testing.T) {
+	var order []string
+
+	first := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			order = append(order, "first-before")
+			next(w, r)
+			order = append(order, "first-after")
+		}
+	}
+
+	second := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			order = append(order, "second-before")
+			next(w, r)
+			order = append(order, "second-after")
+		}
+	}
+
+	handler := Chain(func(w http.ResponseWriter, r *http.Request) {
+		order = append(order, "handler")
+	}, first, second)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	expected := []string{"first-before", "second-before", "handler", "second-after", "first-after"}
+	if len(order) != len(expected) {
+		t.Fatalf("order length = %d, want %d", len(order), len(expected))
+	}
+	for i, v := range expected {
+		if order[i] != v {
+			t.Errorf("order[%d] = %q, want %q", i, order[i], v)
+		}
+	}
+}
+
+func TestChain_EmptyMiddlewares(t *testing.T) {
+	handlerCalled := false
+	handler := Chain(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if !handlerCalled {
+		t.Error("Handler should be called with empty middleware chain")
+	}
+}
