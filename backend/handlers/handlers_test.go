@@ -649,7 +649,7 @@ func TestHandleManualInfrastructure_CPURiskLevels(t *testing.T) {
 	}
 }
 
-func TestHandleScenarioCompare(t *testing.T) {
+func TestCompareScenario(t *testing.T) {
 	// First, set up manual infrastructure
 	manualBody := `{
 		"name": "Test Env",
@@ -691,7 +691,7 @@ func TestHandleScenarioCompare(t *testing.T) {
 	req2 := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader(compareBody))
 	req2.Header.Set("Content-Type", "application/json")
 	w2 := httptest.NewRecorder()
-	handler.HandleScenarioCompare(w2, req2)
+	handler.CompareScenario(w2, req2)
 
 	if w2.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())
@@ -889,21 +889,21 @@ func TestHandleInfrastructureStatus_WithData(t *testing.T) {
 	}
 }
 
-func TestHandleScenarioCompare_MethodNotAllowed(t *testing.T) {
+func TestCompareScenario_MethodNotAllowed(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
 
 	req := httptest.NewRequest("GET", "/api/scenario/compare", nil)
 	w := httptest.NewRecorder()
-	handler.HandleScenarioCompare(w, req)
+	handler.CompareScenario(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf("Expected status 405, got %d", w.Code)
 	}
 }
 
-func TestHandleScenarioCompare_NoInfrastructureData(t *testing.T) {
+func TestCompareScenario_NoInfrastructureData(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
@@ -912,7 +912,7 @@ func TestHandleScenarioCompare_NoInfrastructureData(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	handler.HandleScenarioCompare(w, req)
+	handler.CompareScenario(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w.Code)
@@ -927,7 +927,7 @@ func TestHandleScenarioCompare_NoInfrastructureData(t *testing.T) {
 	}
 }
 
-func TestHandleScenarioCompare_InvalidJSON(t *testing.T) {
+func TestCompareScenario_InvalidJSON(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
@@ -958,7 +958,7 @@ func TestHandleScenarioCompare_InvalidJSON(t *testing.T) {
 	req2 := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader("not valid json"))
 	req2.Header.Set("Content-Type", "application/json")
 	w2 := httptest.NewRecorder()
-	handler.HandleScenarioCompare(w2, req2)
+	handler.CompareScenario(w2, req2)
 
 	if w2.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w2.Code)
@@ -1420,7 +1420,7 @@ func TestEnrichWithCFAppData_GetAppsFailure(t *testing.T) {
 	}
 }
 
-func TestHandleScenarioCompare_WithRecommendations(t *testing.T) {
+func TestCompareScenario_WithRecommendations(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
@@ -1457,7 +1457,7 @@ func TestHandleScenarioCompare_WithRecommendations(t *testing.T) {
 	req2 := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader(compareBody))
 	req2.Header.Set("Content-Type", "application/json")
 	w2 := httptest.NewRecorder()
-	handler.HandleScenarioCompare(w2, req2)
+	handler.CompareScenario(w2, req2)
 
 	if w2.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())

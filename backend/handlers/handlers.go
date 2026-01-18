@@ -107,37 +107,6 @@ func (h *Handler) EnableCORS(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (h *Handler) HandleScenarioCompare(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	h.infraMutex.RLock()
-	state := h.infrastructureState
-	h.infraMutex.RUnlock()
-
-	if state == nil {
-		writeError(w, "No infrastructure data. Set via /api/infrastructure/manual first.", http.StatusBadRequest)
-		return
-	}
-
-	var input models.ScenarioInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	comparison := h.scenarioCalc.Compare(*state, input)
-
-	// Add recommendations based on current state
-	comparison.Recommendations = models.GenerateRecommendations(*state)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(comparison)
-}
-
 // HandleBottleneckAnalysis returns multi-resource bottleneck analysis
 func (h *Handler) HandleBottleneckAnalysis(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

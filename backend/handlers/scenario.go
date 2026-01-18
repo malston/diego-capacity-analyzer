@@ -1,0 +1,41 @@
+// ABOUTME: HTTP handler for scenario comparison endpoint
+// ABOUTME: Provides what-if analysis comparing current vs proposed configurations
+
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/markalston/diego-capacity-analyzer/backend/models"
+)
+
+// CompareScenario compares current infrastructure against a proposed scenario.
+func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		h.writeErrorMethod(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	h.infraMutex.RLock()
+	state := h.infrastructureState
+	h.infraMutex.RUnlock()
+
+	if state == nil {
+		h.writeErrorMethod(w, "No infrastructure data. Set via /api/infrastructure/manual first.", http.StatusBadRequest)
+		return
+	}
+
+	var input models.ScenarioInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		h.writeErrorMethod(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	comparison := h.scenarioCalc.Compare(*state, input)
+
+	// Add recommendations based on current state
+	comparison.Recommendations = models.GenerateRecommendations(*state)
+
+	h.writeJSON(w, http.StatusOK, comparison)
+}

@@ -29,7 +29,7 @@ func (h *Handler) Routes() []Route {
 		{Method: http.MethodGet, Path: "/api/v1/infrastructure/apps", Handler: h.GetInfrastructureApps},
 
 		// Scenario
-		{Method: http.MethodPost, Path: "/api/v1/scenario/compare", Handler: h.HandleScenarioCompare},
+		{Method: http.MethodPost, Path: "/api/v1/scenario/compare", Handler: h.CompareScenario},
 
 		// Analysis
 		{Method: http.MethodGet, Path: "/api/v1/bottleneck", Handler: h.HandleBottleneckAnalysis},

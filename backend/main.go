@@ -57,7 +57,7 @@ func main() {
 	http.HandleFunc("/api/infrastructure/status", h.EnableCORS(middleware.LogRequest(h.GetInfrastructureStatus)))
 	http.HandleFunc("/api/infrastructure/planning", h.EnableCORS(middleware.LogRequest(h.PlanInfrastructure)))
 	http.HandleFunc("/api/infrastructure/apps", h.EnableCORS(middleware.LogRequest(h.GetInfrastructureApps)))
-	http.HandleFunc("/api/scenario/compare", h.EnableCORS(middleware.LogRequest(h.HandleScenarioCompare)))
+	http.HandleFunc("/api/scenario/compare", h.EnableCORS(middleware.LogRequest(h.CompareScenario)))
 	http.HandleFunc("/api/bottleneck", h.EnableCORS(middleware.LogRequest(h.HandleBottleneckAnalysis)))
 	http.HandleFunc("/api/recommendations", h.EnableCORS(middleware.LogRequest(h.HandleRecommendations)))
 

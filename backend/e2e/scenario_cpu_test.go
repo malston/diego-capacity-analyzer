@@ -18,7 +18,7 @@ func TestScenarioCompare_WithCPUConfig(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
-	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
+	mux.HandleFunc("/api/scenario/compare", handler.CompareScenario)
 
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -130,7 +130,7 @@ func TestScenarioCompare_CPURiskLevels(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
-	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
+	mux.HandleFunc("/api/scenario/compare", handler.CompareScenario)
 
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -235,7 +235,7 @@ func TestScenarioCompare_NoCPUConfigDisablesAnalysis(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
-	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
+	mux.HandleFunc("/api/scenario/compare", handler.CompareScenario)
 
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -309,7 +309,7 @@ func TestScenarioCompare_MaxCellsByCPU(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
-	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
+	mux.HandleFunc("/api/scenario/compare", handler.CompareScenario)
 
 	server := httptest.NewServer(mux)
 	defer server.Close()
