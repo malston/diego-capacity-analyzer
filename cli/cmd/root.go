@@ -1,12 +1,17 @@
 // ABOUTME: Root command for diego-capacity CLI
-// ABOUTME: Handles global flags and configuration
+// ABOUTME: Handles global flags, TTY detection, and TUI launch
 
 package cmd
 
 import (
+	"context"
 	"os"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
+
+	"github.com/markalston/diego-capacity-analyzer/cli/internal/client"
+	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui"
 )
 
 var (
@@ -22,10 +27,27 @@ var rootCmd = &cobra.Command{
 	Short: "CLI for Diego Capacity Analyzer",
 	Long: `diego-capacity is a command-line interface for the Diego Capacity Analyzer.
 
-It enables CI/CD pipelines to monitor TAS capacity and alert when thresholds are exceeded.
+When run without arguments in an interactive terminal, launches a TUI for
+scenario planning. Use subcommands (health, status, check) for non-interactive
+access or add --json for machine-readable output.
 
 Environment Variables:
   DIEGO_CAPACITY_API_URL  Backend API URL (default: http://localhost:8080)`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// If not a TTY or --json flag, show help
+		if !term.IsTerminal(int(os.Stdout.Fd())) || jsonOutput {
+			return cmd.Help()
+		}
+
+		// Launch TUI
+		c := client.New(GetAPIURL())
+
+		// Check if vSphere is configured by calling status endpoint
+		status, err := c.InfrastructureStatus(context.Background())
+		vsphereConfigured := err == nil && status.VSphereConfigured
+
+		return tui.Run(c, vsphereConfigured)
+	},
 }
 
 // Execute runs the root command

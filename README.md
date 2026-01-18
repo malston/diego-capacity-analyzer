@@ -41,7 +41,38 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 
 ### CLI Tool
 
-The `diego-capacity` CLI provides command-line access to capacity metrics for scripting and CI/CD integration:
+The `diego-capacity` CLI provides both an interactive TUI and command-line access for scripting.
+
+#### Interactive TUI
+
+When run without arguments in a terminal, `diego-capacity` launches an interactive TUI:
+
+```bash
+# Launch interactive TUI
+diego-capacity
+
+# Or explicitly with a specific backend
+diego-capacity --api-url http://backend:8080
+```
+
+The TUI provides:
+- **Data source selection**: Choose between live vSphere, JSON file, or manual input
+- **Split-pane dashboard**: Live infrastructure metrics on the left, actions on the right
+- **Scenario wizard**: Step-by-step what-if analysis with real-time feedback
+- **Comparison view**: Side-by-side current vs proposed with delta highlights
+
+##### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `w` | Run scenario wizard |
+| `r` | Refresh infrastructure data |
+| `b` | Go back (from comparison view) |
+| `q` | Quit |
+
+#### Non-Interactive Commands
+
+For CI/CD pipelines, use subcommands with `--json`:
 
 ```bash
 # Check backend health
@@ -52,6 +83,9 @@ diego-capacity status
 
 # Check capacity thresholds (for CI/CD)
 diego-capacity check --n1-threshold 85 --memory-threshold 90
+
+# Scenario comparison
+diego-capacity scenario --cell-memory 64 --cell-cpu 8 --cell-count 20 --json
 
 # JSON output for parsing
 diego-capacity status --json
@@ -229,6 +263,7 @@ GitHub Actions workflows run automatically:
 
 ## Documentation
 
+- **[CLI Guide](docs/CLI.md)** - CLI tool and TUI usage, CI/CD integration
 - **[UI Guide](docs/UI-GUIDE.md)** - Dashboard metrics and visualizations
 - **[API Reference](docs/API.md)** - Backend REST API documentation
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Cloud Foundry deployment
@@ -255,14 +290,23 @@ GitHub Actions workflows run automatically:
 │   ├── middleware/             # HTTP middleware
 │   └── manifest.yml            # CF deployment manifest
 │
-├── cli/                        # CLI tool (diego-capacity)
+├── cli/                        # CLI tool with TUI (diego-capacity)
 │   ├── main.go                 # Entry point
 │   ├── cmd/                    # Cobra commands
-│   │   ├── root.go             # Root command, global flags
+│   │   ├── root.go             # Root command, TTY detection, TUI launch
 │   │   ├── health.go           # Health check command
 │   │   ├── status.go           # Infrastructure status
-│   │   └── check.go            # Threshold checking
-│   └── internal/client/        # HTTP client for backend API
+│   │   ├── check.go            # Threshold checking
+│   │   └── scenario.go         # Scenario comparison
+│   └── internal/
+│       ├── client/             # HTTP client for backend API
+│       └── tui/                # Terminal UI components
+│           ├── app.go          # Root TUI model
+│           ├── styles/         # Lipgloss styles
+│           ├── menu/           # Data source menu
+│           ├── dashboard/      # Infrastructure dashboard
+│           ├── wizard/         # Scenario wizard
+│           └── comparison/     # Comparison view
 │
 ├── frontend/                   # React SPA
 │   ├── src/
