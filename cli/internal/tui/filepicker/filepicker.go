@@ -4,7 +4,9 @@
 package filepicker
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -12,6 +14,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/samples"
 )
+
+// maxFileSize is the maximum file size allowed (100MB)
+const maxFileSize = 100 * 1024 * 1024
 
 // State represents the current UI state
 type state int
@@ -208,14 +213,44 @@ func (fp *FilePicker) selectListItem() (tea.Model, tea.Cmd) {
 }
 
 func (fp *FilePicker) loadFile(path string) (tea.Model, tea.Cmd) {
-	// Expand ~ to home directory
+	// Expand ~ to home directory and clean the path
 	expandedPath := expandPath(path)
 
-	data, err := os.ReadFile(expandedPath)
+	// Validate and sanitize path
+	cleanPath, err := validatePath(expandedPath)
+	if err != nil {
+		fp.err = err.Error()
+		return fp, nil
+	}
+
+	// Check file info before reading
+	info, err := os.Stat(cleanPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			fp.err = "File not found: " + path
 		} else if os.IsPermission(err) {
+			fp.err = "Cannot access file: permission denied"
+		} else {
+			fp.err = "Error accessing file: " + err.Error()
+		}
+		return fp, nil
+	}
+
+	// Validate it's a regular file
+	if !info.Mode().IsRegular() {
+		fp.err = "Not a regular file: " + path
+		return fp, nil
+	}
+
+	// Check file size
+	if info.Size() > maxFileSize {
+		fp.err = fmt.Sprintf("File too large: %d MB (max %d MB)", info.Size()/(1024*1024), maxFileSize/(1024*1024))
+		return fp, nil
+	}
+
+	data, err := os.ReadFile(cleanPath)
+	if err != nil {
+		if os.IsPermission(err) {
 			fp.err = "Cannot read file: permission denied"
 		} else {
 			fp.err = "Error reading file: " + err.Error()
@@ -224,7 +259,7 @@ func (fp *FilePicker) loadFile(path string) (tea.Model, tea.Cmd) {
 	}
 
 	return fp, func() tea.Msg {
-		return FileSelectedMsg{Path: expandedPath, Data: data}
+		return FileSelectedMsg{Path: cleanPath, Data: data}
 	}
 }
 
@@ -240,6 +275,42 @@ func expandPath(path string) string {
 		}
 	}
 	return path
+}
+
+// validatePath validates and cleans the file path to prevent path traversal attacks
+func validatePath(path string) (string, error) {
+	// Clean the path to resolve . and ..
+	cleanPath := filepath.Clean(path)
+
+	// Convert to absolute path
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return "", fmt.Errorf("invalid path: %s", path)
+	}
+
+	// Verify the path doesn't escape to sensitive system directories
+	// Allow paths under home directory, current working directory, or /tmp
+	home, _ := os.UserHomeDir()
+	cwd, _ := os.Getwd()
+
+	allowedPrefixes := []string{home, cwd, os.TempDir()}
+
+	allowed := false
+	for _, prefix := range allowedPrefixes {
+		if prefix != "" && strings.HasPrefix(absPath, prefix) {
+			allowed = true
+			break
+		}
+	}
+
+	if !allowed {
+		// Also allow if it's a JSON file (basic extension check)
+		if !strings.HasSuffix(strings.ToLower(absPath), ".json") {
+			return "", fmt.Errorf("file must be a .json file or within allowed directories")
+		}
+	}
+
+	return absPath, nil
 }
 
 // SetError sets an error message to display

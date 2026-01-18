@@ -18,6 +18,7 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/client"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/comparison"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/dashboard"
+	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/debuglog"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/filepicker"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/icons"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/menu"
@@ -101,12 +102,16 @@ func New(apiClient *client.Client, vsphereConfigured bool, repoBasePath string) 
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(styles.Primary)
 
+	// Initialize debug logger (non-critical if it fails)
+	configDir := recentfiles.DefaultConfigDir()
+	_ = debuglog.Init(configDir) // Ignore error - logging is optional
+
 	return &App{
 		client:            apiClient,
 		screen:            ScreenMenu,
 		vsphereConfigured: vsphereConfigured,
 		repoBasePath:      repoBasePath,
-		recentFiles:       recentfiles.New(recentfiles.DefaultConfigDir()),
+		recentFiles:       recentfiles.New(configDir),
 		menu:              menu.New(vsphereConfigured),
 		spinner:           s,
 	}
@@ -242,7 +247,9 @@ func (a *App) updateMenu(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 	model, cmd := a.menu.Update(msg)
-	a.menu = model.(*menu.Menu)
+	if m, ok := model.(*menu.Menu); ok {
+		a.menu = m
+	}
 	return a, cmd
 }
 
@@ -251,7 +258,9 @@ func (a *App) updateFilePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 	model, cmd := a.filePicker.Update(msg)
-	a.filePicker = model.(*filepicker.FilePicker)
+	if fp, ok := model.(*filepicker.FilePicker); ok {
+		a.filePicker = fp
+	}
 	return a, cmd
 }
 
@@ -298,7 +307,9 @@ func (a *App) updateWizard(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 	model, cmd := a.wizardScreen.Update(msg)
-	a.wizardScreen = model.(*wizard.Wizard)
+	if w, ok := model.(*wizard.Wizard); ok {
+		a.wizardScreen = w
+	}
 	return a, cmd
 }
 
@@ -313,9 +324,16 @@ func (a *App) handleDataSourceSelected(msg menu.DataSourceSelectedMsg) (tea.Mode
 
 	case menu.SourceJSON:
 		// Initialize file picker with recent files and samples
-		recentList, _ := a.recentFiles.Load()
+		// Log errors but continue - these are non-critical features
+		recentList, err := a.recentFiles.Load()
+		if err != nil {
+			debuglog.Error("loading recent files", err)
+		}
 		samplesDir := samples.FindSamplesDir(a.repoBasePath)
-		sampleFiles, _ := samples.Discover(samplesDir)
+		sampleFiles, err := samples.Discover(samplesDir)
+		if err != nil {
+			debuglog.Error("discovering sample files", err)
+		}
 		a.filePicker = filepicker.New(recentList, sampleFiles)
 		a.screen = ScreenFilePicker
 		return a, nil
