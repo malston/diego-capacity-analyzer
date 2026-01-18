@@ -17,7 +17,7 @@ import (
 func TestScenarioAnalysisE2E(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/infrastructure/manual", handler.HandleManualInfrastructure)
+	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
 	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
 
 	server := httptest.NewServer(mux)

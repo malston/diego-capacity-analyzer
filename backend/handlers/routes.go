@@ -21,12 +21,12 @@ func (h *Handler) Routes() []Route {
 		{Method: http.MethodGet, Path: "/api/v1/dashboard", Handler: h.Dashboard},
 
 		// Infrastructure
-		{Method: http.MethodGet, Path: "/api/v1/infrastructure", Handler: h.HandleInfrastructure},
-		{Method: http.MethodPost, Path: "/api/v1/infrastructure/manual", Handler: h.HandleManualInfrastructure},
-		{Method: http.MethodPost, Path: "/api/v1/infrastructure/state", Handler: h.HandleSetInfrastructureState},
-		{Method: http.MethodGet, Path: "/api/v1/infrastructure/status", Handler: h.HandleInfrastructureStatus},
-		{Method: http.MethodPost, Path: "/api/v1/infrastructure/planning", Handler: h.HandleInfrastructurePlanning},
-		{Method: http.MethodGet, Path: "/api/v1/infrastructure/apps", Handler: h.HandleInfrastructureApps},
+		{Method: http.MethodGet, Path: "/api/v1/infrastructure", Handler: h.GetInfrastructure},
+		{Method: http.MethodPost, Path: "/api/v1/infrastructure/manual", Handler: h.SetManualInfrastructure},
+		{Method: http.MethodPost, Path: "/api/v1/infrastructure/state", Handler: h.SetInfrastructureState},
+		{Method: http.MethodGet, Path: "/api/v1/infrastructure/status", Handler: h.GetInfrastructureStatus},
+		{Method: http.MethodPost, Path: "/api/v1/infrastructure/planning", Handler: h.PlanInfrastructure},
+		{Method: http.MethodGet, Path: "/api/v1/infrastructure/apps", Handler: h.GetInfrastructureApps},
 
 		// Scenario
 		{Method: http.MethodPost, Path: "/api/v1/scenario/compare", Handler: h.HandleScenarioCompare},

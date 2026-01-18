@@ -18,7 +18,7 @@ import (
 func TestCPUAnalysisE2E(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/infrastructure/manual", handler.HandleManualInfrastructure)
+	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
 	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
 
 	server := httptest.NewServer(mux)
@@ -98,7 +98,7 @@ func TestCPUAnalysisE2E(t *testing.T) {
 func TestCPURiskLevelThresholdsE2E(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/infrastructure/manual", handler.HandleManualInfrastructure)
+	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
 
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -185,7 +185,7 @@ func TestCPURiskLevelThresholdsE2E(t *testing.T) {
 func TestHostLevelAnalysisE2E(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/infrastructure/manual", handler.HandleManualInfrastructure)
+	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
 
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -276,7 +276,7 @@ func TestHostLevelAnalysisE2E(t *testing.T) {
 func TestBottleneckAnalysisE2E(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/infrastructure/manual", handler.HandleManualInfrastructure)
+	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
 	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
 
 	server := httptest.NewServer(mux)
@@ -361,7 +361,7 @@ func TestBottleneckAnalysisE2E(t *testing.T) {
 func TestRecommendationsE2E(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/infrastructure/manual", handler.HandleManualInfrastructure)
+	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
 	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
 
 	server := httptest.NewServer(mux)
@@ -470,7 +470,7 @@ func TestRecommendationsE2E(t *testing.T) {
 func TestLargeFoundationCellCount(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/infrastructure/manual", handler.HandleManualInfrastructure)
+	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
 	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
 
 	server := httptest.NewServer(mux)
@@ -563,7 +563,7 @@ func TestLargeFoundationCellCount(t *testing.T) {
 func TestScenarioCompareWithCPUE2E(t *testing.T) {
 	handler := handlers.NewHandler(nil, nil)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/infrastructure/manual", handler.HandleManualInfrastructure)
+	mux.HandleFunc("/api/infrastructure/manual", handler.SetManualInfrastructure)
 	mux.HandleFunc("/api/scenario/compare", handler.HandleScenarioCompare)
 
 	server := httptest.NewServer(mux)
