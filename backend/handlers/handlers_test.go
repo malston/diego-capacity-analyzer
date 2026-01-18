@@ -1577,3 +1577,73 @@ func TestHandleInfrastructureApps_MethodNotAllowed(t *testing.T) {
 		t.Errorf("Expected status 405, got %d", w.Code)
 	}
 }
+
+func TestHandler_writeJSON(t *testing.T) {
+	h := &Handler{}
+	rec := httptest.NewRecorder()
+
+	data := map[string]string{"key": "value"}
+	h.writeJSON(rec, http.StatusCreated, data)
+
+	if rec.Code != http.StatusCreated {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusCreated)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", ct, "application/json")
+	}
+
+	var result map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if result["key"] != "value" {
+		t.Errorf("result[key] = %q, want %q", result["key"], "value")
+	}
+}
+
+func TestHandler_writeErrorMethod(t *testing.T) {
+	h := &Handler{}
+	rec := httptest.NewRecorder()
+
+	h.writeErrorMethod(rec, "test error", http.StatusBadRequest)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+
+	var result models.ErrorResponse
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if result.Error != "test error" {
+		t.Errorf("Error = %q, want %q", result.Error, "test error")
+	}
+	if result.Code != http.StatusBadRequest {
+		t.Errorf("Code = %d, want %d", result.Code, http.StatusBadRequest)
+	}
+}
+
+func TestHandler_writeErrorWithDetails(t *testing.T) {
+	h := &Handler{}
+	rec := httptest.NewRecorder()
+
+	h.writeErrorWithDetails(rec, "test error", "additional details", http.StatusBadRequest)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+
+	var result models.ErrorResponse
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if result.Error != "test error" {
+		t.Errorf("Error = %q, want %q", result.Error, "test error")
+	}
+	if result.Details != "additional details" {
+		t.Errorf("Details = %q, want %q", result.Details, "additional details")
+	}
+	if result.Code != http.StatusBadRequest {
+		t.Errorf("Code = %d, want %d", result.Code, http.StatusBadRequest)
+	}
+}

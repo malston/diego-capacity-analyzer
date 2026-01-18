@@ -66,6 +66,34 @@ func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 	return h
 }
 
+// writeJSON writes a JSON response with the given status code.
+func (h *Handler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Error("Failed to encode JSON response", "error", err)
+	}
+}
+
+// writeErrorMethod writes a standardized error response.
+// Named writeErrorMethod to avoid conflict with existing writeError function.
+// Will be renamed to writeError after handlers are migrated.
+func (h *Handler) writeErrorMethod(w http.ResponseWriter, message string, code int) {
+	h.writeJSON(w, code, models.ErrorResponse{
+		Error: message,
+		Code:  code,
+	})
+}
+
+// writeErrorWithDetails writes an error response with additional details.
+func (h *Handler) writeErrorWithDetails(w http.ResponseWriter, message, details string, code int) {
+	h.writeJSON(w, code, models.ErrorResponse{
+		Error:   message,
+		Details: details,
+		Code:    code,
+	})
+}
+
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]interface{}{
 		"cf_api":   "ok",
