@@ -398,62 +398,6 @@ func TestDashboardHandler_Cache(t *testing.T) {
 	}
 }
 
-func TestEnableCORS(t *testing.T) {
-	cfg := &config.Config{
-		CFAPIUrl:   "https://api.test.com",
-		CFUsername: "admin",
-		CFPassword: "secret",
-	}
-	c := cache.New(5 * time.Minute)
-	h := NewHandler(cfg, c)
-
-	testHandler := func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}
-
-	req := httptest.NewRequest("GET", "/api/test", nil)
-	w := httptest.NewRecorder()
-
-	corsHandler := h.EnableCORS(testHandler)
-	corsHandler(w, req)
-
-	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Errorf("Expected CORS header, got %s", w.Header().Get("Access-Control-Allow-Origin"))
-	}
-
-	if w.Header().Get("Access-Control-Allow-Methods") != "GET, POST, OPTIONS" {
-		t.Errorf("Expected CORS methods, got %s", w.Header().Get("Access-Control-Allow-Methods"))
-	}
-}
-
-func TestEnableCORS_OPTIONS(t *testing.T) {
-	cfg := &config.Config{
-		CFAPIUrl:   "https://api.test.com",
-		CFUsername: "admin",
-		CFPassword: "secret",
-	}
-	c := cache.New(5 * time.Minute)
-	h := NewHandler(cfg, c)
-
-	testHandler := func(w http.ResponseWriter, r *http.Request) {
-		t.Error("Handler should not be called for OPTIONS request")
-	}
-
-	req := httptest.NewRequest("OPTIONS", "/api/test", nil)
-	w := httptest.NewRecorder()
-
-	corsHandler := h.EnableCORS(testHandler)
-	corsHandler(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200 for OPTIONS, got %d", w.Code)
-	}
-
-	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Errorf("Expected CORS header for OPTIONS, got %s", w.Header().Get("Access-Control-Allow-Origin"))
-	}
-}
-
 func TestHandleManualInfrastructure(t *testing.T) {
 	body := `{
 		"name": "Test Env",
