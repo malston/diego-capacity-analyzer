@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/client"
@@ -40,7 +41,7 @@ const (
 // Layout constants
 const (
 	minTerminalWidth = 80 // Minimum width before using single-column layout
-	panelPadding     = 4  // Total horizontal padding from panel borders (2 each side)
+	panelOverhead    = 2  // Border only (1 left + 1 right) - lipgloss Width() includes padding in content area
 )
 
 // infraLoadedMsg is sent when infrastructure data is loaded
@@ -82,11 +83,13 @@ type App struct {
 	repoBasePath      string
 	lastUpdate        time.Time
 	infraName         string // Name of the infrastructure source for header
+	loading           bool   // Whether we're in a loading state
 
 	// Child models
 	menu         *menu.Menu
 	filePicker   *filepicker.FilePicker
 	wizardScreen *wizard.Wizard
+	spinner      spinner.Model
 
 	// Recent files manager
 	recentFiles *recentfiles.RecentFiles
@@ -94,6 +97,10 @@ type App struct {
 
 // New creates a new TUI application
 func New(apiClient *client.Client, vsphereConfigured bool, repoBasePath string) *App {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(styles.Primary)
+
 	return &App{
 		client:            apiClient,
 		screen:            ScreenMenu,
@@ -101,6 +108,7 @@ func New(apiClient *client.Client, vsphereConfigured bool, repoBasePath string) 
 		repoBasePath:      repoBasePath,
 		recentFiles:       recentfiles.New(recentfiles.DefaultConfigDir()),
 		menu:              menu.New(vsphereConfigured),
+		spinner:           s,
 	}
 }
 
@@ -118,6 +126,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.dashboard != nil {
 			a.dashboard.SetSize(a.dashboardWidth(), a.contentHeight())
 		}
+		if a.compView != nil {
+			a.compView.SetSize(a.comparisonWidth())
+		}
 		// Forward to child models
 		if a.menu != nil {
 			a.menu.Update(msg)
@@ -126,7 +137,16 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.filePicker.Update(msg)
 		}
 		if a.wizardScreen != nil {
+			a.wizardScreen.SetWidth(a.width - 1)
 			return a.updateWizard(msg)
+		}
+		return a, nil
+
+	case spinner.TickMsg:
+		if a.loading {
+			var cmd tea.Cmd
+			a.spinner, cmd = a.spinner.Update(msg)
+			return a, cmd
 		}
 		return a, nil
 
@@ -180,6 +200,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.handleFileLoaded(msg)
 
 	case infraLoadedMsg:
+		a.loading = false
 		if msg.err != nil {
 			a.err = msg.err
 			return a, nil
@@ -287,7 +308,8 @@ func (a *App) handleDataSourceSelected(msg menu.DataSourceSelectedMsg) (tea.Mode
 	switch msg.Source {
 	case menu.SourceVSphere:
 		a.screen = ScreenDashboard
-		return a, a.loadInfrastructure()
+		a.loading = true
+		return a, tea.Batch(a.spinner.Tick, a.loadInfrastructure())
 
 	case menu.SourceJSON:
 		// Initialize file picker with recent files and samples
@@ -301,7 +323,8 @@ func (a *App) handleDataSourceSelected(msg menu.DataSourceSelectedMsg) (tea.Mode
 	case menu.SourceManual:
 		// Manual input goes directly to dashboard (will implement manual input later)
 		a.screen = ScreenDashboard
-		return a, a.loadInfrastructure()
+		a.loading = true
+		return a, tea.Batch(a.spinner.Tick, a.loadInfrastructure())
 	}
 
 	return a, nil
@@ -334,9 +357,10 @@ func (a *App) handleFileLoaded(msg fileLoadedMsg) (tea.Model, tea.Cmd) {
 		// Transition to dashboard with loading state
 		a.screen = ScreenDashboard
 		a.filePicker = nil
+		a.loading = true
 
 		// Call backend to compute infrastructure state
-		return a, a.computeManualInfrastructure(&input)
+		return a, tea.Batch(a.spinner.Tick, a.computeManualInfrastructure(&input))
 	}
 
 	// Parse as InfrastructureState (pre-computed format)
@@ -453,11 +477,22 @@ func (a *App) viewDashboard() string {
 		return styles.StatusCritical.Render("Error: " + a.err.Error())
 	}
 
+	// Calculate pane height - subtract 4 for panel borders (2) + padding (2)
+	// lipgloss Height() sets content height, borders/padding are added on top
+	paneHeight := a.contentHeight() - 4
+	if paneHeight < 10 {
+		paneHeight = 10
+	}
+
 	leftPane := ""
-	if a.dashboard != nil {
-		leftPane = styles.ActivePanel.Width(a.dashboardWidth()).Render(a.dashboard.View())
+	if a.loading {
+		// Show animated loading spinner
+		loadingContent := fmt.Sprintf("\n\n   %s Loading infrastructure data...\n\n", a.spinner.View())
+		leftPane = styles.Panel.Width(a.dashboardWidth()).Height(paneHeight).Render(loadingContent)
+	} else if a.dashboard != nil {
+		leftPane = styles.ActivePanel.Width(a.dashboardWidth()).Height(paneHeight).Render(a.dashboard.View())
 	} else {
-		leftPane = styles.Panel.Width(a.dashboardWidth()).Render("Loading...")
+		leftPane = styles.Panel.Width(a.dashboardWidth()).Height(paneHeight).Render("No data loaded")
 	}
 
 	// Actions pane on the right - shows available actions
@@ -466,10 +501,11 @@ func (a *App) viewDashboard() string {
 	rightContent += icons.Wizard.String() + " Run scenario wizard\n"
 	rightContent += icons.Back.String() + " Back to menu\n"
 	rightContent += icons.Quit.String() + " Quit application\n"
-	rightPane := styles.Panel.Width(a.actionsWidth()).Render(rightContent)
+	rightPane := styles.Panel.Width(a.actionsWidth()).Height(paneHeight).Render(rightContent)
 
-	// Join panes side by side
-	return lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
+	// Join panes side by side and ensure total width matches frame
+	content := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
+	return a.padToFrameWidth(content)
 }
 
 // viewWizard renders the wizard screen
@@ -486,47 +522,92 @@ func (a *App) viewComparison() string {
 		return styles.StatusCritical.Render("Error: " + a.err.Error())
 	}
 
+	// Calculate pane height - subtract 4 for panel borders (2) + padding (2)
+	paneHeight := a.contentHeight() - 4
+	if paneHeight < 10 {
+		paneHeight = 10
+	}
+
 	leftPane := ""
 	if a.dashboard != nil {
-		leftPane = styles.Panel.Width(a.dashboardWidth()).Render(a.dashboard.View())
+		leftPane = styles.Panel.Width(a.dashboardWidth()).Height(paneHeight).Render(a.dashboard.View())
 	}
 
 	rightPane := ""
 	if a.compView != nil {
-		rightPane = styles.ActivePanel.Width(a.comparisonWidth()).Render(a.compView.View())
+		rightPane = styles.ActivePanel.Width(a.comparisonWidth()).Height(paneHeight).Render(a.compView.View())
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
+	// Join panes side by side and ensure total width matches frame
+	content := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
+	return a.padToFrameWidth(content)
 }
 
-// dashboardWidth calculates the width for the dashboard pane
+// padToFrameWidth ensures multi-line content fills exactly frameWidth on each line
+// This compensates for any rounding errors in panel width calculations
+func (a *App) padToFrameWidth(content string) string {
+	targetWidth := a.frameWidth()
+	lines := strings.Split(content, "\n")
+	paddedLines := make([]string, len(lines))
+
+	for i, line := range lines {
+		lineWidth := lipgloss.Width(line)
+		if lineWidth < targetWidth {
+			// Pad with spaces to reach target width
+			paddedLines[i] = line + strings.Repeat(" ", targetWidth-lineWidth)
+		} else {
+			paddedLines[i] = line
+		}
+	}
+
+	return strings.Join(paddedLines, "\n")
+}
+
+// frameWidth returns the width for the header/footer frame and panels
+// Uses full terminal width minus 1 for safety
+func (a *App) frameWidth() int {
+	return a.width - 1
+}
+
+// leftPanelTotalWidth returns the TOTAL width (content + borders + padding) for the left panel
+func (a *App) leftPanelTotalWidth() int {
+	return a.frameWidth() / 2
+}
+
+// rightPanelTotalWidth returns the TOTAL width for the right panel
+// Handles odd frameWidth by giving any extra char to the right panel
+func (a *App) rightPanelTotalWidth() int {
+	return a.frameWidth() - a.leftPanelTotalWidth()
+}
+
+// dashboardWidth calculates the CONTENT width for the dashboard (left) pane
 func (a *App) dashboardWidth() int {
-	if a.width < minTerminalWidth {
-		return a.width - panelPadding
-	}
-	return (a.width - panelPadding) / 2
+	return a.leftPanelTotalWidth() - panelOverhead
 }
 
-// actionsWidth calculates the width for the actions pane
+// actionsWidth calculates the CONTENT width for the actions (right) pane
 func (a *App) actionsWidth() int {
-	return a.width - a.dashboardWidth() - 4
+	return a.rightPanelTotalWidth() - panelOverhead
 }
 
-// comparisonWidth calculates the width for the comparison pane
+// comparisonWidth calculates the CONTENT width for the comparison pane
 func (a *App) comparisonWidth() int {
-	return a.width - a.dashboardWidth() - 4
+	return a.actionsWidth()
 }
 
 // contentHeight calculates the height available for dashboard content
 func (a *App) contentHeight() int {
-	// Total overhead:
-	// - Header: 1 line
-	// - Newline after header: 1 line
-	// - ActivePanel border+padding: 4 lines (top border, top padding, bottom padding, bottom border)
-	// - Newline before footer: 1 line
-	// - Footer: 1 line
-	// Total: 8 lines overhead
-	return a.height - 8
+	// Available height for panels:
+	// - Total terminal height
+	// - Minus header (1 line)
+	// - Minus newline after header (1 line)
+	// - Minus footer (1 line)
+	// When lipgloss renders with Height(n), the output is n lines total including borders/padding
+	height := a.height - 3
+	if height < 10 {
+		height = 10
+	}
+	return height
 }
 
 // deriveInfraName extracts a display name for the infrastructure source
@@ -551,8 +632,8 @@ func (a *App) deriveInfraName() string {
 
 // renderHeader creates the header bar with app branding and context
 func (a *App) renderHeader() string {
-	// Guard against zero/small width before WindowSizeMsg is received
-	width := a.width
+	// Use full terminal width minus 1 for safety
+	width := a.width - 1
 	if width < minTerminalWidth {
 		width = minTerminalWidth
 	}
@@ -561,45 +642,37 @@ func (a *App) renderHeader() string {
 	titleStyle := lipgloss.NewStyle().Foreground(styles.Primary).Bold(true)
 	contextStyle := lipgloss.NewStyle().Foreground(styles.Secondary)
 
-	// Use plain ASCII for consistent width calculation
 	title := "Diego Capacity Analyzer"
-
-	// Build left content - avoid icons in header for width consistency
-	leftText := " " + titleStyle.Render(title)
+	leftPlain := " " + title + " "
+	leftStyled := " " + titleStyle.Render(title) + " "
 
 	// Build right content (only on certain screens)
-	rightText := ""
+	rightPlain := ""
+	rightStyled := ""
 	if a.infraName != "" && a.screen != ScreenMenu && a.screen != ScreenFilePicker {
-		rightText = contextStyle.Render(a.infraName) + " "
+		rightPlain = " " + a.infraName + " "
+		rightStyled = " " + contextStyle.Render(a.infraName) + " "
 	}
 
-	// Use lipgloss to handle the width properly
-	// Create a style that fills the width with the border character
-	leftStyle := lipgloss.NewStyle()
-	rightStyle := lipgloss.NewStyle().Align(lipgloss.Right)
-
-	leftRendered := leftStyle.Render(leftText)
-	rightRendered := rightStyle.Render(rightText)
-
-	// Calculate fill needed
-	leftWidth := lipgloss.Width(leftRendered)
-	rightWidth := lipgloss.Width(rightRendered)
-	fillWidth := width - 4 - leftWidth - rightWidth // -4 for ╭─ and ─╮
+	// Calculate fill width using lipgloss.Width for proper Unicode handling
+	// Total width - corners(2) - left content - right content
+	leftWidth := lipgloss.Width(leftPlain)
+	rightWidth := lipgloss.Width(rightPlain)
+	fillWidth := width - 2 - leftWidth - rightWidth
 	if fillWidth < 0 {
 		fillWidth = 0
 	}
 
 	fill := strings.Repeat("─", fillWidth)
-
-	header := "╭─" + leftRendered + fill + rightRendered + "─╮"
+	header := "╭" + leftStyled + fill + rightStyled + "╮"
 
 	return borderStyle.Render(header)
 }
 
 // renderFooter creates the footer with keyboard shortcuts and status
 func (a *App) renderFooter() string {
-	// Guard against zero/small width before WindowSizeMsg is received
-	width := a.width
+	// Use full terminal width minus 1 for safety
+	width := a.width - 1
 	if width < minTerminalWidth {
 		width = minTerminalWidth
 	}
@@ -624,40 +697,43 @@ func (a *App) renderFooter() string {
 		shortcuts = []string{"↑↓ Select", "Enter Confirm", "Esc Cancel"}
 	}
 
-	// Build styled shortcuts
+	// Build styled shortcuts and plain text versions for width calculation
 	var styledShortcuts []string
+	var plainShortcuts []string
 	for _, s := range shortcuts {
 		parts := strings.SplitN(s, " ", 2)
 		if len(parts) == 2 {
 			styledShortcuts = append(styledShortcuts, keyStyle.Render(parts[0])+" "+labelStyle.Render(parts[1]))
+			plainShortcuts = append(plainShortcuts, s)
 		} else {
 			styledShortcuts = append(styledShortcuts, s)
+			plainShortcuts = append(plainShortcuts, s)
 		}
 	}
 
-	leftText := " " + strings.Join(styledShortcuts, "  ")
-	leftPlainText := " " + strings.Join(shortcuts, "  ")
+	leftStyled := " " + strings.Join(styledShortcuts, "  ") + " "
+	leftPlain := " " + strings.Join(plainShortcuts, "  ") + " "
 
 	// Right side status (last update time)
-	rightText := ""
-	rightPlainText := ""
+	rightStyled := ""
+	rightPlain := ""
 	if !a.lastUpdate.IsZero() && a.screen != ScreenMenu && a.screen != ScreenFilePicker && a.screen != ScreenWizard {
 		elapsed := a.formatTimeSince(a.lastUpdate)
-		rightText = statusStyle.Render("Updated "+elapsed) + " "
-		rightPlainText = "Updated " + elapsed + " "
+		rightStyled = " " + statusStyle.Render("Updated "+elapsed) + " "
+		rightPlain = " Updated " + elapsed + " "
 	}
 
-	// Calculate widths
-	leftWidth := lipgloss.Width(leftPlainText)
-	rightWidth := lipgloss.Width(rightPlainText)
-	fillWidth := width - 4 - leftWidth - rightWidth // -4 for ╰─ and ─╯
+	// Calculate fill width using lipgloss.Width for proper Unicode handling
+	// Total width - corners(2) - left content - right content
+	leftWidth := lipgloss.Width(leftPlain)
+	rightWidth := lipgloss.Width(rightPlain)
+	fillWidth := width - 2 - leftWidth - rightWidth
 	if fillWidth < 0 {
 		fillWidth = 0
 	}
 
 	fill := strings.Repeat("─", fillWidth)
-
-	footer := "╰─" + leftText + fill + rightText + "─╯"
+	footer := "╰" + leftStyled + fill + rightStyled + "╯"
 
 	return borderStyle.Render(footer)
 }
@@ -689,15 +765,41 @@ func (a *App) formatTimeSince(t time.Time) string {
 	return fmt.Sprintf("%dh ago", hours)
 }
 
-// wrapWithFrame wraps content with header and footer
+// wrapWithFrame wraps content with header and footer, filling full terminal height
 func (a *App) wrapWithFrame(content string) string {
-	var sb strings.Builder
+	header := a.renderHeader()
+	footer := a.renderFooter()
 
-	sb.WriteString(a.renderHeader())
+	// Calculate heights
+	headerHeight := lipgloss.Height(header)
+	footerHeight := lipgloss.Height(footer)
+	contentHeight := lipgloss.Height(content)
+
+	// Available height for content (total - header - footer - 1 newline after header)
+	// Footer is placed directly after padding with no extra newline
+	availableHeight := a.height - headerHeight - footerHeight - 1
+	if availableHeight < 1 {
+		availableHeight = 1
+	}
+
+	// Pad content to fill available height
+	paddingNeeded := availableHeight - contentHeight
+	if paddingNeeded < 0 {
+		paddingNeeded = 0
+	}
+
+	// Build the full-height content
+	var sb strings.Builder
+	sb.WriteString(header)
 	sb.WriteString("\n")
 	sb.WriteString(content)
-	sb.WriteString("\n")
-	sb.WriteString(a.renderFooter())
+
+	// Add padding lines to fill the terminal (footer goes right at the bottom)
+	if paddingNeeded > 0 {
+		sb.WriteString(strings.Repeat("\n", paddingNeeded))
+	}
+
+	sb.WriteString(footer)
 
 	return sb.String()
 }
@@ -713,7 +815,7 @@ func (a *App) loadInfrastructure() tea.Cmd {
 // runWizard transitions to the wizard screen
 func (a *App) runWizard() tea.Cmd {
 	a.wizardScreen = wizard.New(a.infra)
-	a.wizardScreen.SetWidth(a.width) // Set width for proper rendering
+	a.wizardScreen.SetWidth(a.width - 1) // Set width for proper rendering
 	a.screen = ScreenWizard
 	return a.wizardScreen.Init()
 }

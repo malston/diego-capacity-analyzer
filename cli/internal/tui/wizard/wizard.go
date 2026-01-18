@@ -44,6 +44,102 @@ type Wizard struct {
 // Step names for progress indicator
 var stepNames = []string{"Cell Sizing", "Cell Count", "Overhead & HA"}
 
+// createTheme returns a custom huh theme matching the frontend React colors
+func createTheme() *huh.Theme {
+	t := huh.ThemeBase()
+
+	// Colors matching frontend React theme
+	cyan := lipgloss.Color("#06B6D4")    // Cyan-500 - primary
+	cyanLight := lipgloss.Color("#22D3EE") // Cyan-400 - accents
+	blue := lipgloss.Color("#3B82F6")    // Blue-500 - info
+	gray := lipgloss.Color("#9CA3AF")    // Gray-400 - muted
+	grayLight := lipgloss.Color("#E5E7EB") // Gray-200 - text
+	red := lipgloss.Color("#F87171")     // Red-400 - errors
+	slate := lipgloss.Color("#334155")   // Slate-700 - borders
+
+	// Group styles (section headers)
+	t.Group.Title = lipgloss.NewStyle().
+		Foreground(cyan).
+		Bold(true).
+		MarginBottom(1)
+	t.Group.Description = lipgloss.NewStyle().
+		Foreground(gray).
+		MarginBottom(1)
+
+	// Focused field styles
+	t.Focused.Base = lipgloss.NewStyle().
+		PaddingLeft(1).
+		BorderStyle(lipgloss.ThickBorder()).
+		BorderLeft(true).
+		BorderForeground(cyan)
+	t.Focused.Title = lipgloss.NewStyle().
+		Foreground(cyanLight).
+		Bold(true)
+	t.Focused.Description = lipgloss.NewStyle().
+		Foreground(gray)
+	t.Focused.ErrorIndicator = lipgloss.NewStyle().
+		Foreground(red).
+		SetString(" *")
+	t.Focused.ErrorMessage = lipgloss.NewStyle().
+		Foreground(red)
+
+	// Select field styles
+	t.Focused.SelectSelector = lipgloss.NewStyle().
+		Foreground(cyan).
+		SetString("> ")
+	t.Focused.Option = lipgloss.NewStyle().
+		Foreground(grayLight)
+	t.Focused.SelectedOption = lipgloss.NewStyle().
+		Foreground(cyan).
+		Bold(true)
+	t.Focused.NextIndicator = lipgloss.NewStyle().
+		Foreground(cyan).
+		MarginLeft(1).
+		SetString("→")
+	t.Focused.PrevIndicator = lipgloss.NewStyle().
+		Foreground(cyan).
+		MarginRight(1).
+		SetString("←")
+
+	// Text input styles
+	t.Focused.TextInput.Cursor = lipgloss.NewStyle().
+		Foreground(cyan)
+	t.Focused.TextInput.Placeholder = lipgloss.NewStyle().
+		Foreground(gray)
+	t.Focused.TextInput.Prompt = lipgloss.NewStyle().
+		Foreground(cyan)
+	t.Focused.TextInput.Text = lipgloss.NewStyle().
+		Foreground(grayLight)
+
+	// Button styles
+	t.Focused.FocusedButton = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FFFFFF")).
+		Background(blue).
+		Padding(0, 2).
+		MarginRight(1)
+	t.Focused.BlurredButton = lipgloss.NewStyle().
+		Foreground(gray).
+		Background(slate).
+		Padding(0, 2).
+		MarginRight(1)
+
+	// Blurred field styles (inherit from focused with muted colors)
+	t.Blurred = t.Focused
+	t.Blurred.Base = lipgloss.NewStyle().
+		PaddingLeft(1).
+		BorderStyle(lipgloss.HiddenBorder()).
+		BorderLeft(true)
+	t.Blurred.Title = lipgloss.NewStyle().
+		Foreground(gray)
+	t.Blurred.SelectSelector = lipgloss.NewStyle().
+		Foreground(gray).
+		SetString("  ")
+	t.Blurred.Option = lipgloss.NewStyle().
+		Foreground(gray)
+
+	return t
+}
+
 // Common cell memory sizes
 var memoryOptions = []huh.Option[string]{
 	huh.NewOption("16 GB", "16"),
@@ -145,7 +241,7 @@ func (w *Wizard) createStep1Form() *huh.Form {
 				Value(&w.cellDisk),
 		).Title("Step 1: Cell Sizing").
 			Description("Configure the size of each Diego cell VM"),
-	).WithTheme(huh.ThemeBase())
+	).WithTheme(createTheme())
 }
 
 func (w *Wizard) createStep2Form() *huh.Form {
@@ -160,7 +256,7 @@ func (w *Wizard) createStep2Form() *huh.Form {
 				Validate(validatePositiveInt),
 		).Title("Step 2: Cell Count").
 			Description("How many Diego cells do you want in your scenario?"),
-	).WithTheme(huh.ThemeBase())
+	).WithTheme(createTheme())
 }
 
 func (w *Wizard) createStep3Form() *huh.Form {
@@ -193,7 +289,7 @@ func (w *Wizard) createStep3Form() *huh.Form {
 				Value(&w.haAdmission),
 		).Title("Step 3: Overhead & HA").
 			Description("Configure overhead and high availability settings"),
-	).WithTheme(huh.ThemeBase())
+	).WithTheme(createTheme())
 }
 
 // Init implements tea.Model
@@ -287,7 +383,9 @@ func (w *Wizard) View() string {
 
 // renderProgress renders the step progress indicator
 func (w *Wizard) renderProgress() string {
-	width := w.width
+	// Use width - 1 to ensure progress box fits within the frame
+	// (w.width is already a.width - 1, so this gives a.width - 2 total)
+	width := w.width - 1
 	if width < 60 {
 		width = 60
 	}
@@ -321,34 +419,36 @@ func (w *Wizard) renderProgress() string {
 
 	stepsLine := strings.Join(steps, "    ")
 
-	// Progress bar
+	// Progress bar line format: "│  " + bar + " │" = 5 chars overhead
+	barWidth := width - 5
 	totalSteps := len(stepNames)
-	progressWidth := width - 8
-	filledWidth := (w.step * progressWidth) / totalSteps
-	emptyWidth := progressWidth - filledWidth
+	filledWidth := (w.step * barWidth) / totalSteps
+	emptyWidth := barWidth - filledWidth
 
 	filledBar := lipgloss.NewStyle().Foreground(styles.Primary).Render(strings.Repeat("━", filledWidth))
-	currentMark := lipgloss.NewStyle().Foreground(styles.Primary).Bold(true).Render("╸")
-	emptyBar := lipgloss.NewStyle().Foreground(styles.Surface).Render(strings.Repeat("━", emptyWidth))
-	progressBar := filledBar + currentMark + emptyBar
+	emptyBar := lipgloss.NewStyle().Foreground(styles.Surface).Render(strings.Repeat("─", emptyWidth))
+	progressBar := filledBar + emptyBar
 
-	innerWidth := width - 4
-
-	// Build panel - use lipgloss.Width for styled content
+	// Build panel with consistent width
 	styledTitle := titleStyle.Render("Progress")
 	titleWidth := lipgloss.Width("Progress")
-	fillWidth := max(0, innerWidth-titleWidth-3)
-	topBorder := "┌─ " + styledTitle + " " + strings.Repeat("─", fillWidth) + "┐"
 
+	// Top border: "┌─ " + title + " " + fill + "┐"
+	// Total = 3 + titleWidth + 1 + fillWidth + 1 = width
+	topFillWidth := max(0, width-5-titleWidth)
+	topBorder := "┌─ " + styledTitle + " " + strings.Repeat("─", topFillWidth) + "┐"
+
+	// Steps line: "│ " + content + padding + " │" = 4 chars overhead
 	stepsLineWidth := lipgloss.Width(stepsLine)
-	stepsPadding := max(0, innerWidth-stepsLineWidth-1)
-	stepsLinePadded := "│   " + stepsLine + strings.Repeat(" ", stepsPadding) + "│"
+	stepsPadding := max(0, width-4-stepsLineWidth)
+	stepsLinePadded := "│ " + stepsLine + strings.Repeat(" ", stepsPadding) + " │"
 
-	progressBarWidth := lipgloss.Width(progressBar)
-	progressPadding := max(0, innerWidth-progressBarWidth-1)
-	progressLinePadded := "│   " + progressBar + strings.Repeat(" ", progressPadding) + "│"
+	// Progress line: "│  " + bar + " │" (extra indent for visual alignment)
+	progressLinePadded := "│  " + progressBar + " │"
 
-	bottomBorder := "└" + strings.Repeat("─", innerWidth+2) + "┘"
+	// Bottom border: "└" + fill + "┘"
+	bottomFillWidth := width - 2
+	bottomBorder := "└" + strings.Repeat("─", bottomFillWidth) + "┘"
 
 	return borderStyle.Render(strings.Join([]string{
 		topBorder,
@@ -410,7 +510,7 @@ func (w *Wizard) Run() error {
 				Value(&w.cellDisk),
 		).Title("Step 1: Cell Sizing").
 			Description("Configure the size of each Diego cell VM"),
-	).WithTheme(huh.ThemeBase())
+	).WithTheme(createTheme())
 
 	if err := form1.Run(); err != nil {
 		return err
@@ -432,7 +532,7 @@ func (w *Wizard) Run() error {
 				Validate(validatePositiveInt),
 		).Title("Step 2: Cell Count").
 			Description("How many Diego cells do you want in your scenario?"),
-	).WithTheme(huh.ThemeBase())
+	).WithTheme(createTheme())
 
 	if err := form2.Run(); err != nil {
 		return err
@@ -470,7 +570,7 @@ func (w *Wizard) Run() error {
 				Value(&w.haAdmission),
 		).Title("Step 3: Overhead & HA").
 			Description("Configure overhead and high availability settings"),
-	).WithTheme(huh.ThemeBase())
+	).WithTheme(createTheme())
 
 	if err := form3.Run(); err != nil {
 		return err
