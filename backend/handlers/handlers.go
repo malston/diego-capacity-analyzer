@@ -73,10 +73,8 @@ func (h *Handler) writeJSON(w http.ResponseWriter, status int, data interface{})
 	}
 }
 
-// writeErrorMethod writes a standardized error response.
-// Named writeErrorMethod to avoid conflict with existing writeError function.
-// Will be renamed to writeError after handlers are migrated.
-func (h *Handler) writeErrorMethod(w http.ResponseWriter, message string, code int) {
+// writeError writes a standardized error response.
+func (h *Handler) writeError(w http.ResponseWriter, message string, code int) {
 	h.writeJSON(w, code, models.ErrorResponse{
 		Error: message,
 		Code:  code,
@@ -89,14 +87,5 @@ func (h *Handler) writeErrorWithDetails(w http.ResponseWriter, message, details 
 		Error:   message,
 		Details: details,
 		Code:    code,
-	})
-}
-
-func writeError(w http.ResponseWriter, message string, code int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(models.ErrorResponse{
-		Error: message,
-		Code:  code,
 	})
 }

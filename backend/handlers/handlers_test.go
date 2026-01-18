@@ -1545,11 +1545,11 @@ func TestHandler_writeJSON(t *testing.T) {
 	}
 }
 
-func TestHandler_writeErrorMethod(t *testing.T) {
+func TestHandler_writeError(t *testing.T) {
 	h := &Handler{}
 	rec := httptest.NewRecorder()
 
-	h.writeErrorMethod(rec, "test error", http.StatusBadRequest)
+	h.writeError(rec, "test error", http.StatusBadRequest)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("Status = %d, want %d", rec.Code, http.StatusBadRequest)

@@ -13,7 +13,7 @@ import (
 // CompareScenario compares current infrastructure against a proposed scenario.
 func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		h.writeErrorMethod(w, "Method not allowed", http.StatusMethodNotAllowed)
+		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -22,13 +22,13 @@ func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
 	h.infraMutex.RUnlock()
 
 	if state == nil {
-		h.writeErrorMethod(w, "No infrastructure data. Set via /api/infrastructure/manual first.", http.StatusBadRequest)
+		h.writeError(w, "No infrastructure data. Set via /api/infrastructure/manual first.", http.StatusBadRequest)
 		return
 	}
 
 	var input models.ScenarioInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		h.writeErrorMethod(w, "Invalid JSON", http.StatusBadRequest)
+		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 

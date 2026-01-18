@@ -24,13 +24,13 @@ type AppDetailsResponse struct {
 // GetInfrastructure returns live infrastructure data from vSphere
 func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		h.writeErrorMethod(w, "Method not allowed", http.StatusMethodNotAllowed)
+		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	// Check if vSphere is configured
 	if h.vsphereClient == nil {
-		h.writeErrorMethod(w, "vSphere not configured. Set VSPHERE_HOST, VSPHERE_USERNAME, VSPHERE_PASSWORD, and VSPHERE_DATACENTER environment variables.", http.StatusServiceUnavailable)
+		h.writeError(w, "vSphere not configured. Set VSPHERE_HOST, VSPHERE_USERNAME, VSPHERE_PASSWORD, and VSPHERE_DATACENTER environment variables.", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -50,7 +50,7 @@ func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.vsphereClient.Connect(ctx); err != nil {
 		slog.Error("vSphere connection failed", "error", err)
-		h.writeErrorMethod(w, "Failed to connect to vSphere: "+err.Error(), http.StatusServiceUnavailable)
+		h.writeError(w, "Failed to connect to vSphere: "+err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	defer h.vsphereClient.Disconnect(ctx)
@@ -59,7 +59,7 @@ func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
 	state, err := h.vsphereClient.GetInfrastructureState(ctx)
 	if err != nil {
 		slog.Error("vSphere inventory fetch failed", "error", err)
-		h.writeErrorMethod(w, "Failed to get vSphere inventory: "+err.Error(), http.StatusInternalServerError)
+		h.writeError(w, "Failed to get vSphere inventory: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -86,13 +86,13 @@ func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
 // SetManualInfrastructure accepts manual infrastructure input
 func (h *Handler) SetManualInfrastructure(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		h.writeErrorMethod(w, "Method not allowed", http.StatusMethodNotAllowed)
+		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var input models.ManualInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		h.writeErrorMethod(w, "Invalid JSON", http.StatusBadRequest)
+		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -108,13 +108,13 @@ func (h *Handler) SetManualInfrastructure(w http.ResponseWriter, r *http.Request
 // SetInfrastructureState accepts an InfrastructureState directly (e.g., from vSphere cache)
 func (h *Handler) SetInfrastructureState(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		h.writeErrorMethod(w, "Method not allowed", http.StatusMethodNotAllowed)
+		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var state models.InfrastructureState
 	if err := json.NewDecoder(r.Body).Decode(&state); err != nil {
-		h.writeErrorMethod(w, "Invalid JSON", http.StatusBadRequest)
+		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -128,7 +128,7 @@ func (h *Handler) SetInfrastructureState(w http.ResponseWriter, r *http.Request)
 // GetInfrastructureStatus returns the current data source status
 func (h *Handler) GetInfrastructureStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		h.writeErrorMethod(w, "Method not allowed", http.StatusMethodNotAllowed)
+		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -176,7 +176,7 @@ func (h *Handler) GetInfrastructureStatus(w http.ResponseWriter, r *http.Request
 // PlanInfrastructure calculates max deployable cells given IaaS capacity
 func (h *Handler) PlanInfrastructure(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		h.writeErrorMethod(w, "Method not allowed", http.StatusMethodNotAllowed)
+		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -185,13 +185,13 @@ func (h *Handler) PlanInfrastructure(w http.ResponseWriter, r *http.Request) {
 	h.infraMutex.RUnlock()
 
 	if state == nil {
-		h.writeErrorMethod(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
+		h.writeError(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
 		return
 	}
 
 	var input models.PlanningInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		h.writeErrorMethod(w, "Invalid JSON", http.StatusBadRequest)
+		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -203,20 +203,20 @@ func (h *Handler) PlanInfrastructure(w http.ResponseWriter, r *http.Request) {
 // GetInfrastructureApps returns detailed per-app memory, disk, and instance breakdown
 func (h *Handler) GetInfrastructureApps(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		h.writeErrorMethod(w, "Method not allowed", http.StatusMethodNotAllowed)
+		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	// Check if CF is configured
 	if h.cfClient == nil || h.cfg == nil || h.cfg.CFAPIUrl == "" {
-		h.writeErrorMethod(w, "CF API not configured. Set CF_API_URL, CF_USERNAME, and CF_PASSWORD environment variables.", http.StatusServiceUnavailable)
+		h.writeError(w, "CF API not configured. Set CF_API_URL, CF_USERNAME, and CF_PASSWORD environment variables.", http.StatusServiceUnavailable)
 		return
 	}
 
 	// Authenticate with CF
 	if err := h.cfClient.Authenticate(); err != nil {
 		slog.Error("CF authentication failed", "error", err)
-		h.writeErrorMethod(w, "Failed to authenticate with CF: "+err.Error(), http.StatusServiceUnavailable)
+		h.writeError(w, "Failed to authenticate with CF: "+err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
@@ -224,7 +224,7 @@ func (h *Handler) GetInfrastructureApps(w http.ResponseWriter, r *http.Request) 
 	apps, err := h.cfClient.GetApps()
 	if err != nil {
 		slog.Error("Failed to fetch apps from CF", "error", err)
-		h.writeErrorMethod(w, "Failed to fetch apps: "+err.Error(), http.StatusInternalServerError)
+		h.writeError(w, "Failed to fetch apps: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

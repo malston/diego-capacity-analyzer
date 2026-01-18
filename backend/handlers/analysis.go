@@ -12,7 +12,7 @@ import (
 // AnalyzeBottleneck returns multi-resource bottleneck analysis.
 func (h *Handler) AnalyzeBottleneck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		h.writeErrorMethod(w, "Method not allowed", http.StatusMethodNotAllowed)
+		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -21,7 +21,7 @@ func (h *Handler) AnalyzeBottleneck(w http.ResponseWriter, r *http.Request) {
 	h.infraMutex.RUnlock()
 
 	if state == nil {
-		h.writeErrorMethod(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
+		h.writeError(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
 		return
 	}
 
@@ -33,7 +33,7 @@ func (h *Handler) AnalyzeBottleneck(w http.ResponseWriter, r *http.Request) {
 // GetRecommendations returns upgrade path recommendations.
 func (h *Handler) GetRecommendations(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		h.writeErrorMethod(w, "Method not allowed", http.StatusMethodNotAllowed)
+		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -42,7 +42,7 @@ func (h *Handler) GetRecommendations(w http.ResponseWriter, r *http.Request) {
 	h.infraMutex.RUnlock()
 
 	if state == nil {
-		h.writeErrorMethod(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
+		h.writeError(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
 		return
 	}
 
