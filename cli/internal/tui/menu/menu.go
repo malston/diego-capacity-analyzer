@@ -45,12 +45,11 @@ type Menu struct {
 
 // Styles using theme colors
 var (
-	titleStyle    = lipgloss.NewStyle().Bold(true).Foreground(styles.Primary)
+	titleStyle    = lipgloss.NewStyle().Bold(true).Foreground(styles.Text)
 	selectedStyle = lipgloss.NewStyle().Foreground(styles.Primary)
 	normalStyle   = lipgloss.NewStyle().Foreground(styles.Text)
 	disabledStyle = lipgloss.NewStyle().Foreground(styles.Muted)
-	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171"))
-	helpStyle     = lipgloss.NewStyle().Foreground(styles.Muted)
+	errorStyle    = lipgloss.NewStyle().Foreground(styles.Danger)
 )
 
 // New creates a new data source menu

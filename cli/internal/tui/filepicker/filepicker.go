@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/samples"
+	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/styles"
 )
 
 // maxFileSize is the maximum file size allowed (100MB)
@@ -49,14 +50,14 @@ type FilePicker struct {
 	height      int
 }
 
-// Styles
+// Styles using theme colors
 var (
-	titleStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("99"))
-	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
-	normalStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
-	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	helpStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	dividerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+	titleStyle    = lipgloss.NewStyle().Bold(true).Foreground(styles.Text)
+	selectedStyle = lipgloss.NewStyle().Foreground(styles.Primary)
+	normalStyle   = lipgloss.NewStyle().Foreground(styles.Text)
+	errorStyle    = lipgloss.NewStyle().Foreground(styles.Danger)
+	helpStyle     = lipgloss.NewStyle().Foreground(styles.Muted)
+	dividerStyle  = lipgloss.NewStyle().Foreground(styles.Muted)
 )
 
 // New creates a new FilePicker

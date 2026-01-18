@@ -473,20 +473,61 @@ func (a *App) View() string {
 	return a.wrapWithFrame(content)
 }
 
-// viewMenu renders the menu screen
+// viewMenu renders the menu screen centered in the content area
 func (a *App) viewMenu() string {
-	if a.menu != nil {
-		return a.menu.View()
+	if a.menu == nil {
+		return ""
 	}
-	return ""
+
+	menuContent := a.menu.View()
+
+	// Center the menu content both horizontally and vertically
+	// Use the full frame width and content height for positioning
+	contentWidth := a.width - 2 // Account for frame borders
+	contentHeight := a.contentHeight()
+
+	if contentWidth < 20 {
+		contentWidth = 20
+	}
+	if contentHeight < 10 {
+		contentHeight = 10
+	}
+
+	return lipgloss.Place(
+		contentWidth,
+		contentHeight,
+		lipgloss.Center,
+		lipgloss.Center,
+		menuContent,
+	)
 }
 
-// viewFilePicker renders the file picker screen
+// viewFilePicker renders the file picker screen centered in the content area
 func (a *App) viewFilePicker() string {
-	if a.filePicker != nil {
-		return a.filePicker.View()
+	if a.filePicker == nil {
+		return ""
 	}
-	return ""
+
+	pickerContent := a.filePicker.View()
+
+	// Center the file picker content both horizontally and vertically
+	contentWidth := a.width - 2 // Account for frame borders
+	contentHeight := a.contentHeight()
+
+	if contentWidth < 20 {
+		contentWidth = 20
+	}
+	if contentHeight < 10 {
+		contentHeight = 10
+	}
+
+	return lipgloss.Place(
+		contentWidth,
+		contentHeight,
+		lipgloss.Center,
+		lipgloss.Center,
+		pickerContent,
+	)
 }
 
 // viewDashboard renders the dashboard with actions pane
