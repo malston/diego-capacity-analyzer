@@ -11,7 +11,7 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async setManualInfrastructure(data) {
-    const response = await fetch(`${API_URL}/api/infrastructure/manual`, {
+    const response = await fetch(`${API_URL}/api/v1/infrastructure/manual`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -29,7 +29,7 @@ export const scenarioApi = {
    * @returns {Promise<Object>} ScenarioComparison
    */
   async compareScenario(input) {
-    const response = await fetch(`${API_URL}/api/scenario/compare`, {
+    const response = await fetch(`${API_URL}/api/v1/scenario/compare`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
@@ -46,7 +46,7 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async getLiveInfrastructure() {
-    const response = await fetch(`${API_URL}/api/infrastructure`, {
+    const response = await fetch(`${API_URL}/api/v1/infrastructure`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -62,7 +62,7 @@ export const scenarioApi = {
    * @returns {Promise<Object>} Status including vsphere_configured, has_data, source
    */
   async getInfrastructureStatus() {
-    const response = await fetch(`${API_URL}/api/infrastructure/status`, {
+    const response = await fetch(`${API_URL}/api/v1/infrastructure/status`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -78,7 +78,7 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async setInfrastructureState(state) {
-    const response = await fetch(`${API_URL}/api/infrastructure/state`, {
+    const response = await fetch(`${API_URL}/api/v1/infrastructure/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state),
@@ -96,7 +96,7 @@ export const scenarioApi = {
    * @returns {Promise<Object>} PlanningResponse with result and recommendations
    */
   async calculatePlanning(input) {
-    const response = await fetch(`${API_URL}/api/infrastructure/planning`, {
+    const response = await fetch(`${API_URL}/api/v1/infrastructure/planning`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
