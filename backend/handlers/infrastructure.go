@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -253,8 +254,18 @@ func (h *Handler) enrichWithCFAppData(ctx context.Context, state *models.Infrast
 		return nil // No CF client configured, skip enrichment
 	}
 
+	// Check if context is already cancelled before starting CF API calls
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("context cancelled before CF enrichment: %w", err)
+	}
+
 	if err := h.cfClient.Authenticate(); err != nil {
 		return err
+	}
+
+	// Check context again after authentication
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("context cancelled after CF authentication: %w", err)
 	}
 
 	apps, err := h.cfClient.GetApps()

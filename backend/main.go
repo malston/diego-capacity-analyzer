@@ -52,6 +52,10 @@ func main() {
 	// Register all routes with middleware
 	mux := http.NewServeMux()
 	for _, route := range h.Routes() {
+		if route.Handler == nil {
+			slog.Error("nil handler during route registration", "path", route.Path, "method", route.Method)
+			os.Exit(1)
+		}
 		// Go 1.22+ pattern: "METHOD /path"
 		pattern := route.Method + " " + route.Path
 		handler := middleware.Chain(route.Handler, middleware.CORS, middleware.LogRequest)
