@@ -185,7 +185,7 @@ func (h *Handler) PlanInfrastructure(w http.ResponseWriter, r *http.Request) {
 	h.infraMutex.RUnlock()
 
 	if state == nil {
-		h.writeError(w, "No infrastructure data. Load via /api/infrastructure or /api/infrastructure/manual first.", http.StatusBadRequest)
+		h.writeError(w, "No infrastructure data. Load via /api/v1/infrastructure or /api/v1/infrastructure/manual first.", http.StatusBadRequest)
 		return
 	}
 

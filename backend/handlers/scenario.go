@@ -22,7 +22,7 @@ func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
 	h.infraMutex.RUnlock()
 
 	if state == nil {
-		h.writeError(w, "No infrastructure data. Set via /api/infrastructure/manual first.", http.StatusBadRequest)
+		h.writeError(w, "No infrastructure data. Set via /api/v1/infrastructure/manual first.", http.StatusBadRequest)
 		return
 	}
 
