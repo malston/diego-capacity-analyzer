@@ -126,14 +126,14 @@ make frontend-dev FRONTEND_PORT=3000
 ## API Endpoints
 
 ```text
-GET  /api/health                    # Health check
-GET  /api/dashboard                 # Dashboard data (cells, apps, segments)
-GET  /api/infrastructure            # Live vSphere infrastructure
-POST /api/infrastructure/manual     # Manual infrastructure input
-POST /api/infrastructure/state      # Set infrastructure state directly
-GET  /api/infrastructure/status     # Data source status
-POST /api/infrastructure/planning   # Calculate max deployable cells
-POST /api/scenario/compare          # Compare current vs proposed scenarios
+GET  /api/v1/health                    # Health check
+GET  /api/v1/dashboard                 # Dashboard data (cells, apps, segments)
+GET  /api/v1/infrastructure            # Live vSphere infrastructure
+POST /api/v1/infrastructure/manual     # Manual infrastructure input
+POST /api/v1/infrastructure/state      # Set infrastructure state directly
+GET  /api/v1/infrastructure/status     # Data source status
+POST /api/v1/infrastructure/planning   # Calculate max deployable cells
+POST /api/v1/scenario/compare          # Compare current vs proposed scenarios
 ```
 
 ## Configuration
