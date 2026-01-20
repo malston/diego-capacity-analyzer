@@ -654,28 +654,6 @@ func TestCompareScenario(t *testing.T) {
 	}
 }
 
-func TestHandleManualInfrastructure_MethodNotAllowed(t *testing.T) {
-	cfg := &config.Config{}
-	c := cache.New(5 * time.Minute)
-	handler := NewHandler(cfg, c)
-
-	req := httptest.NewRequest("GET", "/api/infrastructure/manual", nil)
-	w := httptest.NewRecorder()
-	handler.SetManualInfrastructure(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
-	}
-
-	var resp models.ErrorResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-	if resp.Error != "Method not allowed" {
-		t.Errorf("Expected 'Method not allowed' error, got '%s'", resp.Error)
-	}
-}
-
 func TestHandleManualInfrastructure_InvalidJSON(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
@@ -699,20 +677,6 @@ func TestHandleManualInfrastructure_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestHandleInfrastructure_MethodNotAllowed(t *testing.T) {
-	cfg := &config.Config{}
-	c := cache.New(5 * time.Minute)
-	handler := NewHandler(cfg, c)
-
-	req := httptest.NewRequest("POST", "/api/infrastructure", nil)
-	w := httptest.NewRecorder()
-	handler.GetInfrastructure(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
-	}
-}
-
 func TestHandleInfrastructure_VSphereNotConfigured(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
@@ -732,20 +696,6 @@ func TestHandleInfrastructure_VSphereNotConfigured(t *testing.T) {
 	}
 	if !strings.Contains(resp.Error, "vSphere not configured") {
 		t.Errorf("Expected vSphere not configured error, got '%s'", resp.Error)
-	}
-}
-
-func TestHandleInfrastructureStatus_MethodNotAllowed(t *testing.T) {
-	cfg := &config.Config{}
-	c := cache.New(5 * time.Minute)
-	handler := NewHandler(cfg, c)
-
-	req := httptest.NewRequest("POST", "/api/infrastructure/status", nil)
-	w := httptest.NewRecorder()
-	handler.GetInfrastructureStatus(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
 	}
 }
 
@@ -830,20 +780,6 @@ func TestHandleInfrastructureStatus_WithData(t *testing.T) {
 	}
 	if resp["cell_count"].(float64) != 250 {
 		t.Errorf("Expected cell_count 250, got %v", resp["cell_count"])
-	}
-}
-
-func TestCompareScenario_MethodNotAllowed(t *testing.T) {
-	cfg := &config.Config{}
-	c := cache.New(5 * time.Minute)
-	handler := NewHandler(cfg, c)
-
-	req := httptest.NewRequest("GET", "/api/scenario/compare", nil)
-	w := httptest.NewRecorder()
-	handler.CompareScenario(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
 	}
 }
 
@@ -1500,25 +1436,6 @@ func TestHandleInfrastructureApps_NoCFConfigured(t *testing.T) {
 
 	if w.Code != http.StatusServiceUnavailable {
 		t.Errorf("Expected status 503, got %d", w.Code)
-	}
-}
-
-func TestHandleInfrastructureApps_MethodNotAllowed(t *testing.T) {
-	cfg := &config.Config{
-		CFAPIUrl:   "https://api.test.com",
-		CFUsername: "admin",
-		CFPassword: "secret",
-	}
-	c := cache.New(5 * time.Minute)
-	handler := NewHandler(cfg, c)
-
-	req := httptest.NewRequest("POST", "/api/infrastructure/apps", nil)
-	w := httptest.NewRecorder()
-
-	handler.GetInfrastructureApps(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
 	}
 }
 

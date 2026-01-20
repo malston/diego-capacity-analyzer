@@ -10,12 +10,8 @@ import (
 )
 
 // AnalyzeBottleneck returns multi-resource bottleneck analysis.
+// HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) AnalyzeBottleneck(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	h.infraMutex.RLock()
 	state := h.infrastructureState
 	h.infraMutex.RUnlock()
@@ -31,12 +27,8 @@ func (h *Handler) AnalyzeBottleneck(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetRecommendations returns upgrade path recommendations.
+// HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) GetRecommendations(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	h.infraMutex.RLock()
 	state := h.infrastructureState
 	h.infraMutex.RUnlock()

@@ -11,12 +11,8 @@ import (
 )
 
 // CompareScenario compares current infrastructure against a proposed scenario.
+// HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	h.infraMutex.RLock()
 	state := h.infrastructureState
 	h.infraMutex.RUnlock()

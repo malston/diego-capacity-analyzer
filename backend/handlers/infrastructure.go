@@ -22,13 +22,9 @@ type AppDetailsResponse struct {
 	Apps              []models.App `json:"apps"`
 }
 
-// GetInfrastructure returns live infrastructure data from vSphere
+// GetInfrastructure returns live infrastructure data from vSphere.
+// HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Check if vSphere is configured
 	if h.vsphereClient == nil {
 		h.writeError(w, "vSphere not configured. Set VSPHERE_HOST, VSPHERE_USERNAME, VSPHERE_PASSWORD, and VSPHERE_DATACENTER environment variables.", http.StatusServiceUnavailable)
@@ -84,13 +80,9 @@ func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, state)
 }
 
-// SetManualInfrastructure accepts manual infrastructure input
+// SetManualInfrastructure accepts manual infrastructure input.
+// HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) SetManualInfrastructure(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	var input models.ManualInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
@@ -106,13 +98,9 @@ func (h *Handler) SetManualInfrastructure(w http.ResponseWriter, r *http.Request
 	h.writeJSON(w, http.StatusOK, state)
 }
 
-// SetInfrastructureState accepts an InfrastructureState directly (e.g., from vSphere cache)
+// SetInfrastructureState accepts an InfrastructureState directly (e.g., from vSphere cache).
+// HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) SetInfrastructureState(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	var state models.InfrastructureState
 	if err := json.NewDecoder(r.Body).Decode(&state); err != nil {
 		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
@@ -126,13 +114,9 @@ func (h *Handler) SetInfrastructureState(w http.ResponseWriter, r *http.Request)
 	h.writeJSON(w, http.StatusOK, state)
 }
 
-// GetInfrastructureStatus returns the current data source status
+// GetInfrastructureStatus returns the current data source status.
+// HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) GetInfrastructureStatus(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	h.infraMutex.RLock()
 	state := h.infrastructureState
 	h.infraMutex.RUnlock()
@@ -174,13 +158,9 @@ func (h *Handler) GetInfrastructureStatus(w http.ResponseWriter, r *http.Request
 	h.writeJSON(w, http.StatusOK, status)
 }
 
-// PlanInfrastructure calculates max deployable cells given IaaS capacity
+// PlanInfrastructure calculates max deployable cells given IaaS capacity.
+// HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) PlanInfrastructure(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	h.infraMutex.RLock()
 	state := h.infrastructureState
 	h.infraMutex.RUnlock()
@@ -201,13 +181,9 @@ func (h *Handler) PlanInfrastructure(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, response)
 }
 
-// GetInfrastructureApps returns detailed per-app memory, disk, and instance breakdown
+// GetInfrastructureApps returns detailed per-app memory, disk, and instance breakdown.
+// HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) GetInfrastructureApps(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		h.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Check if CF is configured
 	if h.cfClient == nil || h.cfg == nil || h.cfg.CFAPIUrl == "" {
 		h.writeError(w, "CF API not configured. Set CF_API_URL, CF_USERNAME, and CF_PASSWORD environment variables.", http.StatusServiceUnavailable)
