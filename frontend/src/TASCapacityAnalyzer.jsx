@@ -41,7 +41,7 @@ const TASCapacityAnalyzer = () => {
 
     try {
       const apiURL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-      const response = await fetch(`${apiURL}/api/dashboard`);
+      const response = await fetch(`${apiURL}/api/v1/dashboard`);
 
       if (!response.ok) {
         throw new Error(`Backend returned ${response.status}`);
