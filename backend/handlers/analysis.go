@@ -1,0 +1,50 @@
+// ABOUTME: HTTP handlers for bottleneck analysis and recommendations endpoints
+// ABOUTME: Provides multi-resource analysis and upgrade path recommendations
+
+package handlers
+
+import (
+	"net/http"
+
+	"github.com/markalston/diego-capacity-analyzer/backend/models"
+)
+
+// AnalyzeBottleneck returns multi-resource bottleneck analysis.
+// HTTP method validation handled by Go 1.22+ router pattern matching.
+func (h *Handler) AnalyzeBottleneck(w http.ResponseWriter, r *http.Request) {
+	h.infraMutex.RLock()
+	state := h.infrastructureState
+	h.infraMutex.RUnlock()
+
+	if state == nil {
+		h.writeError(w, "No infrastructure data. Load via /api/v1/infrastructure or /api/v1/infrastructure/manual first.", http.StatusBadRequest)
+		return
+	}
+
+	analysis := models.AnalyzeBottleneck(*state)
+
+	h.writeJSON(w, http.StatusOK, analysis)
+}
+
+// GetRecommendations returns upgrade path recommendations.
+// HTTP method validation handled by Go 1.22+ router pattern matching.
+func (h *Handler) GetRecommendations(w http.ResponseWriter, r *http.Request) {
+	h.infraMutex.RLock()
+	state := h.infrastructureState
+	h.infraMutex.RUnlock()
+
+	if state == nil {
+		h.writeError(w, "No infrastructure data. Load via /api/v1/infrastructure or /api/v1/infrastructure/manual first.", http.StatusBadRequest)
+		return
+	}
+
+	analysis := models.AnalyzeBottleneck(*state)
+	recommendations := models.GenerateRecommendations(*state)
+
+	response := models.RecommendationsResponse{
+		Recommendations:      recommendations,
+		ConstrainingResource: analysis.ConstrainingResource,
+	}
+
+	h.writeJSON(w, http.StatusOK, response)
+}

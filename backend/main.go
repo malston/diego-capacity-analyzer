@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/cache"
@@ -48,23 +49,38 @@ func main() {
 	// Initialize handlers
 	h := handlers.NewHandler(cfg, c)
 
-	// Register routes with logging middleware
-	http.HandleFunc("/api/health", h.EnableCORS(middleware.LogRequest(h.Health)))
-	http.HandleFunc("/api/dashboard", h.EnableCORS(middleware.LogRequest(h.Dashboard)))
-	http.HandleFunc("/api/infrastructure", h.EnableCORS(middleware.LogRequest(h.HandleInfrastructure)))
-	http.HandleFunc("/api/infrastructure/manual", h.EnableCORS(middleware.LogRequest(h.HandleManualInfrastructure)))
-	http.HandleFunc("/api/infrastructure/state", h.EnableCORS(middleware.LogRequest(h.HandleSetInfrastructureState)))
-	http.HandleFunc("/api/infrastructure/status", h.EnableCORS(middleware.LogRequest(h.HandleInfrastructureStatus)))
-	http.HandleFunc("/api/infrastructure/planning", h.EnableCORS(middleware.LogRequest(h.HandleInfrastructurePlanning)))
-	http.HandleFunc("/api/infrastructure/apps", h.EnableCORS(middleware.LogRequest(h.HandleInfrastructureApps)))
-	http.HandleFunc("/api/scenario/compare", h.EnableCORS(middleware.LogRequest(h.HandleScenarioCompare)))
-	http.HandleFunc("/api/bottleneck", h.EnableCORS(middleware.LogRequest(h.HandleBottleneckAnalysis)))
-	http.HandleFunc("/api/recommendations", h.EnableCORS(middleware.LogRequest(h.HandleRecommendations)))
+	// Register all routes with middleware
+	mux := http.NewServeMux()
+	for _, route := range h.Routes() {
+		if route.Handler == nil {
+			slog.Error("nil handler during route registration", "path", route.Path, "method", route.Method)
+			os.Exit(1)
+		}
+		// Go 1.22+ pattern: "METHOD /path"
+		pattern := route.Method + " " + route.Path
+		handler := middleware.Chain(route.Handler, middleware.CORS, middleware.LogRequest)
+		mux.HandleFunc(pattern, handler)
+
+		// Backward compatibility: also register without /v1/
+		legacyPath := strings.Replace(route.Path, "/api/v1/", "/api/", 1)
+		if legacyPath != route.Path {
+			legacyPattern := route.Method + " " + legacyPath
+			mux.HandleFunc(legacyPattern, handler)
+			slog.Debug("Registered route", "pattern", pattern, "legacy", legacyPattern)
+		} else {
+			slog.Debug("Registered route", "pattern", pattern)
+		}
+	}
+
+	// Handle OPTIONS for all /api/ paths (CORS preflight)
+	mux.HandleFunc("OPTIONS /api/", middleware.CORS(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
 
 	// Start server
 	addr := ":" + cfg.Port
 	slog.Info("Server listening", "addr", addr)
-	if err := http.ListenAndServe(addr, nil); err != nil {
+	if err := http.ListenAndServe(addr, mux); err != nil {
 		slog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

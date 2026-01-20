@@ -398,62 +398,6 @@ func TestDashboardHandler_Cache(t *testing.T) {
 	}
 }
 
-func TestEnableCORS(t *testing.T) {
-	cfg := &config.Config{
-		CFAPIUrl:   "https://api.test.com",
-		CFUsername: "admin",
-		CFPassword: "secret",
-	}
-	c := cache.New(5 * time.Minute)
-	h := NewHandler(cfg, c)
-
-	testHandler := func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}
-
-	req := httptest.NewRequest("GET", "/api/test", nil)
-	w := httptest.NewRecorder()
-
-	corsHandler := h.EnableCORS(testHandler)
-	corsHandler(w, req)
-
-	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Errorf("Expected CORS header, got %s", w.Header().Get("Access-Control-Allow-Origin"))
-	}
-
-	if w.Header().Get("Access-Control-Allow-Methods") != "GET, POST, OPTIONS" {
-		t.Errorf("Expected CORS methods, got %s", w.Header().Get("Access-Control-Allow-Methods"))
-	}
-}
-
-func TestEnableCORS_OPTIONS(t *testing.T) {
-	cfg := &config.Config{
-		CFAPIUrl:   "https://api.test.com",
-		CFUsername: "admin",
-		CFPassword: "secret",
-	}
-	c := cache.New(5 * time.Minute)
-	h := NewHandler(cfg, c)
-
-	testHandler := func(w http.ResponseWriter, r *http.Request) {
-		t.Error("Handler should not be called for OPTIONS request")
-	}
-
-	req := httptest.NewRequest("OPTIONS", "/api/test", nil)
-	w := httptest.NewRecorder()
-
-	corsHandler := h.EnableCORS(testHandler)
-	corsHandler(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200 for OPTIONS, got %d", w.Code)
-	}
-
-	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Errorf("Expected CORS header for OPTIONS, got %s", w.Header().Get("Access-Control-Allow-Origin"))
-	}
-}
-
 func TestHandleManualInfrastructure(t *testing.T) {
 	body := `{
 		"name": "Test Env",
@@ -478,7 +422,7 @@ func TestHandleManualInfrastructure(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
-	handler.HandleManualInfrastructure(w, req)
+	handler.SetManualInfrastructure(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
@@ -522,7 +466,7 @@ func TestHandleManualInfrastructure_CPUMetrics(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
-	handler.HandleManualInfrastructure(w, req)
+	handler.SetManualInfrastructure(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
@@ -630,7 +574,7 @@ func TestHandleManualInfrastructure_CPURiskLevels(t *testing.T) {
 			cfg := &config.Config{}
 			c := cache.New(5 * time.Minute)
 			handler := NewHandler(cfg, c)
-			handler.HandleManualInfrastructure(w, req)
+			handler.SetManualInfrastructure(w, req)
 
 			if w.Code != http.StatusOK {
 				t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
@@ -649,7 +593,7 @@ func TestHandleManualInfrastructure_CPURiskLevels(t *testing.T) {
 	}
 }
 
-func TestHandleScenarioCompare(t *testing.T) {
+func TestCompareScenario(t *testing.T) {
 	// First, set up manual infrastructure
 	manualBody := `{
 		"name": "Test Env",
@@ -675,7 +619,7 @@ func TestHandleScenarioCompare(t *testing.T) {
 	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
 	req1.Header.Set("Content-Type", "application/json")
 	w1 := httptest.NewRecorder()
-	handler.HandleManualInfrastructure(w1, req1)
+	handler.SetManualInfrastructure(w1, req1)
 
 	if w1.Code != http.StatusOK {
 		t.Fatalf("Failed to set manual infrastructure: %s", w1.Body.String())
@@ -691,7 +635,7 @@ func TestHandleScenarioCompare(t *testing.T) {
 	req2 := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader(compareBody))
 	req2.Header.Set("Content-Type", "application/json")
 	w2 := httptest.NewRecorder()
-	handler.HandleScenarioCompare(w2, req2)
+	handler.CompareScenario(w2, req2)
 
 	if w2.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())
@@ -710,28 +654,6 @@ func TestHandleScenarioCompare(t *testing.T) {
 	}
 }
 
-func TestHandleManualInfrastructure_MethodNotAllowed(t *testing.T) {
-	cfg := &config.Config{}
-	c := cache.New(5 * time.Minute)
-	handler := NewHandler(cfg, c)
-
-	req := httptest.NewRequest("GET", "/api/infrastructure/manual", nil)
-	w := httptest.NewRecorder()
-	handler.HandleManualInfrastructure(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
-	}
-
-	var resp models.ErrorResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-	if resp.Error != "Method not allowed" {
-		t.Errorf("Expected 'Method not allowed' error, got '%s'", resp.Error)
-	}
-}
-
 func TestHandleManualInfrastructure_InvalidJSON(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
@@ -740,7 +662,7 @@ func TestHandleManualInfrastructure_InvalidJSON(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader("not valid json"))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	handler.HandleManualInfrastructure(w, req)
+	handler.SetManualInfrastructure(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w.Code)
@@ -755,20 +677,6 @@ func TestHandleManualInfrastructure_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestHandleInfrastructure_MethodNotAllowed(t *testing.T) {
-	cfg := &config.Config{}
-	c := cache.New(5 * time.Minute)
-	handler := NewHandler(cfg, c)
-
-	req := httptest.NewRequest("POST", "/api/infrastructure", nil)
-	w := httptest.NewRecorder()
-	handler.HandleInfrastructure(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
-	}
-}
-
 func TestHandleInfrastructure_VSphereNotConfigured(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
@@ -776,7 +684,7 @@ func TestHandleInfrastructure_VSphereNotConfigured(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/api/infrastructure", nil)
 	w := httptest.NewRecorder()
-	handler.HandleInfrastructure(w, req)
+	handler.GetInfrastructure(w, req)
 
 	if w.Code != http.StatusServiceUnavailable {
 		t.Errorf("Expected status 503, got %d", w.Code)
@@ -791,20 +699,6 @@ func TestHandleInfrastructure_VSphereNotConfigured(t *testing.T) {
 	}
 }
 
-func TestHandleInfrastructureStatus_MethodNotAllowed(t *testing.T) {
-	cfg := &config.Config{}
-	c := cache.New(5 * time.Minute)
-	handler := NewHandler(cfg, c)
-
-	req := httptest.NewRequest("POST", "/api/infrastructure/status", nil)
-	w := httptest.NewRecorder()
-	handler.HandleInfrastructureStatus(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
-	}
-}
-
 func TestHandleInfrastructureStatus_NoData(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
@@ -812,7 +706,7 @@ func TestHandleInfrastructureStatus_NoData(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/api/infrastructure/status", nil)
 	w := httptest.NewRecorder()
-	handler.HandleInfrastructureStatus(w, req)
+	handler.GetInfrastructureStatus(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w.Code)
@@ -856,12 +750,12 @@ func TestHandleInfrastructureStatus_WithData(t *testing.T) {
 	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
 	req1.Header.Set("Content-Type", "application/json")
 	w1 := httptest.NewRecorder()
-	handler.HandleManualInfrastructure(w1, req1)
+	handler.SetManualInfrastructure(w1, req1)
 
 	// Now check status
 	req2 := httptest.NewRequest("GET", "/api/infrastructure/status", nil)
 	w2 := httptest.NewRecorder()
-	handler.HandleInfrastructureStatus(w2, req2)
+	handler.GetInfrastructureStatus(w2, req2)
 
 	if w2.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w2.Code)
@@ -889,21 +783,7 @@ func TestHandleInfrastructureStatus_WithData(t *testing.T) {
 	}
 }
 
-func TestHandleScenarioCompare_MethodNotAllowed(t *testing.T) {
-	cfg := &config.Config{}
-	c := cache.New(5 * time.Minute)
-	handler := NewHandler(cfg, c)
-
-	req := httptest.NewRequest("GET", "/api/scenario/compare", nil)
-	w := httptest.NewRecorder()
-	handler.HandleScenarioCompare(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
-	}
-}
-
-func TestHandleScenarioCompare_NoInfrastructureData(t *testing.T) {
+func TestCompareScenario_NoInfrastructureData(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
@@ -912,7 +792,7 @@ func TestHandleScenarioCompare_NoInfrastructureData(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	handler.HandleScenarioCompare(w, req)
+	handler.CompareScenario(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w.Code)
@@ -927,7 +807,7 @@ func TestHandleScenarioCompare_NoInfrastructureData(t *testing.T) {
 	}
 }
 
-func TestHandleScenarioCompare_InvalidJSON(t *testing.T) {
+func TestCompareScenario_InvalidJSON(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
@@ -952,13 +832,13 @@ func TestHandleScenarioCompare_InvalidJSON(t *testing.T) {
 	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
 	req1.Header.Set("Content-Type", "application/json")
 	w1 := httptest.NewRecorder()
-	handler.HandleManualInfrastructure(w1, req1)
+	handler.SetManualInfrastructure(w1, req1)
 
 	// Now try with invalid JSON
 	req2 := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader("not valid json"))
 	req2.Header.Set("Content-Type", "application/json")
 	w2 := httptest.NewRecorder()
-	handler.HandleScenarioCompare(w2, req2)
+	handler.CompareScenario(w2, req2)
 
 	if w2.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w2.Code)
@@ -1059,7 +939,7 @@ func TestDashboardHandler_AppMemoryCalculation(t *testing.T) {
 	}
 }
 
-func TestHandleBottleneckAnalysis(t *testing.T) {
+func TestAnalyzeBottleneck(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
@@ -1084,7 +964,7 @@ func TestHandleBottleneckAnalysis(t *testing.T) {
 	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
 	req1.Header.Set("Content-Type", "application/json")
 	w1 := httptest.NewRecorder()
-	handler.HandleManualInfrastructure(w1, req1)
+	handler.SetManualInfrastructure(w1, req1)
 
 	if w1.Code != http.StatusOK {
 		t.Fatalf("Failed to set manual infrastructure: %s", w1.Body.String())
@@ -1093,7 +973,7 @@ func TestHandleBottleneckAnalysis(t *testing.T) {
 	// Now get bottleneck analysis
 	req2 := httptest.NewRequest("GET", "/api/bottleneck", nil)
 	w2 := httptest.NewRecorder()
-	handler.HandleBottleneckAnalysis(w2, req2)
+	handler.AnalyzeBottleneck(w2, req2)
 
 	if w2.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())
@@ -1117,21 +997,21 @@ func TestHandleBottleneckAnalysis(t *testing.T) {
 	}
 }
 
-func TestHandleBottleneckAnalysis_NoData(t *testing.T) {
+func TestAnalyzeBottleneck_NoData(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
 
 	req := httptest.NewRequest("GET", "/api/bottleneck", nil)
 	w := httptest.NewRecorder()
-	handler.HandleBottleneckAnalysis(w, req)
+	handler.AnalyzeBottleneck(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w.Code)
 	}
 }
 
-func TestHandleRecommendations(t *testing.T) {
+func TestGetRecommendations(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
@@ -1156,7 +1036,7 @@ func TestHandleRecommendations(t *testing.T) {
 	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
 	req1.Header.Set("Content-Type", "application/json")
 	w1 := httptest.NewRecorder()
-	handler.HandleManualInfrastructure(w1, req1)
+	handler.SetManualInfrastructure(w1, req1)
 
 	if w1.Code != http.StatusOK {
 		t.Fatalf("Failed to set manual infrastructure: %s", w1.Body.String())
@@ -1165,7 +1045,7 @@ func TestHandleRecommendations(t *testing.T) {
 	// Now get recommendations
 	req2 := httptest.NewRequest("GET", "/api/recommendations", nil)
 	w2 := httptest.NewRecorder()
-	handler.HandleRecommendations(w2, req2)
+	handler.GetRecommendations(w2, req2)
 
 	if w2.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())
@@ -1192,14 +1072,14 @@ func TestHandleRecommendations(t *testing.T) {
 	}
 }
 
-func TestHandleRecommendations_NoData(t *testing.T) {
+func TestGetRecommendations_NoData(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
 
 	req := httptest.NewRequest("GET", "/api/recommendations", nil)
 	w := httptest.NewRecorder()
-	handler.HandleRecommendations(w, req)
+	handler.GetRecommendations(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w.Code)
@@ -1231,12 +1111,12 @@ func TestHandleInfrastructureStatus_WithBottleneck(t *testing.T) {
 	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
 	req1.Header.Set("Content-Type", "application/json")
 	w1 := httptest.NewRecorder()
-	handler.HandleManualInfrastructure(w1, req1)
+	handler.SetManualInfrastructure(w1, req1)
 
 	// Now check status
 	req2 := httptest.NewRequest("GET", "/api/infrastructure/status", nil)
 	w2 := httptest.NewRecorder()
-	handler.HandleInfrastructureStatus(w2, req2)
+	handler.GetInfrastructureStatus(w2, req2)
 
 	if w2.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w2.Code)
@@ -1420,7 +1300,7 @@ func TestEnrichWithCFAppData_GetAppsFailure(t *testing.T) {
 	}
 }
 
-func TestHandleScenarioCompare_WithRecommendations(t *testing.T) {
+func TestCompareScenario_WithRecommendations(t *testing.T) {
 	cfg := &config.Config{}
 	c := cache.New(5 * time.Minute)
 	handler := NewHandler(cfg, c)
@@ -1445,7 +1325,7 @@ func TestHandleScenarioCompare_WithRecommendations(t *testing.T) {
 	req1 := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
 	req1.Header.Set("Content-Type", "application/json")
 	w1 := httptest.NewRecorder()
-	handler.HandleManualInfrastructure(w1, req1)
+	handler.SetManualInfrastructure(w1, req1)
 
 	// Now compare scenario
 	compareBody := `{
@@ -1457,7 +1337,7 @@ func TestHandleScenarioCompare_WithRecommendations(t *testing.T) {
 	req2 := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader(compareBody))
 	req2.Header.Set("Content-Type", "application/json")
 	w2 := httptest.NewRecorder()
-	handler.HandleScenarioCompare(w2, req2)
+	handler.CompareScenario(w2, req2)
 
 	if w2.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w2.Code, w2.Body.String())
@@ -1490,7 +1370,7 @@ func TestHandleInfrastructureApps(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/infrastructure/apps", nil)
 	w := httptest.NewRecorder()
 
-	handler.HandleInfrastructureApps(w, req)
+	handler.GetInfrastructureApps(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
@@ -1552,28 +1432,79 @@ func TestHandleInfrastructureApps_NoCFConfigured(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/infrastructure/apps", nil)
 	w := httptest.NewRecorder()
 
-	handler.HandleInfrastructureApps(w, req)
+	handler.GetInfrastructureApps(w, req)
 
 	if w.Code != http.StatusServiceUnavailable {
 		t.Errorf("Expected status 503, got %d", w.Code)
 	}
 }
 
-func TestHandleInfrastructureApps_MethodNotAllowed(t *testing.T) {
-	cfg := &config.Config{
-		CFAPIUrl:   "https://api.test.com",
-		CFUsername: "admin",
-		CFPassword: "secret",
+func TestHandler_writeJSON(t *testing.T) {
+	h := &Handler{}
+	rec := httptest.NewRecorder()
+
+	data := map[string]string{"key": "value"}
+	h.writeJSON(rec, http.StatusCreated, data)
+
+	if rec.Code != http.StatusCreated {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusCreated)
 	}
-	c := cache.New(5 * time.Minute)
-	handler := NewHandler(cfg, c)
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", ct, "application/json")
+	}
 
-	req := httptest.NewRequest("POST", "/api/infrastructure/apps", nil)
-	w := httptest.NewRecorder()
+	var result map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if result["key"] != "value" {
+		t.Errorf("result[key] = %q, want %q", result["key"], "value")
+	}
+}
 
-	handler.HandleInfrastructureApps(w, req)
+func TestHandler_writeError(t *testing.T) {
+	h := &Handler{}
+	rec := httptest.NewRecorder()
 
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
+	h.writeError(rec, "test error", http.StatusBadRequest)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+
+	var result models.ErrorResponse
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if result.Error != "test error" {
+		t.Errorf("Error = %q, want %q", result.Error, "test error")
+	}
+	if result.Code != http.StatusBadRequest {
+		t.Errorf("Code = %d, want %d", result.Code, http.StatusBadRequest)
+	}
+}
+
+func TestHandler_writeErrorWithDetails(t *testing.T) {
+	h := &Handler{}
+	rec := httptest.NewRecorder()
+
+	h.writeErrorWithDetails(rec, "test error", "additional details", http.StatusBadRequest)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+
+	var result models.ErrorResponse
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if result.Error != "test error" {
+		t.Errorf("Error = %q, want %q", result.Error, "test error")
+	}
+	if result.Details != "additional details" {
+		t.Errorf("Details = %q, want %q", result.Details, "additional details")
+	}
+	if result.Code != http.StatusBadRequest {
+		t.Errorf("Code = %d, want %d", result.Code, http.StatusBadRequest)
 	}
 }
