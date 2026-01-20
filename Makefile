@@ -9,6 +9,7 @@ FRONTEND_PORT ?= 5173
 .PHONY: backend-build backend-test backend-lint backend-clean backend-run backend-dev backend-air
 .PHONY: frontend-build frontend-test frontend-lint frontend-dev frontend-preview frontend-clean
 .PHONY: cli-build cli-test cli-lint cli-clean cli-install
+.PHONY: openapi-serve openapi-validate openapi-clean
 
 .DEFAULT_GOAL := help
 
@@ -129,3 +130,47 @@ cli-install: cli-build ## Install CLI to $GOPATH/bin
 	@GOPATH_BIN=$${GOPATH:-$$(go env GOPATH)}/bin; \
 	mkdir -p $$GOPATH_BIN; \
 	cp cli/diego-capacity $$GOPATH_BIN/
+
+#
+# OpenAPI Documentation targets
+#
+
+OPENAPI_PORT ?= 8090
+OPENAPI_SPEC := openapi.yaml
+OPENAPI_SERVER_DIR := .openapi-server
+
+openapi-serve: ## Serve OpenAPI docs via Swagger UI (PORT=$(OPENAPI_PORT))
+	@if [ ! -f "$(OPENAPI_SPEC)" ]; then \
+		echo "Error: $(OPENAPI_SPEC) not found. Run 'make openapi-generate' first."; \
+		exit 1; \
+	fi
+	@mkdir -p $(OPENAPI_SERVER_DIR)
+	@cp $(OPENAPI_SPEC) $(OPENAPI_SERVER_DIR)/
+	@if [ ! -f "$(OPENAPI_SERVER_DIR)/swagger-ui-bundle.js" ]; then \
+		echo "Downloading Swagger UI assets..."; \
+		curl -sL https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js -o $(OPENAPI_SERVER_DIR)/swagger-ui-bundle.js; \
+		curl -sL https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js -o $(OPENAPI_SERVER_DIR)/swagger-ui-standalone-preset.js; \
+		curl -sL https://unpkg.com/swagger-ui-dist@5/swagger-ui.css -o $(OPENAPI_SERVER_DIR)/swagger-ui.css; \
+	fi
+	@if [ ! -f "$(OPENAPI_SERVER_DIR)/index.html" ]; then \
+		echo '<!DOCTYPE html><html><head><title>Diego Capacity Analyzer API</title><link rel="stylesheet" href="swagger-ui.css"></head><body><div id="swagger-ui"></div><script src="swagger-ui-bundle.js"></script><script src="swagger-ui-standalone-preset.js"></script><script>SwaggerUIBundle({url:"openapi.yaml",dom_id:"#swagger-ui",presets:[SwaggerUIBundle.presets.apis,SwaggerUIStandalonePreset],layout:"StandaloneLayout"});</script></body></html>' > $(OPENAPI_SERVER_DIR)/index.html; \
+	fi
+	@echo "Serving OpenAPI docs at http://localhost:$(OPENAPI_PORT)"
+	@cd $(OPENAPI_SERVER_DIR) && python3 -m http.server $(OPENAPI_PORT)
+
+openapi-validate: ## Validate OpenAPI spec syntax
+	@if [ ! -f "$(OPENAPI_SPEC)" ]; then \
+		echo "Error: $(OPENAPI_SPEC) not found."; \
+		exit 1; \
+	fi
+	@if command -v swagger-cli >/dev/null 2>&1; then \
+		swagger-cli validate $(OPENAPI_SPEC); \
+	elif command -v npx >/dev/null 2>&1; then \
+		npx @apidevtools/swagger-cli validate $(OPENAPI_SPEC); \
+	else \
+		echo "Validating YAML syntax only (install swagger-cli for full validation)..."; \
+		python3 -c "import yaml; yaml.safe_load(open('$(OPENAPI_SPEC)'))" && echo "$(OPENAPI_SPEC) is valid YAML"; \
+	fi
+
+openapi-clean: ## Remove OpenAPI server artifacts
+	rm -rf $(OPENAPI_SERVER_DIR)
