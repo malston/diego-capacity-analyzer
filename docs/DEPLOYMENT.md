@@ -177,7 +177,7 @@ cf app capacity-backend
 
 # Test health endpoint
 BACKEND_URL=$(cf app capacity-backend | grep routes: | awk '{print $2}')
-curl https://$BACKEND_URL/api/health
+curl https://$BACKEND_URL/api/v1/health
 
 # Expected response:
 # {
@@ -190,7 +190,7 @@ curl https://$BACKEND_URL/api/health
 # }
 
 # Test dashboard endpoint
-curl https://$BACKEND_URL/api/dashboard | jq .
+curl https://$BACKEND_URL/api/v1/dashboard | jq .
 
 # Should return JSON with cells, apps, segments, and metadata
 ```
@@ -396,7 +396,7 @@ cf push
 
 ```bash
 BACKEND_URL=$(cf app capacity-backend | grep routes: | awk '{print $2}')
-curl -i -X OPTIONS https://$BACKEND_URL/api/dashboard
+curl -i -X OPTIONS https://$BACKEND_URL/api/v1/dashboard
 
 # Should see:
 # Access-Control-Allow-Origin: *
@@ -437,10 +437,10 @@ cf push
 
 ```bash
 # First request (cache miss)
-time curl https://$BACKEND_URL/api/dashboard
+time curl https://$BACKEND_URL/api/v1/dashboard
 
 # Second request (should be cached, much faster)
-time curl https://$BACKEND_URL/api/dashboard
+time curl https://$BACKEND_URL/api/v1/dashboard
 ```
 
 **Solution**:
@@ -629,7 +629,7 @@ cf logs capacity-ui
 
 ```bash
 # Backend health
-curl https://$BACKEND_URL/api/health
+curl https://$BACKEND_URL/api/v1/health
 
 # Application status
 cf app capacity-backend
@@ -670,7 +670,7 @@ Server listening on :8080
 │                  capacity-ui (CF App)                       │
 │                  staticfile_buildpack                       │
 └────────────────────────┬────────────────────────────────────┘
-                         │ HTTPS /api/*
+                         │ HTTPS /api/v1/*
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                Backend (Go HTTP Service)                    │

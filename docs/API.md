@@ -8,7 +8,7 @@ All endpoints return JSON responses and support CORS.
 
 ## Health & Status
 
-### GET /api/health
+### GET /api/v1/health
 
 Health check endpoint.
 
@@ -35,7 +35,7 @@ Health check endpoint.
 
 ## Dashboard
 
-### GET /api/dashboard
+### GET /api/v1/dashboard
 
 Returns live dashboard data from CF and BOSH APIs.
 
@@ -87,7 +87,7 @@ Returns live dashboard data from CF and BOSH APIs.
 
 ## Infrastructure
 
-### GET /api/infrastructure
+### GET /api/v1/infrastructure
 
 Returns live infrastructure data from vSphere.
 
@@ -151,7 +151,7 @@ Returns live infrastructure data from vSphere.
 
 ---
 
-### POST /api/infrastructure/manual
+### POST /api/v1/infrastructure/manual
 
 Set infrastructure state from manual input (JSON upload or form data).
 
@@ -184,21 +184,21 @@ Set infrastructure state from manual input (JSON upload or form data).
 }
 ```
 
-**Response:** Returns computed `InfrastructureState` (same format as GET /api/infrastructure)
+**Response:** Returns computed `InfrastructureState` (same format as GET /api/v1/infrastructure)
 
 ---
 
-### POST /api/infrastructure/state
+### POST /api/v1/infrastructure/state
 
 Set infrastructure state directly (accepts full InfrastructureState object).
 
-**Request Body:** Full `InfrastructureState` object (same format as GET /api/infrastructure response)
+**Request Body:** Full `InfrastructureState` object (same format as GET /api/v1/infrastructure response)
 
 **Response:** Returns the stored state
 
 ---
 
-### GET /api/infrastructure/status
+### GET /api/v1/infrastructure/status
 
 Returns current infrastructure data source status and capacity metrics.
 
@@ -248,7 +248,7 @@ Returns current infrastructure data source status and capacity metrics.
 
 ---
 
-### GET /api/infrastructure/apps
+### GET /api/v1/infrastructure/apps
 
 Returns detailed per-app breakdown of memory, disk, and instance allocation from Cloud Foundry.
 
@@ -314,11 +314,11 @@ Returns detailed per-app breakdown of memory, disk, and instance allocation from
 
 ## Capacity Planning
 
-### POST /api/infrastructure/planning
+### POST /api/v1/infrastructure/planning
 
 Calculate maximum deployable Diego cells given IaaS capacity constraints.
 
-**Prerequisites:** Infrastructure data must be loaded first via `/api/infrastructure` or `/api/infrastructure/manual`
+**Prerequisites:** Infrastructure data must be loaded first via `/api/v1/infrastructure` or `/api/v1/infrastructure/manual`
 
 **Request Body:**
 
@@ -367,7 +367,7 @@ Calculate maximum deployable Diego cells given IaaS capacity constraints.
 
 ## Scenario Analysis
 
-### POST /api/scenario/compare
+### POST /api/v1/scenario/compare
 
 Compare current infrastructure state against a proposed configuration.
 
@@ -484,7 +484,7 @@ Both are needed: HA admission determines if you can *deploy* the VMs; memory ove
 
 ## Analysis
 
-### GET /api/bottleneck
+### GET /api/v1/bottleneck
 
 Returns multi-resource bottleneck analysis.
 
@@ -521,7 +521,7 @@ Returns multi-resource bottleneck analysis.
 
 ---
 
-### GET /api/recommendations
+### GET /api/v1/recommendations
 
 Returns upgrade path recommendations based on current bottlenecks.
 
@@ -592,7 +592,7 @@ Cached responses include `"cached": true` in the metadata.
 
 ### Mixed Data Source Caching
 
-When using `GET /api/infrastructure` with both vSphere and CF credentials configured:
+When using `GET /api/v1/infrastructure` with both vSphere and CF credentials configured:
 
 1. **vSphere data** is fetched first (infrastructure: hosts, clusters, cells)
 2. **CF data** is fetched to enrich app metrics (`total_app_memory_gb`, `total_app_instances`)
@@ -609,7 +609,7 @@ To force a refresh, either wait for TTL expiration or restart the backend.
 
 ## Manual Data Collection
 
-When using the manual infrastructure input endpoint (`POST /api/infrastructure/manual`), you may need to collect app-related metrics yourself. This section documents how to obtain these values.
+When using the manual infrastructure input endpoint (`POST /api/v1/infrastructure/manual`), you may need to collect app-related metrics yourself. This section documents how to obtain these values.
 
 ### Data Sources
 
@@ -715,4 +715,4 @@ After collecting the values above:
 
 ### Automatic Enrichment
 
-When using live vSphere data (`GET /api/infrastructure`), the backend automatically enriches infrastructure data with app metrics from the CF API if CF credentials are configured. This eliminates the need for manual data collection in most cases.
+When using live vSphere data (`GET /api/v1/infrastructure`), the backend automatically enriches infrastructure data with app metrics from the CF API if CF credentials are configured. This eliminates the need for manual data collection in most cases.

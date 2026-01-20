@@ -28,7 +28,7 @@ func New(baseURL string) *Client {
 	}
 }
 
-// HealthResponse represents the /api/health endpoint response
+// HealthResponse represents the /api/v1/health endpoint response
 type HealthResponse struct {
 	CFAPI       string      `json:"cf_api"`
 	BOSHAPI     string      `json:"bosh_api"`
@@ -41,7 +41,7 @@ type CacheStatus struct {
 	AppsCached  bool `json:"apps_cached"`
 }
 
-// InfrastructureStatus represents the /api/infrastructure/status endpoint response
+// InfrastructureStatus represents the /api/v1/infrastructure/status endpoint response
 type InfrastructureStatus struct {
 	HasData               bool    `json:"has_data"`
 	Source                string  `json:"source,omitempty"`
@@ -139,9 +139,9 @@ type ManualInput struct {
 	TotalAppInstances int            `json:"total_app_instances"`
 }
 
-// Health calls the /api/health endpoint
+// Health calls the /api/v1/health endpoint
 func (c *Client) Health(ctx context.Context) (*HealthResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/health", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/health", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -174,9 +174,9 @@ func (c *Client) Health(ctx context.Context) (*HealthResponse, error) {
 	return &health, nil
 }
 
-// InfrastructureStatus calls the /api/infrastructure/status endpoint
+// InfrastructureStatus calls the /api/v1/infrastructure/status endpoint
 func (c *Client) InfrastructureStatus(ctx context.Context) (*InfrastructureStatus, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/infrastructure/status", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/infrastructure/status", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -209,9 +209,9 @@ func (c *Client) InfrastructureStatus(ctx context.Context) (*InfrastructureStatu
 	return &status, nil
 }
 
-// GetInfrastructure calls GET /api/infrastructure
+// GetInfrastructure calls GET /api/v1/infrastructure
 func (c *Client) GetInfrastructure(ctx context.Context) (*InfrastructureState, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/infrastructure", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/infrastructure", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -234,14 +234,14 @@ func (c *Client) GetInfrastructure(ctx context.Context) (*InfrastructureState, e
 	return &infra, nil
 }
 
-// SetManualInfrastructure calls POST /api/infrastructure/manual
+// SetManualInfrastructure calls POST /api/v1/infrastructure/manual
 func (c *Client) SetManualInfrastructure(ctx context.Context, input *ManualInput) (*InfrastructureState, error) {
 	body, err := json.Marshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal input: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/infrastructure/manual", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/infrastructure/manual", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -342,14 +342,14 @@ type ScenarioComparison struct {
 	Warnings []ScenarioWarning `json:"warnings"`
 }
 
-// SetInfrastructureState calls POST /api/infrastructure/state
+// SetInfrastructureState calls POST /api/v1/infrastructure/state
 func (c *Client) SetInfrastructureState(ctx context.Context, state *InfrastructureState) (*InfrastructureState, error) {
 	body, err := json.Marshal(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal state: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/infrastructure/state", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/infrastructure/state", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -373,14 +373,14 @@ func (c *Client) SetInfrastructureState(ctx context.Context, state *Infrastructu
 	return &infra, nil
 }
 
-// CompareScenario calls POST /api/scenario/compare
+// CompareScenario calls POST /api/v1/scenario/compare
 func (c *Client) CompareScenario(ctx context.Context, input *ScenarioInput) (*ScenarioComparison, error) {
 	body, err := json.Marshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal input: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/scenario/compare", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/scenario/compare", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

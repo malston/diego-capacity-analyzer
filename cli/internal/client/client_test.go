@@ -14,8 +14,8 @@ import (
 
 func TestHealth_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/health" {
-			t.Errorf("expected path /api/health, got %s", r.URL.Path)
+		if r.URL.Path != "/api/v1/health" {
+			t.Errorf("expected path /api/v1/health, got %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(HealthResponse{
@@ -98,8 +98,8 @@ func TestHealth_ContextTimeout(t *testing.T) {
 
 func TestInfrastructureStatus_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/infrastructure/status" {
-			t.Errorf("expected path /api/infrastructure/status, got %s", r.URL.Path)
+		if r.URL.Path != "/api/v1/infrastructure/status" {
+			t.Errorf("expected path /api/v1/infrastructure/status, got %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(InfrastructureStatus{
@@ -182,8 +182,8 @@ func TestInfrastructureStatus_ContextCancellation(t *testing.T) {
 
 func TestGetInfrastructure(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/infrastructure" {
-			t.Errorf("expected path /api/infrastructure, got %s", r.URL.Path)
+		if r.URL.Path != "/api/v1/infrastructure" {
+			t.Errorf("expected path /api/v1/infrastructure, got %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(InfrastructureState{
@@ -210,8 +210,8 @@ func TestGetInfrastructure(t *testing.T) {
 
 func TestSetManualInfrastructure(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/infrastructure/manual" {
-			t.Errorf("expected path /api/infrastructure/manual, got %s", r.URL.Path)
+		if r.URL.Path != "/api/v1/infrastructure/manual" {
+			t.Errorf("expected path /api/v1/infrastructure/manual, got %s", r.URL.Path)
 		}
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
@@ -258,8 +258,8 @@ func TestSetManualInfrastructure(t *testing.T) {
 
 func TestSetInfrastructureState(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/infrastructure/state" {
-			t.Errorf("expected path /api/infrastructure/state, got %s", r.URL.Path)
+		if r.URL.Path != "/api/v1/infrastructure/state" {
+			t.Errorf("expected path /api/v1/infrastructure/state, got %s", r.URL.Path)
 		}
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
@@ -300,8 +300,8 @@ func TestSetInfrastructureState(t *testing.T) {
 
 func TestCompareScenario(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/scenario/compare" {
-			t.Errorf("expected path /api/scenario/compare, got %s", r.URL.Path)
+		if r.URL.Path != "/api/v1/scenario/compare" {
+			t.Errorf("expected path /api/v1/scenario/compare, got %s", r.URL.Path)
 		}
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)

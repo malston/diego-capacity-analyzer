@@ -408,7 +408,7 @@ diego-capacity scenario --cell-count 20
 
 ### "cannot connect to backend"
 
-1. Verify the backend is running: `curl http://localhost:8080/api/health`
+1. Verify the backend is running: `curl http://localhost:8080/api/v1/health`
 2. Check the API URL: `echo $DIEGO_CAPACITY_API_URL`
 3. Try with explicit URL: `diego-capacity --api-url http://localhost:8080 health`
 
