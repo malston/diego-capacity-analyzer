@@ -302,17 +302,24 @@ components:
     HealthResponse:
       type: object
       description: API health status
+      required:
+        - cf_api
+        - bosh_api
+        - cache_status
       properties:
         cf_api:
           type: string
-          description: CF API status
-          enum: [ok, error]
+          description: CF API status (always "ok" - endpoint does not verify CF connectivity)
+          enum: [ok]
         bosh_api:
           type: string
           description: BOSH API status
-          enum: [ok, not_configured, error]
+          enum: [ok, not_configured]
         cache_status:
           type: object
+          required:
+            - cells_cached
+            - apps_cached
           properties:
             cells_cached:
               type: boolean
@@ -400,6 +407,11 @@ components:
     DashboardResponse:
       type: object
       description: Dashboard data response
+      required:
+        - cells
+        - apps
+        - segments
+        - metadata
       properties:
         cells:
           type: array
@@ -451,6 +463,9 @@ components:
     ManualInput:
       type: object
       description: User-provided infrastructure data
+      required:
+        - name
+        - clusters
       properties:
         name:
           type: string
@@ -471,6 +486,22 @@ components:
         total_app_instances:
           type: integer
           description: Total app instances
+      example:
+        name: "Production TAS"
+        clusters:
+          - name: "tas-cluster-1"
+            host_count: 4
+            memory_gb_per_host: 512
+            cpu_cores_per_host: 40
+            ha_admission_control_percentage: 25
+            diego_cell_count: 12
+            diego_cell_memory_gb: 32
+            diego_cell_cpu: 4
+            diego_cell_disk_gb: 100
+        platform_vms_gb: 64
+        total_app_memory_gb: 256
+        total_app_disk_gb: 512
+        total_app_instances: 150
 
     ClusterState:
       type: object
@@ -534,6 +565,11 @@ components:
     InfrastructureState:
       type: object
       description: Computed infrastructure metrics
+      required:
+        - source
+        - name
+        - clusters
+        - timestamp
       properties:
         source:
           type: string
@@ -598,6 +634,9 @@ components:
     InfrastructureStatus:
       type: object
       description: Infrastructure data source status
+      required:
+        - vsphere_configured
+        - has_data
       properties:
         vsphere_configured:
           type: boolean
@@ -636,6 +675,9 @@ components:
     PlanningInput:
       type: object
       description: Input for infrastructure planning calculation
+      required:
+        - cell_memory_gb
+        - cell_cpu
       properties:
         cell_memory_gb:
           type: integer
@@ -652,6 +694,11 @@ components:
           items:
             type: string
           description: Resources to include in bottleneck reporting (cpu, memory, disk)
+      example:
+        cell_memory_gb: 32
+        cell_cpu: 4
+        overhead_pct: 7
+        selected_resources: ["memory", "cpu"]
 
     PlanningResult:
       type: object
@@ -712,6 +759,9 @@ components:
     PlanningResponse:
       type: object
       description: Full planning response with recommendations
+      required:
+        - result
+        - recommendations
       properties:
         result:
           $ref: "#/components/schemas/PlanningResult"
@@ -723,6 +773,11 @@ components:
     AppDetailsResponse:
       type: object
       description: Per-app breakdown of memory, disk, and instances
+      required:
+        - total_app_memory_gb
+        - total_app_disk_gb
+        - total_app_instances
+        - apps
       properties:
         total_app_memory_gb:
           type: integer
@@ -997,6 +1052,11 @@ components:
     ScenarioComparison:
       type: object
       description: Full comparison response
+      required:
+        - current
+        - proposed
+        - warnings
+        - delta
       properties:
         current:
           $ref: "#/components/schemas/ScenarioResult"
@@ -1036,6 +1096,10 @@ components:
     BottleneckAnalysis:
       type: object
       description: Multi-resource bottleneck analysis result
+      required:
+        - resources
+        - constraining_resource
+        - summary
       properties:
         resources:
           type: array
@@ -1049,6 +1113,9 @@ components:
     RecommendationsResponse:
       type: object
       description: Recommendations with context
+      required:
+        - recommendations
+        - constraining_resource
       properties:
         recommendations:
           type: array

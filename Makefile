@@ -141,7 +141,7 @@ OPENAPI_SERVER_DIR := .openapi-server
 
 openapi-serve: ## Serve OpenAPI docs via Swagger UI (PORT=$(OPENAPI_PORT))
 	@if [ ! -f "$(OPENAPI_SPEC)" ]; then \
-		echo "Error: $(OPENAPI_SPEC) not found. Run 'make openapi-generate' first."; \
+		echo "Error: $(OPENAPI_SPEC) not found."; \
 		exit 1; \
 	fi
 	@mkdir -p $(OPENAPI_SERVER_DIR)
