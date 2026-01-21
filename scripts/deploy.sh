@@ -456,6 +456,122 @@ phase_env() {
 }
 
 #######################################
+# Phase 3: Backend
+#######################################
+phase_backend() {
+    CURRENT_PHASE="backend"
+    log_info "Phase 3: Deploying backend"
+
+    if state_is_complete "BACKEND" && [[ "$FRESH" != "true" ]]; then
+        log_success "Phase 3 already complete (skipping)"
+        return 0
+    fi
+
+    local env_file="$PROJECT_ROOT/.env"
+    local backend_dir="$PROJECT_ROOT/backend"
+
+    # Source .env for credentials
+    if [[ -f "$env_file" ]]; then
+        log_debug "Loading credentials from .env"
+        set +u  # Temporarily allow unset variables during source
+        # shellcheck source=/dev/null
+        source "$env_file"
+        set -u
+    else
+        log_error ".env file not found. Run phase 'env' first."
+        return 1
+    fi
+
+    # Verify backend directory exists
+    if [[ ! -d "$backend_dir" ]]; then
+        log_error "Backend directory not found: $backend_dir"
+        return 1
+    fi
+
+    # Target CF org/space
+    log_info "Targeting CF org/space: $CF_ORG/$CF_SPACE"
+    if [[ "$DRY_RUN" != "true" ]]; then
+        cf target -o "$CF_ORG" -s "$CF_SPACE"
+    fi
+
+    # Push backend app
+    log_info "Pushing $BACKEND_APP_NAME..."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would run: (cd $backend_dir && cf push $BACKEND_APP_NAME)"
+    else
+        (cd "$backend_dir" && cf push "$BACKEND_APP_NAME")
+    fi
+
+    # Set environment variables
+    log_info "Setting environment variables..."
+    local env_vars=(
+        "CF_API_URL=${CF_API_URL:-}"
+        "CF_USERNAME=${CF_USERNAME:-}"
+        "CF_PASSWORD=${CF_PASSWORD:-}"
+        "BOSH_ENVIRONMENT=${BOSH_ENVIRONMENT:-}"
+        "BOSH_CLIENT=${BOSH_CLIENT:-}"
+        "BOSH_CLIENT_SECRET=${BOSH_CLIENT_SECRET:-}"
+        "BOSH_DEPLOYMENT=${BOSH_DEPLOYMENT:-}"
+    )
+
+    # Add BOSH_CA_CERT if set (handle multiline)
+    if [[ -n "${BOSH_CA_CERT:-}" ]]; then
+        env_vars+=("BOSH_CA_CERT=${BOSH_CA_CERT}")
+    fi
+
+    # Add BOSH_ALL_PROXY if set
+    if [[ -n "${BOSH_ALL_PROXY:-}" ]]; then
+        env_vars+=("BOSH_ALL_PROXY=${BOSH_ALL_PROXY}")
+    fi
+
+    # Add vSphere vars if set
+    if [[ -n "${VSPHERE_HOST:-}" ]]; then
+        env_vars+=(
+            "VSPHERE_HOST=${VSPHERE_HOST}"
+            "VSPHERE_DATACENTER=${VSPHERE_DATACENTER:-}"
+            "VSPHERE_USERNAME=${VSPHERE_USERNAME:-}"
+            "VSPHERE_PASSWORD=${VSPHERE_PASSWORD:-}"
+        )
+    fi
+
+    for env_var in "${env_vars[@]}"; do
+        local key="${env_var%%=*}"
+        local value="${env_var#*=}"
+        if [[ -n "$value" ]]; then
+            log_debug "Setting $key"
+            if [[ "$DRY_RUN" != "true" ]]; then
+                cf set-env "$BACKEND_APP_NAME" "$key" "$value" >/dev/null
+            fi
+        fi
+    done
+
+    # Restage to apply env vars
+    log_info "Restaging $BACKEND_APP_NAME..."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would run: cf restage $BACKEND_APP_NAME"
+    else
+        cf restage "$BACKEND_APP_NAME"
+    fi
+
+    # Get backend URL
+    local backend_url
+    if [[ "$DRY_RUN" == "true" ]]; then
+        backend_url="$BACKEND_APP_NAME.apps.example.com"
+    else
+        backend_url=$(cf app "$BACKEND_APP_NAME" | grep -E "^routes:" | awk '{print $2}')
+        if [[ -z "$backend_url" ]]; then
+            log_error "Failed to extract backend URL from cf app output"
+            return 1
+        fi
+    fi
+    state_set "BACKEND_URL" "$backend_url"
+
+    log_success "Backend running at $backend_url"
+    state_set "BACKEND" "complete"
+    log_success "Phase 3 complete"
+}
+
+#######################################
 # Main entry point
 #######################################
 main() {
@@ -491,7 +607,7 @@ main() {
         case "$PHASE" in
             prereqs)  phase_prereqs ;;
             env)      phase_env ;;
-            backend)  log_info "Phase backend not yet implemented" ;;
+            backend)  phase_backend ;;
             frontend) log_info "Phase frontend not yet implemented" ;;
             verify)   log_info "Phase verify not yet implemented" ;;
         esac
@@ -501,6 +617,7 @@ main() {
             phase_prereqs
         fi
         phase_env
+        phase_backend
         log_info "Remaining phases not yet implemented"
     fi
 }
