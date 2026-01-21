@@ -1,0 +1,1125 @@
+openapi: "3.0.3"
+info:
+  title: Diego Capacity Analyzer API
+  description: |
+    API for analyzing Tanzu Application Service (TAS) / Diego cell capacity and density optimization.
+    Connects to Cloud Foundry environments via BOSH, CF, and vSphere APIs.
+  version: "1.0.0"
+  contact:
+    name: Diego Capacity Analyzer
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Health
+    description: API health and status endpoints
+  - name: Infrastructure
+    description: Infrastructure management and vSphere integration
+  - name: Scenario
+    description: What-if scenario analysis
+  - name: Analysis
+    description: Bottleneck analysis and recommendations
+
+paths:
+  /api/v1/health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns API health status including CF, BOSH, and cache status.
+      operationId: getHealth
+      responses:
+        "200":
+          description: Health status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/v1/dashboard:
+    get:
+      tags:
+        - Health
+      summary: Dashboard data
+      description: Returns live dashboard data including Diego cells, apps, and isolation segments.
+      operationId: getDashboard
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/infrastructure:
+    get:
+      tags:
+        - Infrastructure
+      summary: Live vSphere infrastructure
+      description: Returns live infrastructure data from vSphere including clusters, hosts, and Diego cell VMs.
+      operationId: getInfrastructure
+      responses:
+        "200":
+          description: Infrastructure state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfrastructureState"
+        "503":
+          description: vSphere not configured or connection failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/infrastructure/manual:
+    post:
+      tags:
+        - Infrastructure
+      summary: Manual infrastructure input
+      description: Accepts manual infrastructure input for what-if capacity analysis.
+      operationId: setManualInfrastructure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManualInput"
+      responses:
+        "200":
+          description: Computed infrastructure state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfrastructureState"
+        "400":
+          description: Invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/infrastructure/state:
+    post:
+      tags:
+        - Infrastructure
+      summary: Set infrastructure state directly
+      description: Accepts an InfrastructureState directly (e.g., from vSphere cache or external source).
+      operationId: setInfrastructureState
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InfrastructureState"
+      responses:
+        "200":
+          description: Infrastructure state set successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfrastructureState"
+        "400":
+          description: Invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/infrastructure/status:
+    get:
+      tags:
+        - Infrastructure
+      summary: Data source status
+      description: Returns the current infrastructure data source status and summary metrics.
+      operationId: getInfrastructureStatus
+      responses:
+        "200":
+          description: Infrastructure status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfrastructureStatus"
+
+  /api/v1/infrastructure/planning:
+    post:
+      tags:
+        - Infrastructure
+      summary: Calculate max deployable cells
+      description: Calculates maximum deployable Diego cells given IaaS capacity constraints.
+      operationId: planInfrastructure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanningInput"
+      responses:
+        "200":
+          description: Planning result with recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanningResponse"
+        "400":
+          description: No infrastructure data or invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/infrastructure/apps:
+    get:
+      tags:
+        - Infrastructure
+      summary: Per-app memory/disk breakdown
+      description: Returns detailed per-app memory, disk, and instance breakdown from CF API.
+      operationId: getInfrastructureApps
+      responses:
+        "200":
+          description: App details response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppDetailsResponse"
+        "503":
+          description: CF API not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/scenario/compare:
+    post:
+      tags:
+        - Scenario
+      summary: Compare current vs proposed scenarios
+      description: Compares current infrastructure against a proposed scenario for what-if analysis.
+      operationId: compareScenario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScenarioInput"
+      responses:
+        "200":
+          description: Scenario comparison result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioComparison"
+        "400":
+          description: No infrastructure data or invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/bottleneck:
+    get:
+      tags:
+        - Analysis
+      summary: Multi-resource bottleneck analysis
+      description: Analyzes resource utilization to identify the constraining resource.
+      operationId: analyzeBottleneck
+      responses:
+        "200":
+          description: Bottleneck analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BottleneckAnalysis"
+        "400":
+          description: No infrastructure data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/recommendations:
+    get:
+      tags:
+        - Analysis
+      summary: Upgrade path recommendations
+      description: Returns prioritized upgrade recommendations based on current bottleneck analysis.
+      operationId: getRecommendations
+      responses:
+        "200":
+          description: Recommendations response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationsResponse"
+        "400":
+          description: No infrastructure data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      description: Standard error response
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+        code:
+          type: integer
+          description: HTTP status code
+
+    HealthResponse:
+      type: object
+      description: API health status
+      required:
+        - cf_api
+        - bosh_api
+        - cache_status
+      properties:
+        cf_api:
+          type: string
+          description: CF API status (always "ok" - endpoint does not verify CF connectivity)
+          enum: [ok]
+        bosh_api:
+          type: string
+          description: BOSH API status
+          enum: [ok, not_configured]
+        cache_status:
+          type: object
+          required:
+            - cells_cached
+            - apps_cached
+          properties:
+            cells_cached:
+              type: boolean
+            apps_cached:
+              type: boolean
+
+    DiegoCell:
+      type: object
+      description: Diego cell VM with capacity metrics
+      properties:
+        id:
+          type: string
+          description: Cell identifier
+        name:
+          type: string
+          description: Cell name
+        memory_mb:
+          type: integer
+          description: Total memory in MB
+        allocated_mb:
+          type: integer
+          description: Allocated memory in MB
+        used_mb:
+          type: integer
+          description: Used memory in MB
+        cpu_percent:
+          type: integer
+          description: CPU utilization percentage
+        isolation_segment:
+          type: string
+          description: Isolation segment name
+
+    App:
+      type: object
+      description: Cloud Foundry application with memory and disk metrics
+      properties:
+        name:
+          type: string
+          description: Application name
+        guid:
+          type: string
+          description: Application GUID
+        instances:
+          type: integer
+          description: Number of running instances
+        requested_mb:
+          type: integer
+          description: Requested memory in MB
+        actual_mb:
+          type: integer
+          description: Actual memory usage in MB
+        requested_disk_mb:
+          type: integer
+          description: Requested disk in MB
+        isolation_segment:
+          type: string
+          description: Isolation segment name
+
+    IsolationSegment:
+      type: object
+      description: CF isolation segment
+      properties:
+        guid:
+          type: string
+          description: Segment GUID
+        name:
+          type: string
+          description: Segment name
+
+    Metadata:
+      type: object
+      description: Response metadata
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+        cached:
+          type: boolean
+          description: Whether data was served from cache
+        bosh_available:
+          type: boolean
+          description: Whether BOSH API is available
+
+    DashboardResponse:
+      type: object
+      description: Dashboard data response
+      required:
+        - cells
+        - apps
+        - segments
+        - metadata
+      properties:
+        cells:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiegoCell"
+        apps:
+          type: array
+          items:
+            $ref: "#/components/schemas/App"
+        segments:
+          type: array
+          items:
+            $ref: "#/components/schemas/IsolationSegment"
+        metadata:
+          $ref: "#/components/schemas/Metadata"
+
+    ClusterInput:
+      type: object
+      description: User-provided cluster configuration
+      properties:
+        name:
+          type: string
+          description: Cluster name
+        host_count:
+          type: integer
+          description: Number of ESXi hosts
+        memory_gb_per_host:
+          type: integer
+          description: Memory per host in GB
+        cpu_cores_per_host:
+          type: integer
+          description: CPU cores per host
+        ha_admission_control_percentage:
+          type: integer
+          description: HA admission control percentage (0-100)
+        diego_cell_count:
+          type: integer
+          description: Number of Diego cells
+        diego_cell_memory_gb:
+          type: integer
+          description: Memory per Diego cell in GB
+        diego_cell_cpu:
+          type: integer
+          description: vCPUs per Diego cell
+        diego_cell_disk_gb:
+          type: integer
+          description: Disk per Diego cell in GB
+
+    ManualInput:
+      type: object
+      description: User-provided infrastructure data
+      required:
+        - name
+        - clusters
+      properties:
+        name:
+          type: string
+          description: Infrastructure name
+        clusters:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClusterInput"
+        platform_vms_gb:
+          type: integer
+          description: Memory used by platform VMs in GB
+        total_app_memory_gb:
+          type: integer
+          description: Total app memory in GB
+        total_app_disk_gb:
+          type: integer
+          description: Total app disk in GB
+        total_app_instances:
+          type: integer
+          description: Total app instances
+      example:
+        name: "Production TAS"
+        clusters:
+          - name: "tas-cluster-1"
+            host_count: 4
+            memory_gb_per_host: 512
+            cpu_cores_per_host: 40
+            ha_admission_control_percentage: 25
+            diego_cell_count: 12
+            diego_cell_memory_gb: 32
+            diego_cell_cpu: 4
+            diego_cell_disk_gb: 100
+        platform_vms_gb: 64
+        total_app_memory_gb: 256
+        total_app_disk_gb: 512
+        total_app_instances: 150
+
+    ClusterState:
+      type: object
+      description: Computed cluster metrics
+      properties:
+        name:
+          type: string
+        host_count:
+          type: integer
+        memory_gb:
+          type: integer
+        cpu_cores:
+          type: integer
+        memory_gb_per_host:
+          type: integer
+        cpu_cores_per_host:
+          type: integer
+        ha_admission_control_percentage:
+          type: integer
+        ha_usable_memory_gb:
+          type: integer
+        ha_usable_cpu_cores:
+          type: integer
+        ha_host_failures_survived:
+          type: integer
+          description: Number of host failures the cluster can survive
+        ha_status:
+          type: string
+          enum: [ok, at-risk]
+        vms_per_host:
+          type: number
+          format: double
+        host_memory_utilization_percent:
+          type: number
+          format: double
+        host_cpu_utilization_percent:
+          type: number
+          format: double
+        n1_memory_gb:
+          type: integer
+          description: N-1 available memory in GB
+        usable_memory_gb:
+          type: integer
+        diego_cell_count:
+          type: integer
+        diego_cell_memory_gb:
+          type: integer
+        diego_cell_cpu:
+          type: integer
+        diego_cell_disk_gb:
+          type: integer
+        total_vcpus:
+          type: integer
+        total_cell_memory_gb:
+          type: integer
+        vcpu_ratio:
+          type: number
+          format: double
+          description: vCPU to pCPU ratio
+
+    InfrastructureState:
+      type: object
+      description: Computed infrastructure metrics
+      required:
+        - source
+        - name
+        - clusters
+        - timestamp
+      properties:
+        source:
+          type: string
+          description: Data source
+          enum: [manual, vsphere]
+        name:
+          type: string
+        clusters:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClusterState"
+        total_memory_gb:
+          type: integer
+        total_n1_memory_gb:
+          type: integer
+        total_ha_usable_memory_gb:
+          type: integer
+        total_ha_usable_cpu_cores:
+          type: integer
+        ha_min_host_failures_survived:
+          type: integer
+        ha_status:
+          type: string
+          enum: [ok, at-risk]
+        total_cell_memory_gb:
+          type: integer
+        host_memory_utilization_percent:
+          type: number
+          format: double
+        host_cpu_utilization_percent:
+          type: number
+          format: double
+        total_host_count:
+          type: integer
+        total_cell_count:
+          type: integer
+        total_cpu_cores:
+          type: integer
+        total_vcpus:
+          type: integer
+        vcpu_ratio:
+          type: number
+          format: double
+        cpu_risk_level:
+          type: string
+          enum: [low, medium, high]
+          description: Risk level based on vCPU:pCPU ratio
+        platform_vms_gb:
+          type: integer
+        total_app_memory_gb:
+          type: integer
+        total_app_disk_gb:
+          type: integer
+        total_app_instances:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        cached:
+          type: boolean
+
+    InfrastructureStatus:
+      type: object
+      description: Infrastructure data source status
+      required:
+        - vsphere_configured
+        - has_data
+      properties:
+        vsphere_configured:
+          type: boolean
+        has_data:
+          type: boolean
+        source:
+          type: string
+        name:
+          type: string
+        cluster_count:
+          type: integer
+        host_count:
+          type: integer
+        cell_count:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        constraining_resource:
+          type: string
+        bottleneck_summary:
+          type: string
+        memory_utilization:
+          type: number
+          format: double
+        ha_min_host_failures_survived:
+          type: integer
+        ha_status:
+          type: string
+        n1_capacity_percent:
+          type: number
+          format: double
+        n1_status:
+          type: string
+
+    PlanningInput:
+      type: object
+      description: Input for infrastructure planning calculation
+      required:
+        - cell_memory_gb
+        - cell_cpu
+      properties:
+        cell_memory_gb:
+          type: integer
+          description: Desired memory per cell in GB
+        cell_cpu:
+          type: integer
+          description: Desired vCPUs per cell
+        overhead_pct:
+          type: number
+          format: double
+          description: Memory overhead percentage (default 7)
+        selected_resources:
+          type: array
+          items:
+            type: string
+          description: Resources to include in bottleneck reporting (cpu, memory, disk)
+      example:
+        cell_memory_gb: 32
+        cell_cpu: 4
+        overhead_pct: 7
+        selected_resources: ["memory", "cpu"]
+
+    PlanningResult:
+      type: object
+      description: Planning calculation result
+      properties:
+        max_cells_by_memory:
+          type: integer
+          description: Cells constrained by memory
+        max_cells_by_cpu:
+          type: integer
+          description: Cells constrained by CPU
+        deployable_cells:
+          type: integer
+          description: Minimum of memory and CPU constraints
+        bottleneck:
+          type: string
+          enum: [memory, cpu, balanced]
+        memory_used_gb:
+          type: integer
+        memory_avail_gb:
+          type: integer
+        cpu_used:
+          type: integer
+        cpu_avail:
+          type: integer
+        memory_util_pct:
+          type: number
+          format: double
+        cpu_util_pct:
+          type: number
+          format: double
+        headroom_cells:
+          type: integer
+          description: Unused capacity in cells
+
+    SizingRecommendation:
+      type: object
+      description: Cell sizing alternative
+      properties:
+        cell_cpu:
+          type: integer
+        cell_memory_gb:
+          type: integer
+        deployable_cells:
+          type: integer
+        bottleneck:
+          type: string
+        memory_util_pct:
+          type: number
+          format: double
+        cpu_util_pct:
+          type: number
+          format: double
+        label:
+          type: string
+          description: Human-readable label (e.g., "4x32 GB")
+
+    PlanningResponse:
+      type: object
+      description: Full planning response with recommendations
+      required:
+        - result
+        - recommendations
+      properties:
+        result:
+          $ref: "#/components/schemas/PlanningResult"
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/SizingRecommendation"
+
+    AppDetailsResponse:
+      type: object
+      description: Per-app breakdown of memory, disk, and instances
+      required:
+        - total_app_memory_gb
+        - total_app_disk_gb
+        - total_app_instances
+        - apps
+      properties:
+        total_app_memory_gb:
+          type: integer
+        total_app_disk_gb:
+          type: integer
+        total_app_instances:
+          type: integer
+        apps:
+          type: array
+          items:
+            $ref: "#/components/schemas/App"
+
+    AppSpec:
+      type: object
+      description: Hypothetical app for capacity planning
+      properties:
+        name:
+          type: string
+        instances:
+          type: integer
+        memory_gb:
+          type: integer
+        disk_gb:
+          type: integer
+
+    TPSPt:
+      type: object
+      description: Data point in TPS performance curve
+      properties:
+        cells:
+          type: integer
+        tps:
+          type: integer
+
+    ScenarioInput:
+      type: object
+      description: Proposed changes for what-if analysis
+      properties:
+        proposed_cell_memory_gb:
+          type: integer
+        proposed_cell_cpu:
+          type: integer
+        proposed_cell_disk_gb:
+          type: integer
+        proposed_cell_count:
+          type: integer
+        target_cluster:
+          type: string
+          description: Target cluster name (empty = all clusters)
+        selected_resources:
+          type: array
+          items:
+            type: string
+          description: Resources to analyze (cpu, memory, disk)
+        overhead_pct:
+          type: number
+          format: double
+          description: Memory overhead percentage (default 7)
+        additional_app:
+          $ref: "#/components/schemas/AppSpec"
+        tps_curve:
+          type: array
+          items:
+            $ref: "#/components/schemas/TPSPt"
+          description: Custom TPS curve (enables TPS analysis)
+        host_count:
+          type: integer
+        memory_per_host_gb:
+          type: integer
+        ha_admission_pct:
+          type: integer
+        physical_cores_per_host:
+          type: integer
+          description: pCPU count per ESXi host (0 disables CPU analysis)
+        target_vcpu_ratio:
+          type: integer
+          description: Target vCPU:pCPU ratio (e.g., 4 for 4:1)
+        platform_vms_cpu:
+          type: integer
+          description: Total vCPUs allocated to platform VMs
+
+    ScenarioResult:
+      type: object
+      description: Computed metrics for a scenario
+      properties:
+        cell_count:
+          type: integer
+        cell_memory_gb:
+          type: integer
+        cell_cpu:
+          type: integer
+        cell_disk_gb:
+          type: integer
+        app_capacity_gb:
+          type: integer
+        disk_capacity_gb:
+          type: integer
+        utilization_pct:
+          type: number
+          format: double
+        disk_utilization_pct:
+          type: number
+          format: double
+        free_chunks:
+          type: integer
+        n1_utilization_pct:
+          type: number
+          format: double
+        fault_impact:
+          type: integer
+        instances_per_cell:
+          type: number
+          format: double
+        estimated_tps:
+          type: integer
+        tps_status:
+          type: string
+          enum: [optimal, degraded, critical]
+        blast_radius_pct:
+          type: number
+          format: double
+          description: Percentage of capacity lost per single cell failure
+        total_vcpus:
+          type: integer
+        total_pcpus:
+          type: integer
+        vcpu_ratio:
+          type: number
+          format: double
+        cpu_risk_level:
+          type: string
+          enum: [conservative, moderate, aggressive]
+        max_cells_by_cpu:
+          type: integer
+        cpu_headroom_cells:
+          type: integer
+
+    ConfigChange:
+      type: object
+      description: Configuration change that triggered a warning
+      properties:
+        field:
+          type: string
+        previous_val:
+          type: integer
+        proposed_val:
+          type: integer
+        delta:
+          type: integer
+        delta_pct:
+          type: number
+          format: double
+
+    FixSuggestion:
+      type: object
+      description: How to resolve a warning
+      properties:
+        description:
+          type: string
+        field:
+          type: string
+        value:
+          type: integer
+
+    ScenarioWarning:
+      type: object
+      description: Tradeoff warning with optional context
+      properties:
+        severity:
+          type: string
+          enum: [info, warning, critical]
+        message:
+          type: string
+        change:
+          $ref: "#/components/schemas/ConfigChange"
+        fixes:
+          type: array
+          items:
+            $ref: "#/components/schemas/FixSuggestion"
+
+    ScenarioDelta:
+      type: object
+      description: Changes between current and proposed
+      properties:
+        capacity_change_gb:
+          type: integer
+        disk_capacity_change_gb:
+          type: integer
+        utilization_change_pct:
+          type: number
+          format: double
+        disk_utilization_change_pct:
+          type: number
+          format: double
+        resilience_change:
+          type: string
+          enum: [low, moderate, high]
+        vcpu_ratio_change:
+          type: number
+          format: double
+
+    CapacityConstraint:
+      type: object
+      description: Single constraint calculation (HA% or N-X)
+      properties:
+        type:
+          type: string
+          enum: [ha_admission, n_minus_x]
+        reserved_gb:
+          type: integer
+        reserved_pct:
+          type: number
+          format: double
+        usable_gb:
+          type: integer
+        n_equivalent:
+          type: integer
+          description: Hosts worth of capacity reserved
+        is_limiting:
+          type: boolean
+        utilization_pct:
+          type: number
+          format: double
+
+    ConstraintAnalysis:
+      type: object
+      description: Comparison of HA Admission Control vs N-X tolerance
+      properties:
+        ha_admission:
+          $ref: "#/components/schemas/CapacityConstraint"
+        n_minus_x:
+          $ref: "#/components/schemas/CapacityConstraint"
+        limiting_constraint:
+          type: string
+          enum: [ha_admission, n_minus_x]
+        limiting_label:
+          type: string
+          description: Human-readable label (e.g., "HA 25% (~N-4)")
+        insufficient_ha_warning:
+          type: boolean
+          description: True if HA% < N-1
+
+    Recommendation:
+      type: object
+      description: Actionable upgrade recommendation
+      properties:
+        type:
+          type: string
+          enum: [add_cells, resize_cells, add_hosts]
+        priority:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        impact:
+          type: string
+        impact_level:
+          type: string
+          enum: [low, medium, high]
+        resource:
+          type: string
+        cells_to_add:
+          type: integer
+        hosts_to_add:
+          type: integer
+        new_cell_memory_gb:
+          type: integer
+        new_cell_cpu:
+          type: integer
+
+    ScenarioComparison:
+      type: object
+      description: Full comparison response
+      required:
+        - current
+        - proposed
+        - warnings
+        - delta
+      properties:
+        current:
+          $ref: "#/components/schemas/ScenarioResult"
+        proposed:
+          $ref: "#/components/schemas/ScenarioResult"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScenarioWarning"
+        delta:
+          $ref: "#/components/schemas/ScenarioDelta"
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recommendation"
+        constraints:
+          $ref: "#/components/schemas/ConstraintAnalysis"
+
+    ResourceUtilization:
+      type: object
+      description: Utilization of a single resource type
+      properties:
+        name:
+          type: string
+        used_percent:
+          type: number
+          format: double
+        total_capacity:
+          type: integer
+        used_capacity:
+          type: integer
+        unit:
+          type: string
+        is_constraining:
+          type: boolean
+
+    BottleneckAnalysis:
+      type: object
+      description: Multi-resource bottleneck analysis result
+      required:
+        - resources
+        - constraining_resource
+        - summary
+      properties:
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResourceUtilization"
+        constraining_resource:
+          type: string
+        summary:
+          type: string
+
+    RecommendationsResponse:
+      type: object
+      description: Recommendations with context
+      required:
+        - recommendations
+        - constraining_resource
+      properties:
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recommendation"
+        constraining_resource:
+          type: string

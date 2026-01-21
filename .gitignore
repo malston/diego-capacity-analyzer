@@ -45,3 +45,6 @@ cli/diego-capacity
 !.claude/CLAUDE.md
 !/CLAUDE.md
 .claudeup/
+
+# OpenAPI documentation server (generated)
+.openapi-server/
