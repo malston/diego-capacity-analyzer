@@ -153,7 +153,32 @@ openapi-serve: ## Serve OpenAPI docs via Swagger UI (PORT=$(OPENAPI_PORT))
 		curl -sL https://unpkg.com/swagger-ui-dist@5/swagger-ui.css -o $(OPENAPI_SERVER_DIR)/swagger-ui.css; \
 	fi
 	@if [ ! -f "$(OPENAPI_SERVER_DIR)/index.html" ]; then \
-		echo '<!DOCTYPE html><html><head><title>Diego Capacity Analyzer API</title><link rel="stylesheet" href="swagger-ui.css"></head><body><div id="swagger-ui"></div><script src="swagger-ui-bundle.js"></script><script src="swagger-ui-standalone-preset.js"></script><script>SwaggerUIBundle({url:"openapi.yaml",dom_id:"#swagger-ui",presets:[SwaggerUIBundle.presets.apis,SwaggerUIStandalonePreset],layout:"StandaloneLayout"});</script></body></html>' > $(OPENAPI_SERVER_DIR)/index.html; \
+		printf '%s\n' \
+			'<!DOCTYPE html>' \
+			'<html lang="en">' \
+			'<head>' \
+			'  <meta charset="UTF-8">' \
+			'  <title>Diego Capacity Analyzer API</title>' \
+			'  <link rel="stylesheet" type="text/css" href="swagger-ui.css">' \
+			'</head>' \
+			'<body>' \
+			'  <div id="swagger-ui"></div>' \
+			'  <script src="swagger-ui-bundle.js"></script>' \
+			'  <script src="swagger-ui-standalone-preset.js"></script>' \
+			'  <script>' \
+			'    window.onload = function() {' \
+			'      window.ui = SwaggerUIBundle({' \
+			'        url: "openapi.yaml",' \
+			'        dom_id: "#swagger-ui",' \
+			'        deepLinking: true,' \
+			'        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],' \
+			'        plugins: [SwaggerUIBundle.plugins.DownloadUrl],' \
+			'        layout: "StandaloneLayout"' \
+			'      });' \
+			'    };' \
+			'  </script>' \
+			'</body>' \
+			'</html>' > $(OPENAPI_SERVER_DIR)/index.html; \
 	fi
 	@echo "Serving OpenAPI docs at http://localhost:$(OPENAPI_PORT)"
 	@cd $(OPENAPI_SERVER_DIR) && python3 -m http.server $(OPENAPI_PORT)
