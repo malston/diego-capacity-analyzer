@@ -372,6 +372,90 @@ phase_prereqs() {
 }
 
 #######################################
+# Phase 2: Environment
+#######################################
+phase_env() {
+    CURRENT_PHASE="env"
+    log_info "Phase 2: Generating environment"
+
+    if state_is_complete "ENV" && [[ "$FRESH" != "true" ]]; then
+        log_success "Phase 2 already complete (skipping)"
+        return 0
+    fi
+
+    local env_file="$PROJECT_ROOT/.env"
+    local generate_script="$PROJECT_ROOT/generate-env.sh"
+
+    # Check if .env already exists with required variables
+    if [[ -f "$env_file" ]]; then
+        log_debug "Checking existing .env file..."
+        local has_required=true
+        for var in BOSH_ENVIRONMENT CF_API_URL CF_USERNAME CF_PASSWORD; do
+            if ! grep -q "^$var=" "$env_file" 2>/dev/null; then
+                log_debug "Missing $var in .env"
+                has_required=false
+                break
+            fi
+        done
+        if [[ "$has_required" == "true" ]]; then
+            log_success ".env already exists with required variables"
+            state_set "ENV" "complete"
+            log_success "Phase 2 complete"
+            return 0
+        fi
+    fi
+
+    # Need to generate .env
+    if [[ ! -f "$generate_script" ]]; then
+        log_error "generate-env.sh not found at $generate_script"
+        return 1
+    fi
+
+    # Check required Ops Manager credentials
+    if [[ -z "${OM_TARGET:-}" ]]; then
+        log_error "OM_TARGET is required to generate credentials"
+        log_error "Set OM_TARGET in config/deploy.conf or environment"
+        return 1
+    fi
+
+    local has_auth=false
+    if [[ -n "${OM_USERNAME:-}" && -n "${OM_PASSWORD:-}" ]]; then
+        has_auth=true
+    fi
+    if [[ -n "${OM_CLIENT_ID:-}" && -n "${OM_CLIENT_SECRET:-}" ]]; then
+        has_auth=true
+    fi
+    if [[ "$has_auth" == "false" ]]; then
+        log_error "Missing Ops Manager authentication"
+        log_error "Set OM_USERNAME/OM_PASSWORD or OM_CLIENT_ID/OM_CLIENT_SECRET"
+        return 1
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would run: $generate_script"
+        state_set "ENV" "complete"
+        log_success "Phase 2 complete (dry-run)"
+        return 0
+    fi
+
+    log_info "Running generate-env.sh..."
+    if ! "$generate_script"; then
+        log_error "generate-env.sh failed"
+        return 1
+    fi
+
+    # Verify .env was created
+    if [[ ! -f "$env_file" ]]; then
+        log_error ".env file was not created"
+        return 1
+    fi
+
+    log_success ".env generated with credentials"
+    state_set "ENV" "complete"
+    log_success "Phase 2 complete"
+}
+
+#######################################
 # Main entry point
 #######################################
 main() {
@@ -406,7 +490,7 @@ main() {
         # Single phase mode
         case "$PHASE" in
             prereqs)  phase_prereqs ;;
-            env)      log_info "Phase env not yet implemented" ;;
+            env)      phase_env ;;
             backend)  log_info "Phase backend not yet implemented" ;;
             frontend) log_info "Phase frontend not yet implemented" ;;
             verify)   log_info "Phase verify not yet implemented" ;;
@@ -416,6 +500,7 @@ main() {
         if [[ "$SKIP_PREREQS" != "true" ]]; then
             phase_prereqs
         fi
+        phase_env
         log_info "Remaining phases not yet implemented"
     fi
 }
