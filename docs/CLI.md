@@ -49,26 +49,27 @@ diego-capacity
 
 ### Features
 
-| Feature | Description |
-|---------|-------------|
-| **Data Source Menu** | Choose between live vSphere, JSON file upload, or manual input |
-| **Split-Pane Dashboard** | Infrastructure metrics on left, actions on right |
-| **Scenario Wizard** | Step-by-step what-if analysis with cell sizing and HA configuration |
-| **Comparison View** | Side-by-side current vs proposed scenarios with delta highlights |
+| Feature                  | Description                                                         |
+| ------------------------ | ------------------------------------------------------------------- |
+| **Data Source Menu**     | Choose between live vSphere, JSON file upload, or manual input      |
+| **Split-Pane Dashboard** | Infrastructure metrics on left, actions on right                    |
+| **Scenario Wizard**      | Step-by-step what-if analysis with cell sizing and HA configuration |
+| **Comparison View**      | Side-by-side current vs proposed scenarios with delta highlights    |
 
 ### Keyboard Shortcuts
 
-| Key | Context | Action |
-|-----|---------|--------|
-| `w` | Dashboard | Run scenario wizard |
-| `r` | Dashboard | Refresh infrastructure data |
-| `b` | Comparison | Go back to dashboard |
-| `q` | Any | Quit application |
-| `Ctrl+C` | Any | Quit application |
+| Key      | Context    | Action                      |
+| -------- | ---------- | --------------------------- |
+| `w`      | Dashboard  | Run scenario wizard         |
+| `r`      | Dashboard  | Refresh infrastructure data |
+| `b`      | Comparison | Go back to dashboard        |
+| `q`      | Any        | Quit application            |
+| `Ctrl+C` | Any        | Quit application            |
 
 ### TUI Screenshots
 
 **Data Source Selection:**
+
 ```
 ┌──────────────────────────────────────────────────┐
 │  Diego Capacity Analyzer                         │
@@ -84,6 +85,7 @@ diego-capacity
 ```
 
 **Dashboard with Actions:**
+
 ```
 ┌─────────────────────────────────┬────────────────────────────┐
 │  Current Infrastructure         │  Actions                   │
@@ -111,24 +113,33 @@ diego-capacity health --json
 ```
 
 **Output (human-readable):**
+
 ```
-Backend Status: healthy
-API Version: 1.0.0
-Uptime: 2h 15m 30s
+Backend:      http://localhost:8080
+CF API:       ok
+BOSH:         ok
+Cells Cached: true
+Apps Cached:  false
 ```
 
 **Output (JSON):**
+
 ```json
 {
-  "status": "healthy",
-  "version": "1.0.0",
-  "uptime": "2h15m30s"
+  "backend": "http://localhost:8080",
+  "cf_api": "ok",
+  "bosh_api": "ok",
+  "cache_status": {
+    "cells_cached": true,
+    "apps_cached": false
+  }
 }
 ```
 
 **Exit Codes:**
-- `0` - Backend is healthy
-- `2` - Connection failed or backend unhealthy
+
+- `0` - Backend is reachable
+- `2` - Connection failed
 
 ---
 
@@ -142,43 +153,47 @@ diego-capacity status --json
 ```
 
 **Output (human-readable):**
+
 ```
-Infrastructure Status
-=====================
-Data Source: vSphere (vcenter.example.com)
-Last Updated: 2024-01-15 14:30:00
+Infrastructure: production-dc (vsphere)
+Clusters:       2
+Hosts:          8
+Diego Cells:    24
 
-Clusters: 2
-Hosts: 8
-Diego Cells: 24
+N-1 Capacity:   78% [ok]
+Memory:         77% [ok]
+Constraining:   memory
+```
 
-Memory:
-  Total: 512 GB
-  Used: 398 GB
-  Utilization: 77.7%
+**Output when no data is loaded:**
 
-N-1 Status: OK (can survive 1 host failure)
-HA Status: OK
+```
+No infrastructure data loaded.
+vSphere is not configured.
+Load data via UI or API first.
 ```
 
 **Output (JSON):**
+
 ```json
 {
+  "has_data": true,
   "source": "vsphere",
+  "name": "production-dc",
+  "cluster_count": 2,
+  "host_count": 8,
+  "cell_count": 24,
+  "constraining_resource": "memory",
   "vsphere_configured": true,
-  "last_updated": "2024-01-15T14:30:00Z",
-  "clusters": 2,
-  "hosts": 8,
-  "diego_cells": 24,
-  "memory_total_gb": 512,
-  "memory_used_gb": 398,
-  "memory_utilization_pct": 77.7,
+  "memory_utilization": 77.7,
+  "n1_capacity_percent": 78.2,
   "n1_status": "ok",
   "ha_status": "ok"
 }
 ```
 
 **Exit Codes:**
+
 - `0` - Status retrieved successfully
 - `2` - Connection failed or no data available
 
@@ -196,32 +211,55 @@ diego-capacity check --json
 
 **Flags:**
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--memory-threshold` | 80 | Memory utilization warning threshold (%) |
-| `--n1-threshold` | 85 | N-1 utilization warning threshold (%) |
+| Flag                 | Default | Description                              |
+| -------------------- | ------- | ---------------------------------------- |
+| `--memory-threshold` | 90      | Memory utilization warning threshold (%) |
+| `--n1-threshold`     | 85      | N-1 capacity warning threshold (%)       |
 
 **Output (human-readable):**
-```
-Capacity Check
-==============
-Memory Utilization: 77.7% (threshold: 85%) ✓
-N-1 Utilization: 82.3% (threshold: 90%) ✓
 
-Status: OK
+```
+✓ N-1 capacity: 78% (threshold: 85%)
+✓ Memory utilization: 77% (threshold: 90%)
+
+PASSED: All 2 check(s) within thresholds
 ```
 
 **Output when threshold exceeded:**
-```
-Capacity Check
-==============
-Memory Utilization: 88.5% (threshold: 85%) ✗ EXCEEDED
-N-1 Utilization: 82.3% (threshold: 90%) ✓
 
-Status: WARNING - 1 threshold exceeded
+```
+✓ N-1 capacity: 78% (threshold: 85%)
+✗ Memory utilization: 92% (threshold: 90%)
+
+FAILED: 1 check(s) exceeded threshold
+```
+
+**Output (JSON):**
+
+```json
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "N-1 capacity",
+      "value": 78,
+      "threshold": 85,
+      "unit": "%",
+      "passed": true
+    },
+    {
+      "name": "Memory utilization",
+      "value": 77,
+      "threshold": 90,
+      "unit": "%",
+      "passed": true
+    }
+  ]
+}
 ```
 
 **Exit Codes:**
+
 - `0` - All checks passed
 - `1` - One or more thresholds exceeded
 - `2` - Connection failed or no data available
@@ -239,24 +277,25 @@ diego-capacity scenario --cell-memory 64 --cell-cpu 8 --cell-count 20 --json
 
 **Flags:**
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--cell-memory` | 64 | Memory per cell in GB |
-| `--cell-cpu` | 8 | CPU cores per cell |
-| `--cell-disk` | 200 | Disk per cell in GB |
-| `--cell-count` | 10 | Proposed number of cells |
+| Flag            | Default | Description              |
+| --------------- | ------- | ------------------------ |
+| `--cell-memory` | 64      | Memory per cell in GB    |
+| `--cell-cpu`    | 8       | CPU cores per cell       |
+| `--cell-disk`   | 200     | Disk per cell in GB      |
+| `--cell-count`  | 10      | Proposed number of cells |
 
 **Output (human-readable):**
+
 ```
 Scenario Comparison
 ==================
 
 Current:
-  Cells: 24 × 64 GB
+  Cells: 24 x 64 GB
   Utilization: 77.7%
 
 Proposed:
-  Cells: 20 × 64 GB
+  Cells: 20 x 64 GB
   Utilization: 93.2%
 
 Changes:
@@ -269,32 +308,50 @@ Warnings:
 ```
 
 **Output (JSON):**
+
 ```json
 {
   "current": {
     "cell_count": 24,
     "cell_memory_gb": 64,
-    "utilization_pct": 77.7
+    "cell_cpu": 8,
+    "cell_disk_gb": 200,
+    "app_capacity_gb": 1280,
+    "utilization_pct": 77.7,
+    "free_chunks": 72,
+    "n1_utilization_pct": 82.3,
+    "vcpu_ratio": 3.2
   },
   "proposed": {
     "cell_count": 20,
     "cell_memory_gb": 64,
-    "utilization_pct": 93.2
+    "cell_cpu": 8,
+    "cell_disk_gb": 200,
+    "app_capacity_gb": 1024,
+    "utilization_pct": 93.2,
+    "free_chunks": 17,
+    "n1_utilization_pct": 98.5,
+    "vcpu_ratio": 3.2
   },
   "delta": {
     "capacity_change_gb": -256,
-    "utilization_change_pct": 15.5
+    "utilization_change_pct": 15.5,
+    "resilience_change": "degraded"
   },
   "warnings": [
-    {"severity": "warning", "message": "Utilization exceeds 90% threshold"},
-    {"severity": "critical", "message": "N-1 capacity insufficient for host failure"}
+    { "severity": "warning", "message": "Utilization exceeds 90% threshold" },
+    {
+      "severity": "critical",
+      "message": "N-1 capacity insufficient for host failure"
+    }
   ]
 }
 ```
 
 **Exit Codes:**
-- `0` - Scenario comparison completed
-- `2` - Connection failed or error
+
+- `0` - Scenario comparison completed successfully
+- `1` - Error (connection failed, no data, backend error)
 
 ---
 
@@ -302,11 +359,11 @@ Warnings:
 
 These flags apply to all commands:
 
-| Flag | Description |
-|------|-------------|
-| `--api-url` | Backend API URL (overrides `DIEGO_CAPACITY_API_URL`) |
-| `--json` | Output JSON instead of human-readable text |
-| `-h, --help` | Show help for command |
+| Flag         | Description                                          |
+| ------------ | ---------------------------------------------------- |
+| `--api-url`  | Backend API URL (overrides `DIEGO_CAPACITY_API_URL`) |
+| `--json`     | Output JSON instead of human-readable text           |
+| `-h, --help` | Show help for command                                |
 
 ## CI/CD Integration
 
@@ -316,7 +373,7 @@ These flags apply to all commands:
 name: Capacity Check
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
+    - cron: "0 */6 * * *" # Every 6 hours
 
 jobs:
   check-capacity:
@@ -385,12 +442,12 @@ echo "Capacity OK"
 
 The CLI automatically detects whether it's running in an interactive terminal:
 
-| Context | Behavior |
-|---------|----------|
-| Interactive terminal | Launches TUI |
-| Piped output (`diego-capacity \| cat`) | Shows help |
-| `--json` flag | Shows help (use subcommands for JSON output) |
-| Non-TTY (CI/CD) | Shows help |
+| Context                                | Behavior                                     |
+| -------------------------------------- | -------------------------------------------- |
+| Interactive terminal                   | Launches TUI                                 |
+| Piped output (`diego-capacity \| cat`) | Shows help                                   |
+| `--json` flag                          | Shows help (use subcommands for JSON output) |
+| Non-TTY (CI/CD)                        | Shows help                                   |
 
 To always get non-interactive output, use a specific subcommand:
 
