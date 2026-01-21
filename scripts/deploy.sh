@@ -5,6 +5,31 @@
 set -Eeuo pipefail
 
 #######################################
+# Logging functions
+#######################################
+log_info() {
+    echo -e "\033[0;34m[INFO]\033[0m $*"
+}
+
+log_success() {
+    echo -e "\033[0;32m[OK]\033[0m   $*"
+}
+
+log_warn() {
+    echo -e "\033[0;33m[WARN]\033[0m $*"
+}
+
+log_error() {
+    echo -e "\033[0;31m[ERROR]\033[0m $*" >&2
+}
+
+log_debug() {
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo -e "\033[0;90m[DEBUG]\033[0m $*"
+    fi
+}
+
+#######################################
 # Error handling
 #######################################
 cleanup() {
@@ -58,31 +83,6 @@ PHASE=""
 # Current execution state
 #######################################
 CURRENT_PHASE=""
-
-#######################################
-# Logging functions
-#######################################
-log_info() {
-    echo -e "\033[0;34m[INFO]\033[0m $*"
-}
-
-log_success() {
-    echo -e "\033[0;32m[OK]\033[0m   $*"
-}
-
-log_warn() {
-    echo -e "\033[0;33m[WARN]\033[0m $*"
-}
-
-log_error() {
-    echo -e "\033[0;31m[ERROR]\033[0m $*" >&2
-}
-
-log_debug() {
-    if [[ "$VERBOSE" == "true" ]]; then
-        echo -e "\033[0;90m[DEBUG]\033[0m $*"
-    fi
-}
 
 #######################################
 # Configuration loading
