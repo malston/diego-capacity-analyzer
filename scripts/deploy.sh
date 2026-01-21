@@ -79,6 +79,39 @@ validate_no_placeholder() {
     fi
 }
 
+# Load .env file without overwriting existing environment variables
+# Handles multi-line values (like certificates) by using source + save/restore
+load_env_file() {
+    local env_file="$1"
+
+    if [[ ! -f "$env_file" ]]; then
+        return 1
+    fi
+
+    log_debug "Loading .env (existing env vars take precedence)"
+
+    # Save existing env vars that we care about
+    declare -A saved_vars
+    local important_vars="CF_API_URL CF_USERNAME CF_PASSWORD BOSH_ENVIRONMENT BOSH_CLIENT BOSH_CLIENT_SECRET BOSH_CA_CERT BOSH_ALL_PROXY BOSH_DEPLOYMENT VSPHERE_HOST VSPHERE_DATACENTER VSPHERE_USERNAME VSPHERE_PASSWORD"
+    for var in $important_vars; do
+        if [[ -n "${!var+x}" ]]; then
+            saved_vars[$var]="${!var}"
+            log_debug "  Preserving existing $var"
+        fi
+    done
+
+    # Source the .env file (handles multi-line values properly)
+    set +u
+    # shellcheck source=/dev/null
+    source "$env_file"
+    set -u
+
+    # Restore saved values (env takes precedence over .env file)
+    for var in "${!saved_vars[@]}"; do
+        export "$var=${saved_vars[$var]}"
+    done
+}
+
 #######################################
 # Constants
 #######################################
@@ -513,13 +546,9 @@ phase_backend() {
     local env_file="$PROJECT_ROOT/.env"
     local backend_dir="$PROJECT_ROOT/backend"
 
-    # Source .env for credentials
+    # Load .env for credentials (existing env vars take precedence)
     if [[ -f "$env_file" ]]; then
-        log_debug "Loading credentials from .env"
-        set +u  # Temporarily allow unset variables during source
-        # shellcheck source=/dev/null
-        source "$env_file"
-        set -u
+        load_env_file "$env_file"
     else
         log_error ".env file not found. Run phase 'env' first."
         return 1
@@ -542,6 +571,20 @@ phase_backend() {
     if [[ ! -d "$backend_dir" ]]; then
         log_error "Backend directory not found: $backend_dir"
         return 1
+    fi
+
+    # Check manifest.yml for placeholder values
+    local manifest_file="$backend_dir/manifest.yml"
+    if [[ -f "$manifest_file" ]]; then
+        local placeholders="CHANGEME|example\.com|your-domain|placeholder|PLACEHOLDER"
+        if grep -qE "$placeholders" "$manifest_file"; then
+            log_error "manifest.yml contains placeholder values:"
+            grep -nE "$placeholders" "$manifest_file" | while read -r line; do
+                log_error "  $line"
+            done
+            log_error "Fix $manifest_file before deploying"
+            return 1
+        fi
     fi
 
     # Target CF org/space
@@ -651,6 +694,20 @@ phase_frontend() {
     if [[ ! -d "$frontend_dir" ]]; then
         log_error "Frontend directory not found: $frontend_dir"
         return 1
+    fi
+
+    # Check manifest.yml for placeholder values
+    local manifest_file="$frontend_dir/manifest.yml"
+    if [[ -f "$manifest_file" ]]; then
+        local placeholders="CHANGEME|example\.com|your-domain|placeholder|PLACEHOLDER"
+        if grep -qE "$placeholders" "$manifest_file"; then
+            log_error "manifest.yml contains placeholder values:"
+            grep -nE "$placeholders" "$manifest_file" | while read -r line; do
+                log_error "  $line"
+            done
+            log_error "Fix $manifest_file before deploying"
+            return 1
+        fi
     fi
 
     # Check backend URL is available
