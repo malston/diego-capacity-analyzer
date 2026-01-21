@@ -657,6 +657,99 @@ phase_frontend() {
 }
 
 #######################################
+# Phase 5: Verify
+#######################################
+phase_verify() {
+    CURRENT_PHASE="verify"
+    log_info "Phase 5: Verifying deployment"
+
+    if state_is_complete "VERIFY" && [[ "$FRESH" != "true" ]]; then
+        log_success "Phase 5 already complete (skipping)"
+        return 0
+    fi
+
+    local backend_url
+    local frontend_url
+    backend_url=$(state_get "BACKEND_URL")
+    frontend_url=$(state_get "FRONTEND_URL")
+
+    if [[ -z "$backend_url" ]]; then
+        log_error "Backend URL not found in state. Run phase 'backend' first."
+        return 1
+    fi
+
+    local failed=false
+
+    # Test backend health endpoint
+    log_info "Testing backend health endpoint..."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would test: https://$backend_url/api/v1/health"
+        log_success "/api/v1/health returns 200 (dry-run)"
+    else
+        local health_status
+        health_status=$(curl -s -o /dev/null -w "%{http_code}" "https://$backend_url/api/v1/health" || echo "000")
+        if [[ "$health_status" == "200" ]]; then
+            log_success "/api/v1/health returns 200"
+        else
+            log_error "/api/v1/health returned $health_status (expected 200)"
+            failed=true
+        fi
+    fi
+
+    # Test backend dashboard endpoint
+    log_info "Testing backend dashboard endpoint..."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would test: https://$backend_url/api/v1/dashboard"
+        log_success "/api/v1/dashboard returns valid JSON (dry-run)"
+    else
+        local dashboard_response
+        dashboard_response=$(curl -s "https://$backend_url/api/v1/dashboard" || echo "")
+        if echo "$dashboard_response" | jq . >/dev/null 2>&1; then
+            log_success "/api/v1/dashboard returns valid JSON"
+        else
+            log_error "/api/v1/dashboard did not return valid JSON"
+            failed=true
+        fi
+    fi
+
+    # Test frontend is accessible
+    if [[ -n "$frontend_url" ]]; then
+        log_info "Testing frontend accessibility..."
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log_info "[DRY-RUN] Would test: https://$frontend_url"
+            log_success "Frontend accessible (dry-run)"
+        else
+            local frontend_status
+            frontend_status=$(curl -s -o /dev/null -w "%{http_code}" "https://$frontend_url" || echo "000")
+            if [[ "$frontend_status" == "200" ]]; then
+                log_success "Frontend accessible at https://$frontend_url"
+            else
+                log_error "Frontend returned $frontend_status (expected 200)"
+                failed=true
+            fi
+        fi
+    fi
+
+    if [[ "$failed" == "true" ]]; then
+        log_error "Verification failed"
+        return 1
+    fi
+
+    state_set "VERIFY" "complete"
+    log_success "Phase 5 complete"
+
+    # Print summary
+    echo ""
+    echo "========================================"
+    log_success "Deployment successful!"
+    echo "     Backend:  https://$backend_url"
+    if [[ -n "$frontend_url" ]]; then
+        echo "     Frontend: https://$frontend_url"
+    fi
+    echo "========================================"
+}
+
+#######################################
 # Main entry point
 #######################################
 main() {
@@ -694,7 +787,7 @@ main() {
             env)      phase_env ;;
             backend)  phase_backend ;;
             frontend) phase_frontend ;;
-            verify)   log_info "Phase verify not yet implemented" ;;
+            verify)   phase_verify ;;
         esac
     else
         # Run all phases
@@ -704,8 +797,10 @@ main() {
         phase_env
         phase_backend
         phase_frontend
-        log_info "Remaining phases not yet implemented (verify)"
+        phase_verify
     fi
+
+    CURRENT_PHASE=""
 }
 
 main "$@"
