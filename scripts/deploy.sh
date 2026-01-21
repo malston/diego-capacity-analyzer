@@ -14,15 +14,6 @@ readonly STATE_DIR="$PROJECT_ROOT/.state"
 readonly STATE_FILE="$STATE_DIR/deploy-state"
 
 #######################################
-# Default configuration values
-#######################################
-: "${CF_ORG:=system}"
-: "${CF_SPACE:=system}"
-: "${BACKEND_APP_NAME:=capacity-backend}"
-: "${FRONTEND_APP_NAME:=capacity-ui}"
-: "${OM_SKIP_SSL_VALIDATION:=false}"
-
-#######################################
 # Script options
 #######################################
 VERBOSE=false
@@ -59,6 +50,32 @@ log_debug() {
     if [[ "$VERBOSE" == "true" ]]; then
         echo -e "\033[0;90m[DEBUG]\033[0m $*"
     fi
+}
+
+#######################################
+# Configuration loading
+#######################################
+load_config() {
+    # Load from config file if it exists
+    if [[ -f "$CONFIG_FILE" ]]; then
+        log_info "Loading config from $CONFIG_FILE"
+        # shellcheck source=/dev/null
+        source "$CONFIG_FILE"
+    else
+        log_debug "No config file found at $CONFIG_FILE, using environment variables"
+    fi
+
+    # Apply defaults for any unset variables
+    : "${CF_ORG:=system}"
+    : "${CF_SPACE:=system}"
+    : "${BACKEND_APP_NAME:=capacity-backend}"
+    : "${FRONTEND_APP_NAME:=capacity-ui}"
+    : "${OM_SKIP_SSL_VALIDATION:=false}"
+
+    # Export for child processes (generate-env.sh)
+    export OM_TARGET OM_USERNAME OM_PASSWORD OM_SKIP_SSL_VALIDATION
+    export OM_CLIENT_ID OM_CLIENT_SECRET OM_PRIVATE_KEY
+    export CF_ORG CF_SPACE BACKEND_APP_NAME FRONTEND_APP_NAME
 }
 
 #######################################
@@ -171,15 +188,21 @@ main() {
         log_warn "Dry-run mode: no changes will be made"
     fi
 
+    load_config
+
     if [[ "$VERBOSE" == "true" ]]; then
         log_debug "Verbose mode enabled"
+        log_debug "CF_ORG=$CF_ORG"
+        log_debug "CF_SPACE=$CF_SPACE"
+        log_debug "BACKEND_APP_NAME=$BACKEND_APP_NAME"
+        log_debug "FRONTEND_APP_NAME=$FRONTEND_APP_NAME"
     fi
 
     if [[ -n "$PHASE" ]]; then
         log_info "Running single phase: $PHASE"
     fi
 
-    log_info "Argument parsing complete (implementation pending)"
+    log_info "Configuration loaded (implementation pending)"
 }
 
 main "$@"
