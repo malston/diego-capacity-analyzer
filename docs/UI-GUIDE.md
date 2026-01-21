@@ -686,10 +686,10 @@ Where Usable Capacity = Total Cluster Memory - Reserved Capacity (HA or N-1, whi
 
 Available 4GB memory chunks for `cf push` staging operations.
 
-| Message                            | Severity | Triggered When    | What It Means                                                                                            |
-| ---------------------------------- | -------- | ----------------- | -------------------------------------------------------------------------------------------------------- |
-| **Critical: Low staging capacity** | Critical | Free Chunks < 200 | Deployments will queue significantly. Concurrent `cf push` operations will time out.                     |
-| **Low staging capacity**           | Warning  | Free Chunks < 400 | Staging may queue during busy deployment periods. Plan capacity additions before the next release cycle. |
+| Message                            | Severity | Triggered When   | What It Means                                                              |
+| ---------------------------------- | -------- | ---------------- | -------------------------------------------------------------------------- |
+| **Critical: Low staging capacity** | Critical | Free Chunks < 10 | Less than 40GB staging capacity. Deployments will queue significantly.     |
+| **Low staging capacity**           | Warning  | Free Chunks < 20 | Less than 80GB staging capacity. May queue during busy deployment periods. |
 
 **Formula:** `Free Chunks = (App Capacity - Total App Memory) / 4 GB`
 
@@ -762,5 +762,3 @@ The cell configuration comparison shows a resilience indicator between current a
 | Fault Impact        | < 25       | 25-49       | ≥ 50       |
 | Instances/Cell      | < 30       | 30-49       | ≥ 50       |
 | vCPU:pCPU Ratio     | ≤ 4:1      | 4:1-8:1     | > 8:1      |
-
-**Note:** Free Chunks has two threshold sets: the gauge status uses 20/10 (shown above), while backend warning messages use 200/400 (see [Staging Capacity warnings](#staging-capacity-free-chunks-1)).

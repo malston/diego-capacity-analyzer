@@ -289,10 +289,10 @@ func (c *ScenarioCalculator) calculateFull(
 	n1MemoryGB int,
 	overheadPct float64,
 	tpsCurve []models.TPSPt,
-	hostCount int,            // for CPU ratio calculation
+	hostCount int, // for CPU ratio calculation
 	physicalCoresPerHost int, // for CPU ratio calculation
-	targetVCPURatio float64,  // for max cells by CPU calculation (0 = default 4:1)
-	platformVMsCPU int,       // for max cells by CPU calculation
+	targetVCPURatio float64, // for max cells by CPU calculation (0 = default 4:1)
+	platformVMsCPU int, // for max cells by CPU calculation
 ) models.ScenarioResult {
 	// Memory overhead as percentage
 	memoryOverhead := int(float64(cellMemoryGB) * (overheadPct / 100))
@@ -496,13 +496,15 @@ func (c *ScenarioCalculator) GenerateWarnings(current, proposed models.ScenarioR
 	}
 
 	// Free chunks warnings (only when memory is selected)
+	// Thresholds: < 10 = critical (< 40GB staging capacity)
+	//             < 20 = warning (< 80GB staging capacity)
 	if isResourceSelected(selectedResources, "memory") {
-		if proposed.FreeChunks < 200 {
+		if proposed.FreeChunks < 10 {
 			warnings = append(warnings, models.ScenarioWarning{
 				Severity: "critical",
 				Message:  "Critical: Low staging capacity",
 			})
-		} else if proposed.FreeChunks < 400 {
+		} else if proposed.FreeChunks < 20 {
 			warnings = append(warnings, models.ScenarioWarning{
 				Severity: "warning",
 				Message:  "Low staging capacity",

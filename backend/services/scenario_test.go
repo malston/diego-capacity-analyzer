@@ -154,7 +154,7 @@ func TestGenerateWarnings_LowFreeChunks(t *testing.T) {
 	}
 	proposed := models.ScenarioResult{
 		N1UtilizationPct: 70,
-		FreeChunks:       150, // < 200 = critical
+		FreeChunks:       5, // < 10 = critical
 		CellCount:        100,
 	}
 
@@ -169,22 +169,22 @@ func TestGenerateWarnings_LowFreeChunks(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Error("Expected critical warning for free chunks < 200")
+		t.Error("Expected critical warning for free chunks < 10")
 	}
 }
 
 func TestGenerateWarnings_BlastRadius(t *testing.T) {
 	// Test that blast radius warnings fire based on ABSOLUTE impact, not relative change
 	tests := []struct {
-		name            string
-		proposedCells   int
-		blastRadiusPct  float64
-		expectWarning   bool
-		expectCritical  bool
+		name           string
+		proposedCells  int
+		blastRadiusPct float64
+		expectWarning  bool
+		expectCritical bool
 	}{
 		{"Large foundation (100 cells)", 100, 1.0, false, false},
 		{"Medium foundation (20 cells)", 20, 5.0, false, false},
-		{"Small foundation (8 cells)", 8, 12.5, true, false},  // >10% triggers warning
+		{"Small foundation (8 cells)", 8, 12.5, true, false},     // >10% triggers warning
 		{"Very small foundation (4 cells)", 4, 25.0, true, true}, // >20% triggers critical
 	}
 
@@ -666,15 +666,15 @@ func TestResilienceWarning_LargeFoundation_NoWarning(t *testing.T) {
 	// 500 → 250 cells is a 50% reduction, but blast radius only goes from 0.2% → 0.4%
 	// This should NOT trigger a resilience warning - it's still very safe
 	current := models.ScenarioResult{
-		CellCount:       500,
-		BlastRadiusPct:  0.2,
-		UtilizationPct:  50,
+		CellCount:        500,
+		BlastRadiusPct:   0.2,
+		UtilizationPct:   50,
 		N1UtilizationPct: 55,
 	}
 	proposed := models.ScenarioResult{
-		CellCount:       250,
-		BlastRadiusPct:  0.4,
-		UtilizationPct:  50,
+		CellCount:        250,
+		BlastRadiusPct:   0.4,
+		UtilizationPct:   50,
 		N1UtilizationPct: 55,
 	}
 
@@ -692,15 +692,15 @@ func TestResilienceWarning_SmallFoundation_Warning(t *testing.T) {
 	// 10 → 5 cells means blast radius goes from 10% → 20%
 	// This SHOULD trigger a warning - losing one cell loses 20% of capacity
 	current := models.ScenarioResult{
-		CellCount:       10,
-		BlastRadiusPct:  10.0,
-		UtilizationPct:  50,
+		CellCount:        10,
+		BlastRadiusPct:   10.0,
+		UtilizationPct:   50,
 		N1UtilizationPct: 55,
 	}
 	proposed := models.ScenarioResult{
-		CellCount:       5,
-		BlastRadiusPct:  20.0,
-		UtilizationPct:  50,
+		CellCount:        5,
+		BlastRadiusPct:   20.0,
+		UtilizationPct:   50,
 		N1UtilizationPct: 55,
 	}
 
@@ -1561,11 +1561,11 @@ func TestCPUHeadroomCells(t *testing.T) {
 			cellCount:         10,
 			cellCPU:           4,
 			hostCount:         3,
-			physicalCores:     32,  // 96 pCPUs total
-			targetRatio:       4,   // 4:1 = 384 max vCPU
-			platformVMsCPU:    24,  // 360 available for cells
-			wantMaxCells:      90,  // 360 / 4 = 90
-			wantHeadroomCells: 80,  // 90 - 10 = 80
+			physicalCores:     32, // 96 pCPUs total
+			targetRatio:       4,  // 4:1 = 384 max vCPU
+			platformVMsCPU:    24, // 360 available for cells
+			wantMaxCells:      90, // 360 / 4 = 90
+			wantHeadroomCells: 80, // 90 - 10 = 80
 		},
 		{
 			name:              "zero headroom - at limit",
@@ -1809,10 +1809,10 @@ func TestGenerateWarnings_SelectedResources_MemoryFiltered(t *testing.T) {
 		UtilizationPct:   50,
 	}
 	proposed := models.ScenarioResult{
-		N1UtilizationPct: 90,  // > 85% = critical warning (if memory selected)
-		FreeChunks:       100, // < 200 = critical warning (if memory selected)
-		CellCount:        4,   // 25% blast radius = critical (if memory selected)
-		UtilizationPct:   95,  // > 90% = critical (if memory selected)
+		N1UtilizationPct: 90, // > 85% = critical warning (if memory selected)
+		FreeChunks:       5,  // < 10 = critical warning (if memory selected)
+		CellCount:        4,  // 25% blast radius = critical (if memory selected)
+		UtilizationPct:   95, // > 90% = critical (if memory selected)
 		BlastRadiusPct:   25,
 	}
 
