@@ -1,24 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "env": {
-    "MAX_MCP_OUTPUT_TOKENS": "60000",
-    "BASH_DEFAULT_TIMEOUT_MS": "300000",
-    "BASH_MAX_TIMEOUT_MS": "600000"
-  },
-  "includeCoAuthoredBy": false,
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh"
-          }
-        ]
-      }
-    ]
-  },
   "enabledPlugins": {
+    "backend-api-security@claude-code-workflows": true,
     "backend-development@claude-code-workflows": true,
     "bubbletea@my-plugins": true,
     "claude-mem@thedotmack": true,
@@ -26,8 +9,27 @@
     "commit-commands@claude-code-plugins": true,
     "elements-of-style@superpowers-marketplace": true,
     "frontend-design@claude-plugins-official": true,
+    "javascript-typescript@claude-code-workflows": true,
     "superpowers@superpowers-marketplace": true,
     "tdd-workflows@claude-code-workflows": true,
     "unit-testing@claude-code-workflows": true
-  }
+  },
+  "env": {
+    "BASH_DEFAULT_TIMEOUT_MS": "300000",
+    "BASH_MAX_TIMEOUT_MS": "600000",
+    "MAX_MCP_OUTPUT_TOKENS": "60000"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh",
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  },
+  "includeCoAuthoredBy": false
 }
