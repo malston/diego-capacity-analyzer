@@ -4,6 +4,15 @@ Base URL: `http://localhost:8080` (default)
 
 All endpoints return JSON responses and support CORS.
 
+## Interactive Documentation
+
+An OpenAPI 3.0 specification is available for this API:
+
+- **OpenAPI Spec**: [`openapi.yaml`](../openapi.yaml) in the repository root
+- **Swagger UI**: Run `make openapi-serve` to launch interactive documentation at http://localhost:8090
+
+The Swagger UI provides an interactive interface to explore endpoints, view schemas, and test API calls.
+
 ---
 
 ## Health & Status
