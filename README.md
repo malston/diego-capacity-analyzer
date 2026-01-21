@@ -6,6 +6,8 @@ A professional dashboard for analyzing Tanzu Application Service (TAS) / Diego c
 ![React](https://img.shields.io/badge/react-18.2-blue.svg)
 ![License](https://img.shields.io/github/license/malston/diego-capacity-analyzer)
 
+> **⚠️ Disclaimer:** This is an independent, community-maintained project and is **not** an official Broadcom or VMware product. It is not supported, endorsed, or affiliated with Broadcom, VMware, or their subsidiaries. Use at your own risk.
+
 ## Features
 
 ### Dashboard
@@ -56,6 +58,7 @@ diego-capacity --api-url http://backend:8080
 ```
 
 The TUI provides:
+
 - **Data source selection**: Choose between live vSphere, JSON file, or manual input
 - **Split-pane dashboard**: Live infrastructure metrics on the left, actions on the right
 - **Scenario wizard**: Step-by-step what-if analysis with real-time feedback
@@ -63,12 +66,12 @@ The TUI provides:
 
 ##### Keyboard Shortcuts
 
-| Key | Action |
-|-----|--------|
-| `w` | Run scenario wizard |
-| `r` | Refresh infrastructure data |
+| Key | Action                         |
+| --- | ------------------------------ |
+| `w` | Run scenario wizard            |
+| `r` | Refresh infrastructure data    |
 | `b` | Go back (from comparison view) |
-| `q` | Quit |
+| `q` | Quit                           |
 
 #### Non-Interactive Commands
 
@@ -92,11 +95,13 @@ diego-capacity status --json
 ```
 
 **Exit Codes:**
+
 - `0` - Success (all checks passed)
 - `1` - Threshold exceeded (capacity warning)
 - `2` - Error (connection failed, no data)
 
 **Configuration:**
+
 ```bash
 # Set backend URL (default: http://localhost:8080)
 export DIEGO_CAPACITY_API_URL=http://backend.example.com:8080
