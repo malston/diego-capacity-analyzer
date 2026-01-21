@@ -107,8 +107,9 @@ load_config() {
     : "${OM_SKIP_SSL_VALIDATION:=false}"
 
     # Export for child processes (generate-env.sh)
-    export OM_TARGET OM_USERNAME OM_PASSWORD OM_SKIP_SSL_VALIDATION
-    export OM_CLIENT_ID OM_CLIENT_SECRET OM_PRIVATE_KEY
+    # Use ${VAR:-} pattern for optional vars to avoid "unbound variable" with set -u
+    export OM_TARGET="${OM_TARGET:-}" OM_USERNAME="${OM_USERNAME:-}" OM_PASSWORD="${OM_PASSWORD:-}" OM_SKIP_SSL_VALIDATION
+    export OM_CLIENT_ID="${OM_CLIENT_ID:-}" OM_CLIENT_SECRET="${OM_CLIENT_SECRET:-}" OM_PRIVATE_KEY="${OM_PRIVATE_KEY:-}"
     export CF_ORG CF_SPACE BACKEND_APP_NAME FRONTEND_APP_NAME
 }
 
@@ -341,6 +342,15 @@ phase_prereqs() {
         failed=true
     fi
 
+    # Check curl (used for health verification)
+    if require_cmd curl "curl not found"; then
+        local curl_version
+        curl_version=$(curl --version | head -1 | awk '{print $2}')
+        log_success "curl $curl_version"
+    else
+        failed=true
+    fi
+
     # Check CF login
     log_debug "Checking CF login status..."
     if cf target >/dev/null 2>&1; then
@@ -560,9 +570,13 @@ phase_backend() {
     if [[ "$DRY_RUN" == "true" ]]; then
         backend_url="$BACKEND_APP_NAME.apps.example.com"
     else
-        backend_url=$(cf app "$BACKEND_APP_NAME" | grep -E "^routes:" | awk '{print $2}')
+        local cf_app_output
+        cf_app_output=$(cf app "$BACKEND_APP_NAME")
+        backend_url=$(echo "$cf_app_output" | grep -E "^routes:" | awk '{print $2}')
         if [[ -z "$backend_url" ]]; then
             log_error "Failed to extract backend URL from cf app output"
+            log_debug "cf app output was:"
+            log_debug "$cf_app_output"
             return 1
         fi
     fi
@@ -645,9 +659,13 @@ phase_frontend() {
     if [[ "$DRY_RUN" == "true" ]]; then
         frontend_url="$FRONTEND_APP_NAME.apps.example.com"
     else
-        frontend_url=$(cf app "$FRONTEND_APP_NAME" | grep -E "^routes:" | awk '{print $2}')
+        local cf_app_output
+        cf_app_output=$(cf app "$FRONTEND_APP_NAME")
+        frontend_url=$(echo "$cf_app_output" | grep -E "^routes:" | awk '{print $2}')
         if [[ -z "$frontend_url" ]]; then
             log_error "Failed to extract frontend URL from cf app output"
+            log_debug "cf app output was:"
+            log_debug "$cf_app_output"
             return 1
         fi
     fi
