@@ -593,12 +593,12 @@ phase_backend() {
         cf target -o "$CF_ORG" -s "$CF_SPACE"
     fi
 
-    # Push backend app
-    log_info "Pushing $BACKEND_APP_NAME..."
+    # Push backend app (without starting - env vars must be set first)
+    log_info "Pushing $BACKEND_APP_NAME (without starting)..."
     if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would run: (cd $backend_dir && cf push $BACKEND_APP_NAME)"
+        log_info "[DRY-RUN] Would run: (cd $backend_dir && cf push --no-start $BACKEND_APP_NAME)"
     else
-        (cd "$backend_dir" && cf push "$BACKEND_APP_NAME")
+        (cd "$backend_dir" && cf push --no-start "$BACKEND_APP_NAME")
     fi
 
     # Set environment variables
@@ -644,12 +644,12 @@ phase_backend() {
         fi
     done
 
-    # Restage to apply env vars
-    log_info "Restaging $BACKEND_APP_NAME..."
+    # Start the app (env vars are now set)
+    log_info "Starting $BACKEND_APP_NAME..."
     if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would run: cf restage $BACKEND_APP_NAME"
+        log_info "[DRY-RUN] Would run: cf start $BACKEND_APP_NAME"
     else
-        cf restage "$BACKEND_APP_NAME"
+        cf start "$BACKEND_APP_NAME"
     fi
 
     # Get backend URL
