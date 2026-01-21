@@ -8,26 +8,26 @@ A quick reference explaining what each metric and visualization means.
 
 ## Key Metrics Cards
 
-| Metric | What It Means |
-|--------|---------------|
-| **Total Cells** | Number of Diego cells (VMs that run app containers). More cells = more capacity for workloads. |
+| Metric            | What It Means                                                                                                                                  |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Total Cells**   | Number of Diego cells (VMs that run app containers). More cells = more capacity for workloads.                                                 |
 | **Utilization %** | Percentage of total memory actively being used by running apps. Low = underutilized infrastructure. High (>80%) = risk of capacity exhaustion. |
-| **Avg CPU %** | Average processor load across cells. Sustained >70% indicates CPU contention risk - apps compete for cycles and slow down. |
-| **Unused Memory** | Memory apps reserved but aren't using. This is "paid for but idle" capacity that could be reclaimed through right-sizing. |
+| **Avg CPU %**     | Average processor load across cells. Sustained >70% indicates CPU contention risk - apps compete for cycles and slow down.                     |
+| **Unused Memory** | Memory apps reserved but aren't using. This is "paid for but idle" capacity that could be reclaimed through right-sizing.                      |
 
 ---
 
 ## Diego Cells Detail Table
 
-| Column | What It Means |
-|--------|---------------|
-| **Cell** | The Diego cell VM name (e.g., `diego_cell/0`) |
-| **Segment** | Isolation segment the cell belongs to - used to separate workloads (e.g., prod vs dev) |
-| **Capacity** | Total memory available on this cell (what the VM was sized to) |
-| **Allocated** | Memory reserved by apps scheduled to this cell (sum of app memory quotas) |
-| **Used** | Memory actually consumed by running processes (always ≤ Allocated) |
-| **CPU %** | Current CPU utilization on this cell. Color-coded: 🟢 <50%, 🟡 50-70%, 🔴 >70% |
-| **Utilization Bar** | Visual representation of Used/Capacity. Shows how "full" the cell is. |
+| Column              | What It Means                                                                          |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| **Cell**            | The Diego cell VM name (e.g., `diego_cell/0`)                                          |
+| **Segment**         | Isolation segment the cell belongs to - used to separate workloads (e.g., prod vs dev) |
+| **Capacity**        | Total memory available on this cell (what the VM was sized to)                         |
+| **Allocated**       | Memory reserved by apps scheduled to this cell (sum of app memory quotas)              |
+| **Used**            | Memory actually consumed by running processes (always ≤ Allocated)                     |
+| **CPU %**           | Current CPU utilization on this cell. Color-coded: 🟢 <50%, 🟡 50-70%, 🔴 >70%         |
+| **Utilization Bar** | Visual representation of Used/Capacity. Shows how "full" the cell is.                  |
 
 **Key insight:** The gap between Allocated and Used = memory apps requested but aren't consuming. This is per-cell waste.
 
@@ -35,13 +35,14 @@ A quick reference explaining what each metric and visualization means.
 
 ## Cell Capacity Chart (Stacked Bar)
 
-| Segment | What It Means |
-|---------|---------------|
-| **Used (blue)** | Memory actively consumed by app processes |
-| **Allocated unused (green)** | Reserved by apps but sitting idle |
-| **Available (gray)** | Free capacity - room for new apps |
+| Segment                      | What It Means                             |
+| ---------------------------- | ----------------------------------------- |
+| **Used (blue)**              | Memory actively consumed by app processes |
+| **Allocated unused (green)** | Reserved by apps but sitting idle         |
+| **Available (gray)**         | Free capacity - room for new apps         |
 
 **Reading the chart:**
+
 - Lots of green? Apps are over-provisioned - right-sizing opportunity
 - Little gray? Running hot - may need more cells or right-sizing
 - Uneven bars? Workload imbalance across cells
@@ -51,6 +52,7 @@ A quick reference explaining what each metric and visualization means.
 ## Isolation Segments Pie Chart
 
 Shows distribution of cells across segments. Helps answer:
+
 - "Do we have enough production capacity vs dev?"
 - "Are segments balanced appropriately?"
 - "Should we rebalance cells between segments?"
@@ -61,15 +63,15 @@ Shows distribution of cells across segments. Helps answer:
 
 Apps appear here when they have >15% memory overhead (requested vs actual).
 
-| Column | What It Means |
-|--------|---------------|
-| **App Name** | Application that's over-provisioned |
-| **Instances** | Number of running instances |
-| **Overhead %** | How much extra memory was requested vs actually used. >30% = significant waste |
-| **Requested** | Memory quota the app asks for (what developers set via `cf push -m`) |
-| **Actual Usage** | Memory the app actually consumes at runtime |
-| **Recommended** | Suggested quota (actual usage + 20% headroom) |
-| **Savings/Instance** | Memory you'd reclaim per instance by right-sizing |
+| Column               | What It Means                                                                  |
+| -------------------- | ------------------------------------------------------------------------------ |
+| **App Name**         | Application that's over-provisioned                                            |
+| **Instances**        | Number of running instances                                                    |
+| **Overhead %**       | How much extra memory was requested vs actually used. >30% = significant waste |
+| **Requested**        | Memory quota the app asks for (what developers set via `cf push -m`)           |
+| **Actual Usage**     | Memory the app actually consumes at runtime                                    |
+| **Recommended**      | Suggested quota (actual usage + 20% headroom)                                  |
+| **Savings/Instance** | Memory you'd reclaim per instance by right-sizing                              |
 
 **Example:** "This app requests 1024 MB but only uses 780 MB. Reduce quota to 936 MB (780 + 20% buffer) and reclaim 88 MB × instances."
 
@@ -81,21 +83,21 @@ Apps appear here when they have >15% memory overhead (requested vs actual).
 
 Toggle via the **What-If Mode** button. Explores: "What if I enabled memory overcommit?"
 
-| Metric | What It Means |
-|--------|---------------|
-| **Overcommit Ratio** | Memory multiplier. 1.0x = no overcommit. 1.5x = sell 50% more capacity than physically exists. |
-| **New Capacity** | Virtual capacity after applying overcommit ratio |
-| **Current Instances** | How many app instances are running now |
-| **Additional Capacity** | How many more 512MB instances could fit with overcommit |
+| Metric                  | What It Means                                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------------------------- |
+| **Overcommit Ratio**    | Memory multiplier. 1.0x = no overcommit. 1.5x = sell 50% more capacity than physically exists. |
+| **New Capacity**        | Virtual capacity after applying overcommit ratio                                               |
+| **Current Instances**   | How many app instances are running now                                                         |
+| **Additional Capacity** | How many more 512MB instances could fit with overcommit                                        |
 
 ### Overcommit Risk Levels
 
-| Ratio | Risk | Typical Use |
-|-------|------|-------------|
-| **1.0-1.3x** | Low | Production, mission-critical |
-| **1.5-2.0x** | Medium | Dev/test, well-understood workloads |
-| **2.0-3.0x** | High | Labs, demos, low-traffic environments |
-| **3.0x+** | Very High | Labs with minimal app utilization |
+| Ratio        | Risk      | Typical Use                           |
+| ------------ | --------- | ------------------------------------- |
+| **1.0-1.3x** | Low       | Production, mission-critical          |
+| **1.5-2.0x** | Medium    | Dev/test, well-understood workloads   |
+| **2.0-3.0x** | High      | Labs, demos, low-traffic environments |
+| **3.0x+**    | Very High | Labs with minimal app utilization     |
 
 **Warning:** Overcommit lets you pack more apps, but if apps spike memory simultaneously, you risk OOM kills. Use cautiously and monitor closely.
 
@@ -111,12 +113,17 @@ Answers: **"Will my workload fit if I change my cell configuration?"**
 
 ## Loading Infrastructure Data
 
-| Source | Description |
-|--------|-------------|
-| **Upload JSON** | Manual infrastructure data (clusters, cells, apps) |
-| **vSphere Live** | Real-time data from vSphere via backend |
-| **BOSH Live** | Real-time data from BOSH Director via backend |
-| **Sample Data** | Pre-loaded example datasets for demos |
+| Source           | Description                                                           |
+| ---------------- | --------------------------------------------------------------------- |
+| **vSphere Live** | Real-time data from vCenter via backend (requires vSphere configured) |
+| **Upload JSON**  | Import infrastructure JSON file; also shows sample file picker        |
+| **Manual Entry** | Form-based input for custom infrastructure configuration              |
+
+**Sample Data:** When using Upload JSON mode, you can select from 6 pre-built configurations:
+
+- Small Foundation (Dev/Test), Medium Foundation (Staging), Large Foundation (Production)
+- Enterprise Multi-Cluster
+- Diego Benchmark 50K, Diego Benchmark 250K
 
 After loading data, a **Current Configuration** summary appears showing your existing cell count, size, and total capacity. This helps you understand what you're comparing against before proposing changes.
 
@@ -126,22 +133,23 @@ After loading data, a **Current Configuration** summary appears showing your exi
 
 After loading infrastructure data, the IaaS Capacity section displays your physical infrastructure limits and calculates the maximum number of Diego cells you can deploy.
 
-| Metric | What It Means |
-|--------|---------------|
-| **Hosts** | Total ESXi hosts in your cluster(s). Shows cluster count if multi-cluster. |
-| **Total Memory** | Total RAM across all hosts. Below this, you'll see the **HA-usable memory** based on your HA Admission Control percentage. |
-| **Total vCPUs** | Total CPU cores available across all hosts. |
-| **Max Cells** | Maximum Diego cells deployable based on HA-usable memory. Shows the resulting vCPU:pCPU ratio at current and max cell counts. |
+| Metric           | What It Means                                                                                                                 |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Hosts**        | Total ESXi hosts in your cluster(s). Shows cluster count if multi-cluster.                                                    |
+| **Total Memory** | Total RAM across all hosts. Below this, you'll see the **HA-usable memory** based on your HA Admission Control percentage.    |
+| **Total vCPUs**  | Total CPU cores available across all hosts.                                                                                   |
+| **Max Cells**    | Maximum Diego cells deployable based on HA-usable memory. Shows the resulting vCPU:pCPU ratio at current and max cell counts. |
 
 ### HA Admission Control
 
 The available memory is constrained by vSphere HA Admission Control, which reserves a percentage of cluster resources for failover capacity. This is what vSphere actually enforces—you cannot deploy VMs beyond this limit.
 
-| Display | Meaning |
-|---------|---------|
+| Display          | Meaning                                                     |
+| ---------------- | ----------------------------------------------------------- |
 | **HA X% (≈N-Y)** | X% reserved for HA, equivalent to surviving Y host failures |
 
 **Example:** With 30TB total memory and 25% HA Admission Control:
+
 - Usable memory: 30TB × 75% = 22.5TB
 - Implied tolerance: 25% of 15 hosts ≈ 3.75 hosts → N-3/N-4 tolerance
 
@@ -155,17 +163,19 @@ Max Cells = HA-Usable Memory GB / Cell Memory GB
 
 The vCPU:pCPU ratio is calculated as an **output** to show you the resulting CPU oversubscription:
 
-| Metric | Formula |
-|--------|---------|
+| Metric            | Formula                                              |
+| ----------------- | ---------------------------------------------------- |
 | **Current Ratio** | `(Current Cells × Cell vCPU) / Total Physical Cores` |
-| **Max Ratio** | `(Max Cells × Cell vCPU) / Total Physical Cores` |
+| **Max Ratio**     | `(Max Cells × Cell vCPU) / Total Physical Cores`     |
 
 Risk levels help you understand if the ratio is acceptable:
+
 - **Low (≤4:1)**: Conservative, typical for production
 - **Medium (4:1-8:1)**: Monitor CPU Ready time
 - **High (>8:1)**: Aggressive, requires active monitoring
 
 **Example:** With 22.5TB HA-usable memory, 960 physical cores, and cells sized at 32 GB / 4 vCPU:
+
 - Max Cells = 22,500 ÷ 32 = **703 cells**
 - Max Ratio = (703 × 4) ÷ 960 = **2.93:1** (Low risk ✓)
 
@@ -177,22 +187,22 @@ If your **Proposed Cell Count** exceeds Max Cells, an amber warning appears show
 
 ### Cell Configuration
 
-| Input | What It Means |
-|-------|---------------|
-| **VM Size Preset** | Common cell sizes: Small (4 vCPU/32 GB), Medium (8/64), Large (16/128), or Custom |
-| **Cell Count** | Number of Diego cells in your proposed configuration |
-| **Memory Overhead %** | System memory reserved for Diego/Garden (default 7%) |
+| Input                 | What It Means                                                                     |
+| --------------------- | --------------------------------------------------------------------------------- |
+| **VM Size Preset**    | Common cell sizes: Small (4 vCPU/32 GB), Medium (8/64), Large (16/128), or Custom |
+| **Cell Count**        | Number of Diego cells in your proposed configuration                              |
+| **Memory Overhead %** | System memory reserved for Diego/Garden (default 7%)                              |
 
 ### CPU Configuration
 
 The vCPU:pCPU ratio is **calculated as an output**, not configured as an input. This reflects reality: you can't set a "target ratio" in vSphere—the ratio is a consequence of how many cells you deploy and what size they are.
 
-| Metric | What It Means |
-|--------|---------------|
-| **Total Physical Cores** | Total pCPU cores available across all hosts |
-| **Total vCPUs** | Sum of vCPUs allocated to all Diego cells |
-| **Current Ratio** | Actual vCPU:pCPU ratio at your current cell count |
-| **Ratio at Max** | What the ratio would be if you deployed max cells |
+| Metric                   | What It Means                                     |
+| ------------------------ | ------------------------------------------------- |
+| **Total Physical Cores** | Total pCPU cores available across all hosts       |
+| **Total vCPUs**          | Sum of vCPUs allocated to all Diego cells         |
+| **Current Ratio**        | Actual vCPU:pCPU ratio at your current cell count |
+| **Ratio at Max**         | What the ratio would be if you deployed max cells |
 
 Risk level indicators help you understand if your current or proposed configuration is acceptable:
 
@@ -204,11 +214,11 @@ Risk level indicators help you understand if your current or proposed configurat
 
 ### Host Configuration (Optional)
 
-| Input | What It Means |
-|-------|---------------|
-| **Number of Hosts** | Physical ESXi hosts in your cluster |
-| **Memory per Host (GB)** | RAM per physical host |
-| **Cores per Host** | CPU cores per physical host |
+| Input                      | What It Means                             |
+| -------------------------- | ----------------------------------------- |
+| **Number of Hosts**        | Physical ESXi hosts in your cluster       |
+| **Memory per Host (GB)**   | RAM per physical host                     |
+| **Cores per Host**         | CPU cores per physical host               |
 | **HA Admission Control %** | Cluster capacity reserved for HA failover |
 
 **Hypothetical App:** Add a theoretical app to see if it would fit. Enter instance count and memory per instance.
@@ -221,26 +231,28 @@ Risk level indicators help you understand if your current or proposed configurat
 
 This gauge shows utilization against whichever capacity constraint is more restrictive. The label changes dynamically:
 
-| Label | When Shown | What It Measures |
-|-------|------------|------------------|
-| **Capacity (HA X% (≈N-Y))** | When HA Admission Control is the limiting constraint | Utilization of HA-usable capacity |
-| **N-1 Capacity** | When N-1 host capacity is limiting, or when no host config is provided | Utilization of N-1 capacity (one host reserved) |
+| Label                       | When Shown                                                             | What It Measures                                |
+| --------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------- |
+| **Capacity (HA X% (≈N-Y))** | When HA Admission Control is the limiting constraint                   | Utilization of HA-usable capacity               |
+| **N-1 Capacity**            | When N-1 host capacity is limiting, or when no host config is provided | Utilization of N-1 capacity (one host reserved) |
 
 The system automatically determines which constraint is more restrictive by comparing:
+
 - **HA Admission Control**: Reserves X% of total cluster memory (e.g., 25% = 7,500 GB on 30 TB cluster)
 - **N-1 Host Capacity**: Reserves one host's worth of memory (e.g., 2,000 GB per host)
 
 Whichever reserves more capacity is the limiting constraint and is displayed in the gauge.
 
-| Value | Status | Meaning |
-|-------|--------|---------|
-| **< 75%** | Good | Safe headroom within capacity limits |
-| **75-85%** | Warning | Approaching capacity limits |
-| **> 85%** | Critical | Near or exceeding deployable capacity |
+| Value      | Status   | Meaning                               |
+| ---------- | -------- | ------------------------------------- |
+| **< 75%**  | Good     | Safe headroom within capacity limits  |
+| **75-85%** | Warning  | Approaching capacity limits           |
+| **> 85%**  | Critical | Near or exceeding deployable capacity |
 
 **Key insight:** HA Admission Control is what vSphere actually enforces. If you configure 25% HA, vSphere reserves 25% of cluster resources and won't let you deploy VMs beyond the remaining 75%. This is equivalent to roughly N-3 or N-4 host failure tolerance on a 15-host cluster.
 
 **Example:** On a 15-host cluster with 2 TB per host (30 TB total):
+
 - HA 25% reserves 7.5 TB (≈N-4 equivalent) → HA is limiting
 - HA 5% reserves 1.5 TB (< N-1's 2 TB) → N-1 is limiting
 
@@ -248,13 +260,14 @@ Whichever reserves more capacity is the limiting constraint and is displayed in 
 
 The vCPU:pCPU ratio shows how many virtual CPUs are allocated per physical CPU core. This is a **calculated output** based on your cell count and cell vCPU size—it's not a configurable setting.
 
-| Ratio | Risk Level | Meaning |
-|-------|------------|---------|
-| **≤ 4:1** | Low | Conservative, typical for general production workloads |
-| **4:1 - 8:1** | Medium | Monitor CPU Ready time for contention |
-| **> 8:1** | High | Aggressive, requires active monitoring; expect contention |
+| Ratio         | Risk Level | Meaning                                                   |
+| ------------- | ---------- | --------------------------------------------------------- |
+| **≤ 4:1**     | Low        | Conservative, typical for general production workloads    |
+| **4:1 - 8:1** | Medium     | Monitor CPU Ready time for contention                     |
+| **> 8:1**     | High       | Aggressive, requires active monitoring; expect contention |
 
 The display shows both your current ratio and what the ratio would be at maximum cell count:
+
 - **Current**: Ratio at your proposed/current cell count
 - **At Max**: Ratio if you deployed the maximum cells (memory-limited)
 
@@ -262,21 +275,21 @@ The display shows both your current ratio and what the ratio would be at maximum
 
 ### Memory Utilization
 
-| Value | Status | Meaning |
-|-------|--------|---------|
-| **< 80%** | Good | Healthy headroom |
-| **80-90%** | Warning | Getting tight |
-| **> 90%** | Critical | Near capacity exhaustion |
+| Value      | Status   | Meaning                  |
+| ---------- | -------- | ------------------------ |
+| **< 80%**  | Good     | Healthy headroom         |
+| **80-90%** | Warning  | Getting tight            |
+| **> 90%**  | Critical | Near capacity exhaustion |
 
 ### Staging Capacity (Free Chunks)
 
 Available 4GB chunks for `cf push` staging operations.
 
-| Chunks | Status | Meaning |
-|--------|--------|---------|
-| **> 400** | Good | Plenty of staging capacity |
-| **200-400** | Warning | May queue during busy periods |
-| **< 200** | Critical | Deployment bottleneck likely |
+| Chunks    | Status      | Meaning                       |
+| --------- | ----------- | ----------------------------- |
+| **≥ 20**  | Healthy     | Plenty of staging capacity    |
+| **10-19** | Limited     | May queue during busy periods |
+| **< 10**  | Constrained | Deployment bottleneck likely  |
 
 ---
 
@@ -284,11 +297,11 @@ Available 4GB chunks for `cf push` staging operations.
 
 **TPS = Tasks Per Second** - how fast Diego's scheduler can place app instances.
 
-| Cell Count | TPS | Notes |
-|------------|-----|-------|
-| 3 | ~1,964 | Peak efficiency |
-| 100 | ~1,389 | ~30% degradation |
-| 210 | ~104 | Severe degradation |
+| Cell Count | TPS    | Notes              |
+| ---------- | ------ | ------------------ |
+| 3          | ~1,964 | Peak efficiency    |
+| 100        | ~1,389 | ~30% degradation   |
+| 210        | ~104   | Severe degradation |
 
 **Why it matters:** More cells = more coordination overhead. If you need more capacity, consider larger cells instead of more cells to avoid scheduler bottlenecks.
 
@@ -298,12 +311,12 @@ Available 4GB chunks for `cf push` staging operations.
 
 ## Results: Metric Scorecards
 
-| Metric | What It Means | Good Direction |
-|--------|---------------|----------------|
-| **Cell Count** | Number of Diego cell VMs | Depends on strategy |
-| **App Capacity** | Total memory available for apps | Higher = more headroom |
-| **Fault Impact** | App instances displaced if one cell fails | Lower = smaller blast radius |
-| **Instances/Cell** | Average app instances per cell | Lower = more distributed |
+| Metric             | What It Means                             | Good Direction               |
+| ------------------ | ----------------------------------------- | ---------------------------- |
+| **Cell Count**     | Number of Diego cell VMs                  | Depends on strategy          |
+| **App Capacity**   | Total memory available for apps           | Higher = more headroom       |
+| **Fault Impact**   | App instances displaced if one cell fails | Lower = smaller blast radius |
+| **Instances/Cell** | Average app instances per cell            | Lower = more distributed     |
 
 ---
 
@@ -311,25 +324,25 @@ Available 4GB chunks for `cf push` staging operations.
 
 The Host Analysis card shows physical infrastructure metrics for capacity planning.
 
-| Metric | What It Means |
-|--------|---------------|
-| **Total Hosts** | Physical ESXi hosts in the cluster |
-| **VMs per Host** | Average Diego cells per physical host |
+| Metric                      | What It Means                                          |
+| --------------------------- | ------------------------------------------------------ |
+| **Total Hosts**             | Physical ESXi hosts in the cluster                     |
+| **VMs per Host**            | Average Diego cells per physical host                  |
 | **Host Memory Utilization** | Percentage of physical memory allocated to Diego cells |
-| **Host CPU Utilization** | Percentage of physical CPU cores allocated as vCPUs |
-| **HA Hosts Survived** | Number of host failures the cluster can tolerate |
-| **HA Status** | "ok" if cluster can survive at least 1 host failure |
+| **Host CPU Utilization**    | Percentage of physical CPU cores allocated as vCPUs    |
+| **HA Hosts Survived**       | Number of host failures the cluster can tolerate       |
+| **HA Status**               | "ok" if cluster can survive at least 1 host failure    |
 
 ### HA Admission Control
 
 HA admission control reserves cluster capacity to ensure workloads can be restarted after host failures.
 
-| Percentage | Use Case |
-|------------|----------|
-| **0%** | Dev/test environments, no HA protection |
+| Percentage | Use Case                                           |
+| ---------- | -------------------------------------------------- |
+| **0%**     | Dev/test environments, no HA protection            |
 | **15-20%** | Standard production, single host failure tolerance |
-| **25%** | High availability, can tolerate larger failures |
-| **>25%** | Mission-critical, multi-host failure tolerance |
+| **25%**    | High availability, can tolerate larger failures    |
+| **>25%**   | Mission-critical, multi-host failure tolerance     |
 
 #### Calculating HA Admission Percentage
 
@@ -347,13 +360,13 @@ Hosts Survivable = floor(HA % / 100 × Total Hosts)
 
 **Examples:**
 
-| Cluster Size | Target Survivability | Required HA % |
-|--------------|---------------------|---------------|
-| 4 hosts | N-1 (1 host failure) | 25% |
-| 4 hosts | N-2 (2 host failures) | 50% |
-| 15 hosts | N-1 (1 host failure) | 7% (round to 8%) |
-| 15 hosts | N-2 (2 host failures) | 14% |
-| 3 hosts | N-1 (1 host failure) | 34% |
+| Cluster Size | Target Survivability  | Required HA %    |
+| ------------ | --------------------- | ---------------- |
+| 4 hosts      | N-1 (1 host failure)  | 25%              |
+| 4 hosts      | N-2 (2 host failures) | 50%              |
+| 15 hosts     | N-1 (1 host failure)  | 7% (round to 8%) |
+| 15 hosts     | N-2 (2 host failures) | 14%              |
+| 3 hosts      | N-1 (1 host failure)  | 34%              |
 
 **Note:** Always round up to ensure the `floor()` calculation yields the desired survivability.
 
@@ -361,9 +374,9 @@ Hosts Survivable = floor(HA % / 100 × Total Hosts)
 
 These two percentages operate at different layers and are **not** redundant:
 
-| Calculation | Layer | What It Measures |
-|-------------|-------|------------------|
-| **HA Admission %** | vSphere cluster | Memory reserved to restart VMs after host failure |
+| Calculation              | Layer             | What It Measures                                   |
+| ------------------------ | ----------------- | -------------------------------------------------- |
+| **HA Admission %**       | vSphere cluster   | Memory reserved to restart VMs after host failure  |
 | **Memory Overhead (7%)** | Inside Diego cell | Memory consumed by Garden runtime and OS processes |
 
 **How they work together:**
@@ -389,17 +402,17 @@ Cell level (Memory Overhead):
   Total app capacity: 14,100 GB (470 × 30 GB)
 ```
 
-Both calculations are needed: HA admission determines if you can *deploy* the VMs; memory overhead determines how much *workload* fits inside them.
+Both calculations are needed: HA admission determines if you can _deploy_ the VMs; memory overhead determines how much _workload_ fits inside them.
 
 #### vSphere Memory Reservations for Diego Cells
 
 **Best practice:** Set memory reservations on Diego cell VMs equal to their configured memory.
 
 | Cell Size | Reservation |
-|-----------|-------------|
-| 32 GB | 32 GB |
-| 48 GB | 48 GB |
-| 64 GB | 64 GB |
+| --------- | ----------- |
+| 32 GB     | 32 GB       |
+| 48 GB     | 48 GB       |
+| 64 GB     | 64 GB       |
 
 **Why this matters:**
 
@@ -410,6 +423,7 @@ When a vSphere host is under memory pressure, it uses these reclamation techniqu
 3. **Host swapping** - vSphere swaps VM memory to disk (severe performance impact)
 
 Diego cells should **never** be subject to these techniques. If they are:
+
 - Apps see sudden, unexplained memory pressure
 - OOM kills and container crashes follow
 - Performance becomes unpredictable
@@ -441,13 +455,14 @@ The **constraining resource** is the one closest to capacity. Address this resou
 
 Based on bottleneck analysis, the system suggests prioritized actions:
 
-| Recommendation | When Suggested |
-|----------------|----------------|
-| **Add Diego Cells** | When you need more capacity quickly |
+| Recommendation         | When Suggested                            |
+| ---------------------- | ----------------------------------------- |
+| **Add Diego Cells**    | When you need more capacity quickly       |
 | **Resize Diego Cells** | When larger cells would be more efficient |
-| **Add Physical Hosts** | When infrastructure is the constraint |
+| **Add Physical Hosts** | When infrastructure is the constraint     |
 
 Each recommendation includes:
+
 - **Impact**: Specific improvement (e.g., "Adds 256 GB memory capacity")
 - **Priority**: 1 = most impactful, 3 = least impactful
 
@@ -455,11 +470,11 @@ Each recommendation includes:
 
 ## Overall Status Banner
 
-| Status | Meaning |
-|--------|---------|
-| **✓ YES** (green) | Configuration meets all requirements |
-| **⚠ MAYBE** (amber) | Warnings to review before proceeding |
-| **✗ NO** (red) | Critical issues - adjust configuration |
+| Status              | Meaning                                |
+| ------------------- | -------------------------------------- |
+| **✓ YES** (green)   | Configuration meets all requirements   |
+| **⚠ MAYBE** (amber) | Warnings to review before proceeding   |
+| **✗ NO** (red)      | Critical issues - adjust configuration |
 
 ---
 
@@ -469,12 +484,12 @@ Each recommendation includes:
 
 ### Dashboard Tab (Live Data)
 
-| Metric | Formula | Data Source |
-|--------|---------|-------------|
-| **Total Cells** | Count of Diego cell VMs | BOSH API: `bosh vms` |
-| **Utilization %** | `(Total Used Memory / Total Cell Capacity) × 100` | BOSH vitals + Log Cache |
-| **Avg CPU %** | `Sum(cell.cpu_percent) / cell_count` | BOSH API: VM vitals |
-| **Unused Memory** | `Sum(app.requested_mb × instances) - Sum(app.actual_mb × instances)` | CF API + Log Cache |
+| Metric            | Formula                                                              | Data Source             |
+| ----------------- | -------------------------------------------------------------------- | ----------------------- |
+| **Total Cells**   | Count of Diego cell VMs                                              | BOSH API: `bosh vms`    |
+| **Utilization %** | `(Total Used Memory / Total Cell Capacity) × 100`                    | BOSH vitals + Log Cache |
+| **Avg CPU %**     | `Sum(cell.cpu_percent) / cell_count`                                 | BOSH API: VM vitals     |
+| **Unused Memory** | `Sum(app.requested_mb × instances) - Sum(app.actual_mb × instances)` | CF API + Log Cache      |
 
 **Data flow:** BOSH Director → Backend → Frontend
 
@@ -491,14 +506,15 @@ The Scenario Analysis tab displays results in several visual sections:
 
 Circular gauges showing utilization percentages with color-coded status:
 
-| Gauge | Formula | Thresholds |
-|-------|---------|------------|
-| **Capacity (HA/N-1)** | `(Cell Memory + Platform VMs) / Usable Capacity × 100` | Warning: 75%, Critical: 85% |
-| **Memory Utilization** | `App Memory / App Capacity × 100` | Warning: 80%, Critical: 90% |
-| **Disk Utilization** | `App Disk / Disk Capacity × 100` | Warning: 80%, Critical: 90% |
-| **Staging Capacity** | Raw count of free 4GB chunks | Healthy: ≥20, Limited: 10-19, Constrained: <10 |
+| Gauge                  | Formula                                                | Thresholds                                     |
+| ---------------------- | ------------------------------------------------------ | ---------------------------------------------- |
+| **Capacity (HA/N-1)**  | `(Cell Memory + Platform VMs) / Usable Capacity × 100` | Warning: 75%, Critical: 85%                    |
+| **Memory Utilization** | `App Memory / App Capacity × 100`                      | Warning: 80%, Critical: 90%                    |
+| **Disk Utilization**   | `App Disk / Disk Capacity × 100`                       | Warning: 80%, Critical: 90%                    |
+| **Staging Capacity**   | Raw count of free 4GB chunks                           | Healthy: ≥20, Limited: 10-19, Constrained: <10 |
 
 Where:
+
 - **Usable Capacity** = Total cluster memory - Reserved capacity (HA% or N-1, whichever reserves more)
 - **App Capacity** = `cells × (cell_memory_gb - 7% overhead)`
 - **Free Chunks** = `(App Capacity - App Memory) / 4 GB`
@@ -511,16 +527,17 @@ Compares current vs proposed scheduler throughput with status indicators. See [T
 
 Grid of cards showing current → proposed values with change indicators:
 
-| Scorecard | Formula | Notes |
-|-----------|---------|-------|
-| **Cell Count** | Direct count | Number of Diego cell VMs |
-| **App Capacity** | `cells × (cell_memory - 7% overhead)` | Total memory available for apps |
-| **Fault Impact** | `Total App Instances / Cell Count` | Apps displaced if one cell fails |
-| **Instances/Cell** | `Total App Instances / Cell Count` | Distribution density |
+| Scorecard          | Formula                               | Notes                            |
+| ------------------ | ------------------------------------- | -------------------------------- |
+| **Cell Count**     | Direct count                          | Number of Diego cell VMs         |
+| **App Capacity**   | `cells × (cell_memory - 7% overhead)` | Total memory available for apps  |
+| **Fault Impact**   | `Total App Instances / Cell Count`    | Apps displaced if one cell fails |
+| **Instances/Cell** | `Total App Instances / Cell Count`    | Distribution density             |
 
 #### Cell Configuration Change
 
 Visual comparison of cell specs (vCPU × GB) between current and proposed, showing:
+
 - Current cell size and count
 - Proposed cell size and count
 - Redundancy change indicator (improved/reduced/no change)
@@ -531,6 +548,7 @@ Visual comparison of cell specs (vCPU × GB) between current and proposed, showi
 Expandable panel with configuration overrides:
 
 **Memory Overhead**
+
 - Slider: 1% to 20% (default: 7%)
 - Adjusts the percentage of cell memory reserved for Garden runtime and system processes
 - Formula: `App Capacity = cells × (cell_memory × (1 - overhead%))`
@@ -538,12 +556,14 @@ Expandable panel with configuration overrides:
 - This is separate from HA Admission Control—see [HA Admission vs. Memory Overhead](#ha-admission-vs-memory-overhead-not-double-counting) for details
 
 **Add Hypothetical App**
+
 - Model the impact of deploying a new application before actually deploying it
 - Configure: app name, instance count, memory per instance, disk per instance
 - When enabled, adds to total app memory/disk/instances in calculations
 - Useful for capacity planning: "Can my foundation handle this new workload?"
 
 **TPS Performance Curve**
+
 - Customize the scheduler throughput benchmark data points
 - Each point maps cell count → expected TPS
 - Default values are baseline estimates from internal benchmarks
@@ -568,10 +588,12 @@ The curve models BBS scheduler coordination overhead as cell count increases. Va
 **Important:** The default curve is a baseline estimate derived from internal platform engineering benchmarks. Actual TPS varies significantly based on infrastructure, network latency, database backend, and workload characteristics. **We recommend validating against your own environment** and customizing the curve in Advanced Options to match observed performance.
 
 **References:**
+
 - [Diego Scaling & Performance Tuning](https://github.com/cloudfoundry/diego-release/blob/develop/docs/030-scaling-and-performance-tuning.md) - Official guidance on benchmarking methodology and VM sizing
 - [Diego Performance Measurement Proposal](https://github.com/cloudfoundry/diego-notes/blob/main/proposals/measuring_performance.md) - Explains how Diego performance benchmarks are structured
 
 **Status thresholds:**
+
 - Optimal: ≥80% of peak TPS
 - Degraded: 50-79% of peak TPS
 - Critical: <50% of peak TPS
@@ -580,12 +602,12 @@ The curve models BBS scheduler coordination overhead as cell count increases. Va
 
 ## Data Sources
 
-| Source | Description |
-|--------|-------------|
-| **CF API** | App instances, memory quotas, process stats |
-| **BOSH** | Diego cell VMs, capacity, vitals |
-| **Log Cache** | Real-time container memory metrics |
-| **vSphere** (optional) | VM-level infrastructure metrics |
+| Source                 | Description                                 |
+| ---------------------- | ------------------------------------------- |
+| **CF API**             | App instances, memory quotas, process stats |
+| **BOSH**               | Diego cell VMs, capacity, vitals            |
+| **Log Cache**          | Real-time container memory metrics          |
+| **vSphere** (optional) | VM-level infrastructure metrics             |
 
 ---
 
@@ -609,20 +631,20 @@ A: Sort by Potential Savings (overhead × instances). Apps with high instance co
 
 The metric scorecards in the results section use color-coded status badges to indicate health:
 
-| Status | Color | Meaning |
-|--------|-------|---------|
-| **good** | Cyan | Within healthy limits |
-| **warning** | Amber | Approaching threshold, monitor closely |
-| **critical** | Red | Exceeds safe threshold, action recommended |
+| Status       | Color | Meaning                                    |
+| ------------ | ----- | ------------------------------------------ |
+| **good**     | Cyan  | Within healthy limits                      |
+| **warning**  | Amber | Approaching threshold, monitor closely     |
+| **critical** | Red   | Exceeds safe threshold, action recommended |
 
 ### Scorecard Thresholds
 
-| Scorecard | Warning Threshold | Critical Threshold | Notes |
-|-----------|-------------------|-------------------|-------|
-| **Cell Count** | — | — | Informational only; no status thresholds |
-| **App Capacity** | — | — | Informational only; no status thresholds |
-| **Fault Impact** | ≥25 apps/cell | ≥50 apps/cell | Lower is better; high values mean larger blast radius |
-| **Instances/Cell** | ≥30 | ≥50 | Lower is better; high density increases failure impact |
+| Scorecard          | Warning Threshold | Critical Threshold | Notes                                                  |
+| ------------------ | ----------------- | ------------------ | ------------------------------------------------------ |
+| **Cell Count**     | —                 | —                  | Informational only; no status thresholds               |
+| **App Capacity**   | —                 | —                  | Informational only; no status thresholds               |
+| **Fault Impact**   | ≥25 apps/cell     | ≥50 apps/cell      | Lower is better; high values mean larger blast radius  |
+| **Instances/Cell** | ≥30               | ≥50                | Lower is better; high density increases failure impact |
 
 **Note:** Cell Count and App Capacity display status based on the direction of change (improvement vs regression) rather than absolute thresholds. These metrics don't have inherently "bad" values—500 cells isn't worse than 50 cells; it depends on your workload requirements.
 
@@ -638,19 +660,20 @@ Measures whether your cluster can handle VM load within capacity constraints. Th
 
 #### When HA Admission Control is the Limiting Constraint
 
-| Message | Severity | Triggered When | What It Means |
-|---------|----------|----------------|---------------|
-| **Exceeds HA Admission Control capacity limit (HA X% (≈N-Y))** | Critical | Utilization > 85% and HA is limiting | vSphere HA reserves X% of cluster resources. You're approaching or exceeding what vSphere will allow you to deploy. |
-| **Approaching HA Admission Control capacity limit (HA X% (≈N-Y))** | Warning | Utilization > 75% and HA is limiting | Getting close to the HA-enforced limit. Consider reducing cell count or increasing HA percentage tolerance. |
+| Message                                                            | Severity | Triggered When                       | What It Means                                                                                                       |
+| ------------------------------------------------------------------ | -------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| **Exceeds HA Admission Control capacity limit (HA X% (≈N-Y))**     | Critical | Utilization > 85% and HA is limiting | vSphere HA reserves X% of cluster resources. You're approaching or exceeding what vSphere will allow you to deploy. |
+| **Approaching HA Admission Control capacity limit (HA X% (≈N-Y))** | Warning  | Utilization > 75% and HA is limiting | Getting close to the HA-enforced limit. Consider reducing cell count or increasing HA percentage tolerance.         |
 
 #### When N-1 Host Capacity is the Limiting Constraint
 
-| Message | Severity | Triggered When | What It Means |
-|---------|----------|----------------|---------------|
-| **Exceeds N-1 capacity safety margin** | Critical | Utilization > 85% and N-1 is limiting | If one host fails, remaining hosts cannot accommodate all VMs. Immediate risk of workload loss during host failure. |
-| **Approaching N-1 capacity limits** | Warning | Utilization > 75% and N-1 is limiting | Getting close to the threshold. A host failure would leave little headroom. Consider adding hosts or reducing cell count. |
+| Message                                | Severity | Triggered When                        | What It Means                                                                                                             |
+| -------------------------------------- | -------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Exceeds N-1 capacity safety margin** | Critical | Utilization > 85% and N-1 is limiting | If one host fails, remaining hosts cannot accommodate all VMs. Immediate risk of workload loss during host failure.       |
+| **Approaching N-1 capacity limits**    | Warning  | Utilization > 75% and N-1 is limiting | Getting close to the threshold. A host failure would leave little headroom. Consider adding hosts or reducing cell count. |
 
 **How the limiting constraint is determined:**
+
 - System compares HA reserved capacity vs N-1 reserved capacity
 - Whichever reserves MORE is the limiting constraint (less usable capacity)
 - Example: HA 25% on 30 TB = 7.5 TB reserved; N-1 = 2 TB reserved → HA is limiting
@@ -663,10 +686,10 @@ Where Usable Capacity = Total Cluster Memory - Reserved Capacity (HA or N-1, whi
 
 Available 4GB memory chunks for `cf push` staging operations.
 
-| Message | Severity | Triggered When | What It Means |
-|---------|----------|----------------|---------------|
-| **Critical: Low staging capacity** | Critical | Free Chunks < 200 | Deployments will queue significantly. Concurrent `cf push` operations will time out. |
-| **Low staging capacity** | Warning | Free Chunks < 400 | Staging may queue during busy deployment periods. Plan capacity additions before the next release cycle. |
+| Message                            | Severity | Triggered When    | What It Means                                                                                            |
+| ---------------------------------- | -------- | ----------------- | -------------------------------------------------------------------------------------------------------- |
+| **Critical: Low staging capacity** | Critical | Free Chunks < 200 | Deployments will queue significantly. Concurrent `cf push` operations will time out.                     |
+| **Low staging capacity**           | Warning  | Free Chunks < 400 | Staging may queue during busy deployment periods. Plan capacity additions before the next release cycle. |
 
 **Formula:** `Free Chunks = (App Capacity - Total App Memory) / 4 GB`
 
@@ -674,10 +697,10 @@ Available 4GB memory chunks for `cf push` staging operations.
 
 Percentage of Diego cell memory capacity consumed by running apps.
 
-| Message | Severity | Triggered When | What It Means |
-|---------|----------|----------------|---------------|
+| Message                              | Severity | Triggered When    | What It Means                                                                                       |
+| ------------------------------------ | -------- | ----------------- | --------------------------------------------------------------------------------------------------- |
 | **Cell utilization critically high** | Critical | Utilization > 90% | Near capacity exhaustion. New apps may fail to stage. Existing apps at risk during cell evacuation. |
-| **Cell utilization elevated** | Warning | Utilization > 80% | Limited headroom remaining. Monitor closely and plan capacity expansion. |
+| **Cell utilization elevated**        | Warning  | Utilization > 80% | Limited headroom remaining. Monitor closely and plan capacity expansion.                            |
 
 **Formula:** `Utilization = Total App Memory / App Capacity × 100`
 
@@ -685,10 +708,10 @@ Percentage of Diego cell memory capacity consumed by running apps.
 
 Percentage of Diego cell disk capacity consumed by app droplets and containers.
 
-| Message | Severity | Triggered When | What It Means |
-|---------|----------|----------------|---------------|
+| Message                              | Severity | Triggered When         | What It Means                                                                        |
+| ------------------------------------ | -------- | ---------------------- | ------------------------------------------------------------------------------------ |
 | **Disk utilization critically high** | Critical | Disk Utilization > 90% | Near disk exhaustion. Staging failures likely. Apps with local file writes may fail. |
-| **Disk utilization elevated** | Warning | Disk Utilization > 80% | Limited disk headroom. Large droplets or file-heavy apps may encounter issues. |
+| **Disk utilization elevated**        | Warning  | Disk Utilization > 80% | Limited disk headroom. Large droplets or file-heavy apps may encounter issues.       |
 
 **Formula:** `Disk Utilization = Total App Disk / Disk Capacity × 100`
 
@@ -696,10 +719,10 @@ Percentage of Diego cell disk capacity consumed by app droplets and containers.
 
 Modeled scheduler throughput based on cell count.
 
-| Message | Severity | Triggered When | What It Means |
-|---------|----------|----------------|---------------|
-| **Cell count (N) causes severe scheduling degradation (~X TPS)** | Critical | TPS Status = "critical" (< 50% of peak) | Diego's BBS scheduler is overwhelmed by coordination overhead. App starts/restarts will be severely delayed. Consider larger, fewer cells. |
-| **Cell count (N) may cause scheduling latency (~X TPS)** | Warning | TPS Status = "degraded" (50-79% of peak) | Noticeable scheduling delays during scaling events or deployments. Monitor app start times. |
+| Message                                                          | Severity | Triggered When                           | What It Means                                                                                                                              |
+| ---------------------------------------------------------------- | -------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Cell count (N) causes severe scheduling degradation (~X TPS)** | Critical | TPS Status = "critical" (< 50% of peak)  | Diego's BBS scheduler is overwhelmed by coordination overhead. App starts/restarts will be severely delayed. Consider larger, fewer cells. |
+| **Cell count (N) may cause scheduling latency (~X TPS)**         | Warning  | TPS Status = "degraded" (50-79% of peak) | Noticeable scheduling delays during scaling events or deployments. Monitor app start times.                                                |
 
 **Reference:** Peak TPS occurs around 3 cells (~1,964 TPS). Performance degrades as cell count increases due to coordination overhead.
 
@@ -707,10 +730,10 @@ Modeled scheduler throughput based on cell count.
 
 Measures the percentage of total capacity at risk if a single Diego cell fails.
 
-| Message | Severity | Triggered When | What It Means |
-|---------|----------|----------------|---------------|
-| **High cell failure impact: single cell loss affects X% of capacity** | Critical | Blast Radius > 20% | Very few cells (5 or fewer). A single cell failure has outsized impact on workload capacity. Not recommended for production. |
-| **Elevated cell failure impact: single cell loss affects X% of capacity** | Warning | Blast Radius > 10% | Low cell count (10 or fewer). Consider whether this resilience level is acceptable for your workload criticality. |
+| Message                                                                   | Severity | Triggered When     | What It Means                                                                                                                |
+| ------------------------------------------------------------------------- | -------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| **High cell failure impact: single cell loss affects X% of capacity**     | Critical | Blast Radius > 20% | Very few cells (5 or fewer). A single cell failure has outsized impact on workload capacity. Not recommended for production. |
+| **Elevated cell failure impact: single cell loss affects X% of capacity** | Warning  | Blast Radius > 10% | Low cell count (10 or fewer). Consider whether this resilience level is acceptable for your workload criticality.            |
 
 **Formula:** `Blast Radius = 100 / Cell Count`
 
@@ -718,24 +741,26 @@ Measures the percentage of total capacity at risk if a single Diego cell fails.
 
 The cell configuration comparison shows a resilience indicator between current and proposed:
 
-| Indicator | Blast Radius | Cell Count | Meaning |
-|-----------|--------------|------------|---------|
-| **✓ Low risk** | ≤ 5% | 20+ cells | Highly resilient; single cell failures have minimal impact |
-| **⚠ Moderate risk** | 5-15% | 7-20 cells | Acceptable for most workloads; monitor during failures |
-| **⚠ High risk** | > 15% | < 7 cells | Significant impact from single failures; consider for dev/test only |
+| Indicator           | Blast Radius | Cell Count | Meaning                                                             |
+| ------------------- | ------------ | ---------- | ------------------------------------------------------------------- |
+| **✓ Low risk**      | ≤ 5%         | 20+ cells  | Highly resilient; single cell failures have minimal impact          |
+| **⚠ Moderate risk** | 5-15%        | 7-20 cells | Acceptable for most workloads; monitor during failures              |
+| **⚠ High risk**     | > 15%        | < 7 cells  | Significant impact from single failures; consider for dev/test only |
 
 ---
 
 ## Quick Reference: All Thresholds
 
-| Metric | Good | Warning | Critical |
-|--------|------|---------|----------|
-| Capacity (HA/N-1) | < 75% | 75-85% | > 85% |
-| Memory Utilization | < 80% | 80-90% | > 90% |
-| Disk Utilization | < 80% | 80-90% | > 90% |
-| Free Chunks | ≥ 400 | 200-399 | < 200 |
-| TPS Performance | ≥ 80% peak | 50-79% peak | < 50% peak |
-| Blast Radius | ≤ 5% | 5-20% | > 20% |
-| Fault Impact | < 25 | 25-49 | ≥ 50 |
-| Instances/Cell | < 30 | 30-49 | ≥ 50 |
-| vCPU:pCPU Ratio | ≤ 4:1 | 4:1-8:1 | > 8:1 |
+| Metric              | Good       | Warning     | Critical   |
+| ------------------- | ---------- | ----------- | ---------- |
+| Capacity (HA/N-1)   | < 75%      | 75-85%      | > 85%      |
+| Memory Utilization  | < 80%      | 80-90%      | > 90%      |
+| Disk Utilization    | < 80%      | 80-90%      | > 90%      |
+| Free Chunks (gauge) | ≥ 20       | 10-19       | < 10       |
+| TPS Performance     | ≥ 80% peak | 50-79% peak | < 50% peak |
+| Blast Radius        | ≤ 5%       | 5-20%       | > 20%      |
+| Fault Impact        | < 25       | 25-49       | ≥ 50       |
+| Instances/Cell      | < 30       | 30-49       | ≥ 50       |
+| vCPU:pCPU Ratio     | ≤ 4:1      | 4:1-8:1     | > 8:1      |
+
+**Note:** Free Chunks has two threshold sets: the gauge status uses 20/10 (shown above), while backend warning messages use 200/400 (see [Staging Capacity warnings](#staging-capacity-free-chunks-1)).
