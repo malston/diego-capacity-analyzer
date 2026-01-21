@@ -572,6 +572,91 @@ phase_backend() {
 }
 
 #######################################
+# Phase 4: Frontend
+#######################################
+phase_frontend() {
+    CURRENT_PHASE="frontend"
+    log_info "Phase 4: Deploying frontend"
+
+    if state_is_complete "FRONTEND" && [[ "$FRESH" != "true" ]]; then
+        log_success "Phase 4 already complete (skipping)"
+        return 0
+    fi
+
+    local frontend_dir="$PROJECT_ROOT/frontend"
+    local backend_url
+    backend_url=$(state_get "BACKEND_URL")
+
+    # Verify frontend directory exists
+    if [[ ! -d "$frontend_dir" ]]; then
+        log_error "Frontend directory not found: $frontend_dir"
+        return 1
+    fi
+
+    # Check backend URL is available
+    if [[ -z "$backend_url" ]]; then
+        log_error "Backend URL not found in state. Run phase 'backend' first."
+        return 1
+    fi
+
+    # Target CF org/space
+    log_info "Targeting CF org/space: $CF_ORG/$CF_SPACE"
+    if [[ "$DRY_RUN" != "true" ]]; then
+        cf target -o "$CF_ORG" -s "$CF_SPACE"
+    fi
+
+    # Create frontend .env with backend URL
+    local frontend_env="$frontend_dir/.env"
+    log_info "Creating frontend .env with backend URL..."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would write VITE_API_URL=https://$backend_url to $frontend_env"
+    else
+        echo "VITE_API_URL=https://$backend_url" > "$frontend_env"
+    fi
+
+    # Install dependencies
+    log_info "Installing npm dependencies..."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would run: npm install in $frontend_dir"
+    else
+        (cd "$frontend_dir" && npm install)
+    fi
+
+    # Build frontend
+    log_info "Building frontend..."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would run: npm run build in $frontend_dir"
+    else
+        (cd "$frontend_dir" && npm run build)
+    fi
+
+    # Push frontend app
+    log_info "Pushing $FRONTEND_APP_NAME..."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would run: (cd $frontend_dir && cf push $FRONTEND_APP_NAME)"
+    else
+        (cd "$frontend_dir" && cf push "$FRONTEND_APP_NAME")
+    fi
+
+    # Get frontend URL
+    local frontend_url
+    if [[ "$DRY_RUN" == "true" ]]; then
+        frontend_url="$FRONTEND_APP_NAME.apps.example.com"
+    else
+        frontend_url=$(cf app "$FRONTEND_APP_NAME" | grep -E "^routes:" | awk '{print $2}')
+        if [[ -z "$frontend_url" ]]; then
+            log_error "Failed to extract frontend URL from cf app output"
+            return 1
+        fi
+    fi
+    state_set "FRONTEND_URL" "$frontend_url"
+
+    log_success "Frontend running at $frontend_url"
+    state_set "FRONTEND" "complete"
+    log_success "Phase 4 complete"
+}
+
+#######################################
 # Main entry point
 #######################################
 main() {
@@ -608,7 +693,7 @@ main() {
             prereqs)  phase_prereqs ;;
             env)      phase_env ;;
             backend)  phase_backend ;;
-            frontend) log_info "Phase frontend not yet implemented" ;;
+            frontend) phase_frontend ;;
             verify)   log_info "Phase verify not yet implemented" ;;
         esac
     else
@@ -618,7 +703,8 @@ main() {
         fi
         phase_env
         phase_backend
-        log_info "Remaining phases not yet implemented"
+        phase_frontend
+        log_info "Remaining phases not yet implemented (verify)"
     fi
 }
 
