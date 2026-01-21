@@ -76,11 +76,11 @@ diego-capacity
 │                                                  │
 │  Select data source:                             │
 │                                                  │
-│  > ● Live vSphere      (vcenter.example.com)    │
+│  > ● Live vSphere      (vcenter.example.com)     │
 │    ○ Load JSON file                              │
 │    ○ Manual input                                │
 │                                                  │
-│  [Enter] Select   [q] Quit                      │
+│  [Enter] Select   [q] Quit                       │
 └──────────────────────────────────────────────────┘
 ```
 
