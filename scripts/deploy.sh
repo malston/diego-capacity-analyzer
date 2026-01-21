@@ -61,6 +61,24 @@ require_cmd() {
     fi
 }
 
+# Validate that a variable doesn't contain placeholder values
+validate_no_placeholder() {
+    local var_name="$1"
+    local value="${!var_name:-}"
+    local placeholders="CHANGEME|example\.com|your-domain|placeholder|PLACEHOLDER|TODO|FIXME"
+
+    if [[ -z "$value" ]]; then
+        log_error "$var_name is not set"
+        return 1
+    fi
+
+    if [[ "$value" =~ ($placeholders) ]]; then
+        log_error "$var_name contains placeholder value: $value"
+        log_error "Update .env or config/deploy.conf with real values"
+        return 1
+    fi
+}
+
 #######################################
 # Constants
 #######################################
@@ -398,22 +416,35 @@ phase_env() {
     local env_file="$PROJECT_ROOT/.env"
     local generate_script="$PROJECT_ROOT/generate-env.sh"
 
-    # Check if .env already exists with required variables
+    # Check if .env already exists with required variables (and no placeholders)
     if [[ -f "$env_file" ]]; then
         log_debug "Checking existing .env file..."
         local has_required=true
+        local has_placeholders=false
+        local placeholders="CHANGEME|example\.com|your-domain|placeholder|PLACEHOLDER|TODO|FIXME"
+
         for var in BOSH_ENVIRONMENT CF_API_URL CF_USERNAME CF_PASSWORD; do
             if ! grep -q "^$var=" "$env_file" 2>/dev/null; then
                 log_debug "Missing $var in .env"
                 has_required=false
                 break
             fi
+            # Check for placeholder values
+            local value
+            value=$(grep "^$var=" "$env_file" | cut -d'=' -f2-)
+            if [[ "$value" =~ ($placeholders) ]]; then
+                log_warn "$var contains placeholder value in .env"
+                has_placeholders=true
+            fi
         done
-        if [[ "$has_required" == "true" ]]; then
+
+        if [[ "$has_required" == "true" && "$has_placeholders" == "false" ]]; then
             log_success ".env already exists with required variables"
             state_set "ENV" "complete"
             log_success "Phase 2 complete"
             return 0
+        elif [[ "$has_placeholders" == "true" ]]; then
+            log_warn ".env contains placeholder values - will regenerate"
         fi
     fi
 
@@ -491,6 +522,19 @@ phase_backend() {
         set -u
     else
         log_error ".env file not found. Run phase 'env' first."
+        return 1
+    fi
+
+    # Validate critical environment variables don't contain placeholders
+    log_debug "Validating environment variables..."
+    local validation_failed=false
+    for var in CF_API_URL CF_USERNAME; do
+        if ! validate_no_placeholder "$var"; then
+            validation_failed=true
+        fi
+    done
+    if [[ "$validation_failed" == "true" ]]; then
+        log_error "Environment validation failed. Fix .env before deploying."
         return 1
     fi
 
