@@ -5,6 +5,38 @@
 set -Eeuo pipefail
 
 #######################################
+# Error handling
+#######################################
+cleanup() {
+    local exit_code=$?
+    if [[ $exit_code -ne 0 && -n "${CURRENT_PHASE:-}" ]]; then
+        log_error "Deployment failed during phase: $CURRENT_PHASE"
+        log_info "Re-run the script to resume from this phase"
+    fi
+}
+trap cleanup EXIT
+
+error_handler() {
+    local line=$1
+    local command=$2
+    log_error "Command failed at line $line"
+    log_error "Command: $command"
+}
+trap 'error_handler $LINENO "$BASH_COMMAND"' ERR
+
+#######################################
+# Utility functions
+#######################################
+require_cmd() {
+    local cmd="$1"
+    local msg="${2:-Required command not found: $cmd}"
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        log_error "$msg"
+        return 1
+    fi
+}
+
+#######################################
 # Constants
 #######################################
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
