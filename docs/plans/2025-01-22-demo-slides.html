@@ -318,18 +318,15 @@ $ make backend-run</code></pre>
     <div class="speaker-notes-hint">Press 'S' for speaker notes</div>
 
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"></script>
     <script>
         Reveal.initialize({
             hash: true,
             slideNumber: true,
-            showNotes: false,
             transition: 'slide',
             transitionSpeed: 'default',
             backgroundTransition: 'fade',
-            // Keyboard shortcuts
-            keyboard: {
-                // 'S' opens speaker notes in a new window
-            }
+            plugins: [ RevealNotes ]
         });
     </script>
 </body>
