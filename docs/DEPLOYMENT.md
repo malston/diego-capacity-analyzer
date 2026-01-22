@@ -2,6 +2,28 @@
 
 Complete guide for deploying the TAS Capacity Analyzer to Cloud Foundry.
 
+## Automated Deployment
+
+For automated deployment, use the deployment script:
+
+```bash
+# Copy and configure
+cp config/deploy.conf.example config/deploy.conf
+# Edit config/deploy.conf with your credentials
+
+# Run deployment
+./scripts/deploy.sh
+
+# Or run with environment variables
+OM_TARGET=opsman.example.com OM_USERNAME=admin OM_PASSWORD=secret ./scripts/deploy.sh
+```
+
+See `./scripts/deploy.sh --help` for all options including single-phase execution and dry-run mode.
+
+---
+
+## Manual Deployment
+
 ## Prerequisites
 
 ### Required Tools
@@ -125,16 +147,16 @@ Edit `backend/manifest.yml` and update the placeholder values:
 ```yaml
 ---
 applications:
-- name: capacity-backend
-  memory: 256M
-  instances: 1
-  buildpacks:
-  - go_buildpack
-  env:
-    CF_API_URL: https://api.sys.your-domain.com     # Update this
-    BOSH_ENVIRONMENT: https://10.0.0.6:25555        # Update this
-    BOSH_DEPLOYMENT: cf-abc123def456                # Update this
-    CACHE_TTL: 300
+  - name: capacity-backend
+    memory: 256M
+    instances: 1
+    buildpacks:
+      - go_buildpack
+    env:
+      CF_API_URL: https://api.sys.your-domain.com # Update this
+      BOSH_ENVIRONMENT: https://10.0.0.6:25555 # Update this
+      BOSH_DEPLOYMENT: cf-abc123def456 # Update this
+      CACHE_TTL: 300
 ```
 
 ### Push Backend App
@@ -232,14 +254,14 @@ The `frontend/manifest.yml` is already configured, but you can verify it points 
 ```yaml
 ---
 applications:
-- name: capacity-ui
-  memory: 64M
-  instances: 1
-  buildpacks:
-  - staticfile_buildpack
-  path: dist
-  env:
-    VITE_API_URL: https://capacity-backend.apps.your-domain.com
+  - name: capacity-ui
+    memory: 64M
+    instances: 1
+    buildpacks:
+      - staticfile_buildpack
+    path: dist
+    env:
+      VITE_API_URL: https://capacity-backend.apps.your-domain.com
 ```
 
 ### Push Frontend App
@@ -418,7 +440,7 @@ cf app capacity-backend  # Look at memory usage
 **Solution**: Increase memory allocation in `backend/manifest.yml`:
 
 ```yaml
-memory: 512M  # Increase from 256M
+memory: 512M # Increase from 256M
 ```
 
 Then:
@@ -518,6 +540,8 @@ rm -f capacity-backend
 
 **Current approach**: Environment variables set via `cf set-env`
 
+> ⚠️ **Security Warning**: Credentials set via `cf set-env` are stored in plain text and visible to anyone with SpaceDeveloper access via `cf env capacity-backend`. This includes CF_PASSWORD, BOSH_CLIENT_SECRET, and VSPHERE_PASSWORD. For production deployments, use CredHub or user-provided services instead.
+
 **Production recommendation**: Use CredHub for credential storage
 
 ```bash
@@ -553,10 +577,10 @@ cf bind-service capacity-backend <credhub-service-instance>
 
 The backend uses structured logging with Go's `log/slog` package.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, `error` |
-| `LOG_FORMAT` | `text` | Output format: `text` (human-readable) or `json` (machine-parseable) |
+| Variable     | Default | Description                                                          |
+| ------------ | ------- | -------------------------------------------------------------------- |
+| `LOG_LEVEL`  | `info`  | Log verbosity: `debug`, `info`, `warn`, `error`                      |
+| `LOG_FORMAT` | `text`  | Output format: `text` (human-readable) or `json` (machine-parseable) |
 
 ```bash
 # Enable debug logging for troubleshooting
@@ -569,14 +593,21 @@ cf restage capacity-backend
 ```
 
 **Example output (text format):**
+
 ```text
 time=2025-12-23T10:00:00Z level=INFO msg="Starting server" port=8080
 time=2025-12-23T10:00:01Z level=INFO msg="CF API authenticated" api_url=https://api.sys.example.com
 ```
 
 **Example output (JSON format):**
+
 ```json
-{"time":"2025-12-23T10:00:00Z","level":"INFO","msg":"Starting server","port":8080}
+{
+  "time": "2025-12-23T10:00:00Z",
+  "level": "INFO",
+  "msg": "Starting server",
+  "port": 8080
+}
 ```
 
 ### Adjust Cache TTL

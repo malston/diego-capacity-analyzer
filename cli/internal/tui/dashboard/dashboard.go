@@ -8,6 +8,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/client"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/icons"
 	"github.com/markalston/diego-capacity-analyzer/cli/internal/tui/styles"
@@ -131,7 +134,7 @@ func (d *Dashboard) renderMetricsRow() string {
 		riskLabel = "unknown"
 	}
 	// Title-case the risk label for display
-	cpuSubtitle := strings.Title(riskLabel)
+	cpuSubtitle := cases.Title(language.English).String(riskLabel)
 	cpuValue := fmt.Sprintf("%.1f:1", d.infra.VCPURatio)
 	cpuConfig := config
 	if riskLabel == "moderate" {

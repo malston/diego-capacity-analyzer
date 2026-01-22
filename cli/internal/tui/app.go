@@ -623,7 +623,7 @@ func (a *App) padToFrameWidth(content string) string {
 }
 
 // frameWidth returns the width for the header/footer frame and panels
-// Uses full terminal width minus 1 for safety
+// Uses full terminal width minus 1 to prevent wrapping on some terminals
 func (a *App) frameWidth() int {
 	return a.width - 1
 }
@@ -691,7 +691,7 @@ func (a *App) deriveInfraName() string {
 
 // renderHeader creates the header bar with app branding and context
 func (a *App) renderHeader() string {
-	// Use full terminal width minus 1 for safety
+	// Use full terminal width minus 1 to prevent wrapping on some terminals
 	width := a.width - 1
 	if width < minTerminalWidth {
 		width = minTerminalWidth
@@ -730,7 +730,7 @@ func (a *App) renderHeader() string {
 
 // renderFooter creates the footer with keyboard shortcuts and status
 func (a *App) renderFooter() string {
-	// Use full terminal width minus 1 for safety
+	// Use full terminal width minus 1 to prevent wrapping on some terminals
 	width := a.width - 1
 	if width < minTerminalWidth {
 		width = minTerminalWidth
@@ -854,8 +854,11 @@ func (a *App) wrapWithFrame(content string) string {
 	sb.WriteString(content)
 
 	// Add padding lines to fill the terminal (footer goes right at the bottom)
+	// Always add at least one newline to ensure footer is on its own line
 	if paddingNeeded > 0 {
 		sb.WriteString(strings.Repeat("\n", paddingNeeded))
+	} else {
+		sb.WriteString("\n")
 	}
 
 	sb.WriteString(footer)

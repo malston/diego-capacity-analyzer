@@ -1,0 +1,26 @@
+# ABOUTME: Template configuration for deployment script.
+# ABOUTME: Copy to deploy.conf and fill in values for your environment.
+
+# Ops Manager credentials (required)
+# Used by generate-env.sh to derive all other credentials
+OM_TARGET=opsman.example.com
+OM_USERNAME=admin
+OM_PASSWORD=
+
+# Optional: Use client credentials instead of username/password
+# OM_CLIENT_ID=
+# OM_CLIENT_SECRET=
+
+# Optional: For non-routable BOSH networks (SSH tunnel through Ops Manager)
+# OM_PRIVATE_KEY=~/.ssh/opsman_key
+
+# Optional: Skip SSL validation (not recommended for production)
+OM_SKIP_SSL_VALIDATION=false
+
+# CF target org/space for deployment (default: system/system)
+CF_ORG=system
+CF_SPACE=system
+
+# App names (default: capacity-backend, capacity-ui)
+BACKEND_APP_NAME=capacity-backend
+FRONTEND_APP_NAME=capacity-ui

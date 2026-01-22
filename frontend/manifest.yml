@@ -1,10 +1,10 @@
 ---
 applications:
-- name: capacity-ui
-  memory: 64M
-  instances: 1
-  buildpacks:
-  - staticfile_buildpack
-  path: dist
-  env:
-    VITE_API_URL: https://capacity-backend.apps.CHANGEME.com
+  - name: capacity-ui
+    memory: 64M
+    instances: 1
+    buildpacks:
+      - staticfile_buildpack
+    path: dist
+    # VITE_API_URL is baked into the build via frontend/.env
+    # Created by deploy.sh before npm run build

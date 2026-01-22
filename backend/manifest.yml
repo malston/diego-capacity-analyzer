@@ -1,18 +1,12 @@
 ---
 applications:
-- name: capacity-backend
-  memory: 256M
-  instances: 1
-  buildpacks:
-  - go_buildpack
-  env:
-    CF_API_URL: https://api.sys.CHANGEME.com
-    BOSH_ENVIRONMENT: https://10.0.0.6:25555
-    BOSH_DEPLOYMENT: cf-CHANGEME
-    CACHE_TTL: 300
-  # Set these via cf set-env or CredHub:
-  # CF_USERNAME
-  # CF_PASSWORD
-  # BOSH_CLIENT
-  # BOSH_CLIENT_SECRET
-  # BOSH_CA_CERT
+  - name: capacity-backend
+    memory: 256M
+    instances: 1
+    buildpacks:
+      - go_buildpack
+    env:
+      CACHE_TTL: 300
+    # All other env vars set by deploy.sh via cf set-env:
+    # CF_API_URL, CF_USERNAME, CF_PASSWORD
+    # BOSH_ENVIRONMENT, BOSH_CLIENT, BOSH_CLIENT_SECRET, BOSH_DEPLOYMENT, BOSH_CA_CERT
