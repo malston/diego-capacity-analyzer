@@ -40,11 +40,6 @@ clean: backend-clean frontend-clean cli-clean ## Clean all build artifacts
 #
 
 backend-build: ## Build Go backend binary
-	@if [ ! -f openapi.yaml ]; then \
-		echo "Error: openapi.yaml not found in project root"; \
-		exit 1; \
-	fi
-	@cp openapi.yaml backend/handlers/openapi.yaml
 	cd backend && go build -o capacity-backend .
 
 backend-test: ## Run backend tests
@@ -141,7 +136,7 @@ cli-install: cli-build ## Install CLI to $GOPATH/bin
 #
 
 OPENAPI_PORT ?= 8090
-OPENAPI_SPEC := openapi.yaml
+OPENAPI_SPEC := backend/handlers/openapi.yaml
 OPENAPI_SERVER_DIR := .openapi-server
 
 openapi-serve: ## Serve OpenAPI docs via Swagger UI (PORT=$(OPENAPI_PORT))
