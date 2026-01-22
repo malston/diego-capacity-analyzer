@@ -36,7 +36,8 @@ VOLUME_PREFIXES := aws-config bun cargo claude-code-bashhistory claude-config cl
 clean-volumes: ## Remove all devcontainer volumes (run 'make down' first)
 	@echo "Removing devcontainer volumes..."
 	@for prefix in $(VOLUME_PREFIXES); do \
-		docker volume ls -q | grep "^$${prefix}-" | xargs -r docker volume rm 2>/dev/null || true; \
+		volumes=$$(docker volume ls -q | grep "^$${prefix}-" || true); \
+		[ -n "$$volumes" ] && docker volume rm $$volumes 2>/dev/null || true; \
 	done
 	@echo "Done. Run 'make rebuild && make up' to start fresh."
 
