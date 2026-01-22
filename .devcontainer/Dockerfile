@@ -89,5 +89,7 @@ COPY --chown=node:node claude-config/settings.json /usr/local/share/claude-defau
 COPY --chown=node:node claude-config/enabled.json /usr/local/share/claude-defaults/enabled.json
 COPY --chown=node:node claude-config/CLAUDE.md.template /usr/local/share/claude-defaults/CLAUDE.md.template
 COPY --chown=node:node claude-config/.library /usr/local/share/claude-defaults/.library
+COPY --chown=node:node --chmod=755 claude-config/scripts /usr/local/share/claude-defaults/scripts
+COPY --chown=node:node claude-config/completions /usr/local/share/claude-defaults/completions
 
 USER node

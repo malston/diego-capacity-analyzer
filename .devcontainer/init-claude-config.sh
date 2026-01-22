@@ -124,6 +124,35 @@ if [ -d "$CLAUDE_HOME/.library/hooks" ]; then
     chmod +x "$CLAUDE_HOME/.library/hooks"/*.py 2>/dev/null || true
 fi
 
+# Deploy scripts folder
+if [ ! -d "$CLAUDE_HOME/scripts" ] && [ -d "$CONFIG_SOURCE/scripts" ]; then
+    cp -r "$CONFIG_SOURCE/scripts" "$CLAUDE_HOME/"
+    chmod +x "$CLAUDE_HOME/scripts"/*.sh 2>/dev/null || true
+    chmod +x "$CLAUDE_HOME/scripts/claude-config" 2>/dev/null || true
+    echo "[OK] scripts/ deployed"
+else
+    echo "[SKIP] scripts/ exists, preserving"
+fi
+
+# Deploy completions folder
+if [ ! -d "$CLAUDE_HOME/completions" ] && [ -d "$CONFIG_SOURCE/completions" ]; then
+    cp -r "$CONFIG_SOURCE/completions" "$CLAUDE_HOME/"
+    echo "[OK] completions/ deployed"
+else
+    echo "[SKIP] completions/ exists, preserving"
+fi
+
+# Add claude-config alias to bashrc if not present
+BASHRC="/home/node/.bashrc"
+if ! grep -q "alias claude-config=" "$BASHRC" 2>/dev/null; then
+    echo "" >> "$BASHRC"
+    echo "# Claude Code configuration management" >> "$BASHRC"
+    echo "alias claude-config='~/.claude/scripts/claude-config'" >> "$BASHRC"
+    echo "[OK] claude-config alias added to .bashrc"
+else
+    echo "[SKIP] claude-config alias exists"
+fi
+
 # Ensure npm global directory exists
 mkdir -p /home/node/.npm-global/lib
 
