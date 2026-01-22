@@ -66,13 +66,25 @@ diego-capacity
 | `q`      | Any        | Quit application            |
 | `Ctrl+C` | Any        | Quit application            |
 
-### TUI Screenshot
+### TUI Screenshots
 
-**Scenario Comparison View:**
+**1. Data Source Selection**
 
-![TUI Scenario Comparison](images/tui-scenario-comparison.png)
+![Data Source Selection](images/select-datasource.jpg)
 
-The TUI displays infrastructure metrics on the left panel (memory utilization, CPU ratio, cluster/host counts, N-1 capacity, and HA status) with scenario comparison results on the right panel showing current vs proposed configurations, impact summary, and warnings.
+Choose between live vSphere connection, loading a JSON file, or manual input.
+
+**2. Infrastructure Dashboard**
+
+![Current Infrastructure](images/current-infra.jpg)
+
+View current infrastructure metrics including memory utilization, CPU ratio, cluster/host counts, N-1 capacity headroom, and HA status.
+
+**3. Scenario Comparison**
+
+![Scenario Comparison](images/tui-scenario-comparison.png)
+
+Compare current vs proposed configurations with impact summary and warnings. The left panel shows infrastructure metrics while the right panel displays scenario results.
 
 ## Commands
 
