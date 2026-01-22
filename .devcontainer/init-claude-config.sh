@@ -90,6 +90,15 @@ else
     echo "[SKIP] MCP config exists, preserving"
 fi
 
+# Deploy Claude Code preferences (~/.claude.json at home level, not inside ~/.claude/)
+CLAUDE_JSON="/home/node/.claude.json"
+if [ ! -f "$CLAUDE_JSON" ] && [ -f "$CONFIG_SOURCE/claude.json.template" ]; then
+    cp "$CONFIG_SOURCE/claude.json.template" "$CLAUDE_JSON"
+    echo "[OK] Claude Code preferences deployed (theme, notifications)"
+else
+    echo "[SKIP] ~/.claude.json exists, preserving"
+fi
+
 # Create symlinks from top-level directories to .library
 # This matches the structure Claude Code expects
 create_symlinks() {

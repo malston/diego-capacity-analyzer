@@ -1,0 +1,10 @@
+{
+  "theme": "light-ansi",
+  "preferredNotifChannel": "iterm2_with_bell",
+  "autoUpdates": false,
+  "hasCompletedOnboarding": true,
+  "hasSeenTasksHint": true,
+  "hasUsedStash": true,
+  "numStartups": 0,
+  "tipsHistory": {}
+}

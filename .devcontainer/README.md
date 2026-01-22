@@ -126,6 +126,7 @@ The `claude-config/` directory contains a complete Claude Code configuration sna
 - **settings.json** - Permissions (allowed Bash commands), hooks configuration, enabled plugins
 - **enabled.json** - Which skills, agents, commands, and output-styles are active
 - **CLAUDE.md.template** - Personal instructions for Claude (uses `{{USER_NAME}}` placeholder)
+- **claude.json.template** - Claude Code preferences (theme, notifications) deployed to `~/.claude.json`
 - **.library/** - Source files for:
   - `hooks/` - Pre/Post tool use hooks (format-on-save, log-bash-commands, etc.)
   - `skills/` - Domain expertise (bash, code-reviewer, vsphere-architect, etc.)
@@ -142,6 +143,16 @@ export CLAUDE_USER_NAME="Alice"
 ```
 
 This replaces `{{USER_NAME}}` in the template with your name.
+
+### Authentication
+
+On first container start, authenticate Claude Code with your account:
+
+```bash
+claude login
+```
+
+This is required because OAuth credentials are user-specific and not included in the portable configuration snapshot.
 
 ### Updating the Configuration
 
