@@ -138,7 +138,10 @@ POST /api/v1/infrastructure/manual     # Manual infrastructure input
 POST /api/v1/infrastructure/state      # Set infrastructure state directly
 GET  /api/v1/infrastructure/status     # Data source status
 POST /api/v1/infrastructure/planning   # Calculate max deployable cells
+GET  /api/v1/infrastructure/apps       # Per-app memory/disk breakdown
 POST /api/v1/scenario/compare          # Compare current vs proposed scenarios
+GET  /api/v1/bottleneck                # Multi-resource bottleneck analysis
+GET  /api/v1/recommendations           # Upgrade path recommendations
 ```
 
 ## Configuration
@@ -201,7 +204,7 @@ export VSPHERE_HOST=vcenter.example.com
 export VSPHERE_USERNAME=administrator@vsphere.local
 export VSPHERE_PASSWORD=secret
 export VSPHERE_DATACENTER=Datacenter-Name
-export VSPHERE_INSECURE=true
+export VSPHERE_INSECURE=false
 ```
 
 ### Optional: Tuning
