@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diego Capacity Analyzer - R&D Demo</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css">
+    <style>
+        :root {
+            --r-background-color: #1a1a2e;
+            --r-main-color: #eee;
+            --r-heading-color: #16db93;
+            --r-link-color: #4ecdc4;
+        }
+        .reveal {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .reveal h1, .reveal h2, .reveal h3 {
+            text-transform: none;
+            font-weight: 600;
+        }
+        .reveal h1 {
+            font-size: 2.5em;
+            color: var(--r-heading-color);
+        }
+        .reveal h2 {
+            font-size: 1.8em;
+            color: var(--r-heading-color);
+        }
+        .reveal h3 {
+            font-size: 1.3em;
+            color: #4ecdc4;
+        }
+        .reveal .subtitle {
+            font-size: 1.2em;
+            color: #888;
+            margin-top: -0.5em;
+        }
+        .reveal .tagline {
+            font-size: 1.4em;
+            color: #4ecdc4;
+            font-style: italic;
+            margin-top: 1em;
+        }
+        .reveal ul {
+            display: block;
+            text-align: left;
+        }
+        .reveal li {
+            margin-bottom: 0.5em;
+            line-height: 1.4;
+        }
+        .reveal .highlight {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        .reveal .success {
+            color: #16db93;
+        }
+        .reveal table {
+            margin: 0 auto;
+            border-collapse: collapse;
+            font-size: 0.8em;
+        }
+        .reveal th, .reveal td {
+            border: 1px solid #444;
+            padding: 0.5em 1em;
+            text-align: left;
+        }
+        .reveal th {
+            background: #2a2a4a;
+            color: #16db93;
+        }
+        .reveal .architecture-diagram {
+            font-family: 'Courier New', monospace;
+            font-size: 0.7em;
+            text-align: left;
+            background: #0d0d1a;
+            padding: 1em;
+            border-radius: 8px;
+            line-height: 1.6;
+        }
+        .reveal .demo-transition {
+            font-size: 1.5em;
+            color: #4ecdc4;
+            font-style: italic;
+        }
+        .reveal .pain-point {
+            color: #ff6b6b;
+        }
+        .reveal .solution {
+            color: #16db93;
+        }
+        .reveal code {
+            background: #2a2a4a;
+            padding: 0.2em 0.5em;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .reveal .two-column {
+            display: flex;
+            gap: 2em;
+        }
+        .reveal .two-column > div {
+            flex: 1;
+        }
+        .reveal .screenshot-placeholder {
+            background: #2a2a4a;
+            border: 2px dashed #4ecdc4;
+            border-radius: 8px;
+            padding: 3em 2em;
+            text-align: center;
+            color: #888;
+            font-style: italic;
+        }
+        .reveal .cta {
+            background: linear-gradient(135deg, #16db93, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+        .speaker-notes-hint {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- SLIDE 1: Title -->
+            <section>
+                <h1>Diego Capacity Analyzer</h1>
+                <p class="tagline">Capacity planning for TAS, without the spreadsheets</p>
+                <br><br>
+                <p class="subtitle">R&D Technical Demo</p>
+                <p class="subtitle">January 2025</p>
+                <aside class="notes">
+                    Brief intro—who you are, what you'll cover in 25 minutes.
+                    Goal: Adoption pitch + Technical showcase
+                </aside>
+            </section>
+
+            <!-- SLIDE 2: The Problem -->
+            <section>
+                <h2>How do you answer<br><span class="pain-point">"Will my workloads fit?"</span></h2>
+                <ul>
+                    <li class="fragment"><span class="pain-point">Manual spreadsheet calculations</span><br>
+                        <small>Pull data from BOSH, CF, vSphere separately... merge by hand</small></li>
+                    <li class="fragment"><span class="pain-point">N-1 HA math done manually</span><br>
+                        <small>"If one host fails, do we have capacity?"</small></li>
+                    <li class="fragment"><span class="pain-point">No unified view of constraints</span><br>
+                        <small>Memory? CPU? Disk? Host count? Which one matters?</small></li>
+                    <li class="fragment"><span class="pain-point">"What-if" = start over from scratch</span></li>
+                </ul>
+                <aside class="notes">
+                    Pause here. Let them feel the pain. They've done this work manually.
+                    Don't rush—this slide sets up why the tool matters.
+                </aside>
+            </section>
+
+            <!-- SLIDE 3: The Solution -->
+            <section>
+                <h2><span class="solution">One dashboard.</span><br>Real-time data. Instant modeling.</h2>
+                <br>
+                <img src="../images/tas-capacity-analyzer-demo.gif" alt="Diego Capacity Analyzer Demo" style="max-height: 400px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                <br>
+                <p class="demo-transition fragment">Let me show you...</p>
+                <aside class="notes">
+                    Transition to live demo. Switch to browser with Dashboard loaded.
+                    Have large-foundation.json pre-loaded.
+                </aside>
+            </section>
+
+            <!-- SLIDE 4: Architecture - Data Flow -->
+            <section>
+                <h2>How It Works: Data Flow</h2>
+                <div class="architecture-diagram">
+<pre>
+  BOSH Director ──┐
+                  │
+  CF API ─────────┼──▶  Go Backend  ──▶  REST API  ──▶  React Frontend
+                  │         │
+  Log Cache ──────┤         ▼
+                  │   ┌────────────┐
+  vSphere ────────┘   │  Unified   │
+                      │  Capacity  │
+                      │   Model    │
+                      └────────────┘
+</pre>
+                </div>
+                <p class="fragment"><small>Four data sources → One unified view → Real-time calculations</small></p>
+                <aside class="notes">
+                    After live demo. Explain how the four data sources feed into a unified model.
+                    The backend does the heavy lifting—aggregation, calculations, caching.
+                </aside>
+            </section>
+
+            <!-- SLIDE 5: Integration Details -->
+            <section>
+                <h2>Four APIs, One Unified View</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>What We Get</th>
+                            <th>How</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="fragment">
+                            <td>BOSH</td>
+                            <td>Diego cell VMs + vitals</td>
+                            <td>UAA OAuth, Director API</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td>CF API</td>
+                            <td>Apps, processes, isolation segments</td>
+                            <td>OAuth2, /v3 endpoints</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td>Log Cache</td>
+                            <td><span class="success">Actual</span> memory (not allocated)</td>
+                            <td>PromQL-style queries</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td>vSphere</td>
+                            <td>Hosts, clusters, VM inventory</td>
+                            <td>govmomi SDK</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="fragment"><br><small>Log Cache gives <em>actual</em> memory, not just <em>allocated</em>—key for accurate planning</small></p>
+                <aside class="notes">
+                    Emphasize Log Cache distinction—that's often the "aha" moment for platform engineers.
+                    Without actual memory, you're just guessing at utilization.
+                </aside>
+            </section>
+
+            <!-- SLIDE 6: Capacity Engine -->
+            <section>
+                <h2>Intelligent Capacity Engine</h2>
+                <div class="two-column">
+                    <div>
+                        <h3>N-1 HA Calculation</h3>
+                        <p><small>"If one host fails, can remaining hosts absorb all workloads?"</small></p>
+                        <br>
+                        <h3 class="fragment" data-fragment-index="1">Multi-Resource Bottleneck</h3>
+                        <ul class="fragment" data-fragment-index="1">
+                            <li>Memory utilization</li>
+                            <li>CPU (with oversubscription)</li>
+                            <li>Disk capacity</li>
+                            <li>Host count constraints</li>
+                        </ul>
+                    </div>
+                    <div class="fragment" data-fragment-index="2">
+                        <h3>Scenario Comparison</h3>
+                        <p><small>Current state vs. proposed changes with delta calculations</small></p>
+                        <br>
+                        <h3 class="fragment" data-fragment-index="3">Actionable Output</h3>
+                        <p><small class="success">Not just data—<br>prioritized recommendations</small></p>
+                    </div>
+                </div>
+                <aside class="notes">
+                    This is the "secret sauce"—not just showing data, but doing the math automatically.
+                    The bottleneck detection tells you WHAT is constraining you, not just that you're constrained.
+                </aside>
+            </section>
+
+            <!-- SLIDE 7: Get Started -->
+            <section>
+                <h2>Try It Yourself</h2>
+                <br>
+                <h3>Quick Start <small>(no credentials needed)</small></h3>
+                <pre><code>$ git clone [repo-url]
+$ make frontend-dev
+→ Load any sample file from the UI</code></pre>
+                <br>
+                <h3 class="fragment">Connect to Real Infrastructure</h3>
+                <pre class="fragment"><code>$ ./generate-env.sh    # pulls creds from Ops Manager
+$ make backend-run</code></pre>
+                <br>
+                <p class="fragment cta">5 minutes to running with sample data</p>
+                <aside class="notes">
+                    Emphasize low barrier to try—sample data mode means zero setup friction.
+                    They can be running this before their next meeting.
+                </aside>
+            </section>
+
+            <!-- SLIDE 8: Feedback -->
+            <section>
+                <h2>Feedback Welcome</h2>
+                <br>
+                <ul>
+                    <li class="fragment">What capacity questions do you wrestle with?</li>
+                    <li class="fragment">What's missing that would make this useful?</li>
+                    <li class="fragment">How would this fit into your workflow?</li>
+                </ul>
+                <br><br>
+                <p class="fragment cta">Questions?</p>
+                <aside class="notes">
+                    End with questions—invite dialogue. This builds adoption momentum.
+                    Be ready for: "Does it support X?" "Can it integrate with Y?"
+                </aside>
+            </section>
+
+        </div>
+    </div>
+
+    <div class="speaker-notes-hint">Press 'S' for speaker notes</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: true,
+            showNotes: false,
+            transition: 'slide',
+            transitionSpeed: 'default',
+            backgroundTransition: 'fade',
+            // Keyboard shortcuts
+            keyboard: {
+                // 'S' opens speaker notes in a new window
+            }
+        });
+    </script>
+</body>
+</html>
