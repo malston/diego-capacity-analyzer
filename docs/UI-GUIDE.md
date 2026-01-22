@@ -6,6 +6,16 @@ A quick reference explaining what each metric and visualization means.
 
 ---
 
+## Visual Overview
+
+The TAS Capacity Analyzer provides two main views: the **Dashboard** for real-time monitoring and **Capacity Planning** for what-if analysis.
+
+![Full UI Walkthrough](images/tas-capacity-analyzer-demo.gif)
+
+_Complete walkthrough showing login, dashboard metrics, cell details, and capacity planning wizard._
+
+---
+
 ## Key Metrics Cards
 
 | Metric            | What It Means                                                                                                                                  |
@@ -83,6 +93,10 @@ Apps appear here when they have >15% memory overhead (requested vs actual).
 
 Toggle via the **What-If Mode** button. Explores: "What if I enabled memory overcommit?"
 
+![What-If Mode Demo](images/tas-what-if-mode.gif)
+
+_Adjusting the Memory Overcommit Ratio slider to see capacity impact._
+
 | Metric                  | What It Means                                                                                  |
 | ----------------------- | ---------------------------------------------------------------------------------------------- |
 | **Overcommit Ratio**    | Memory multiplier. 1.0x = no overcommit. 1.5x = sell 50% more capacity than physically exists. |
@@ -108,6 +122,10 @@ Toggle via the **What-If Mode** button. Explores: "What if I enabled memory over
 # Scenario Analysis Tab
 
 Answers: **"Will my workload fit if I change my cell configuration?"**
+
+![Scenario Results Demo](images/tas-scenario-results.gif)
+
+_Running capacity analysis through the wizard to see detailed scenario results with gauges and metrics._
 
 ---
 
