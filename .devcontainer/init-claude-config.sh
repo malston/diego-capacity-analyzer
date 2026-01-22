@@ -10,38 +10,96 @@ DOTFILES_DIR="/home/node/dotfiles"
 
 echo "Initializing Claude Code configuration..."
 
+# Input validation functions
+validate_email() {
+    local email="$1"
+    # Basic email format validation (user@domain.tld)
+    if [[ "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+        return 0
+    fi
+    return 1
+}
+
+validate_git_name() {
+    local name="$1"
+    # Reject names with shell metacharacters or control characters
+    if [[ "$name" =~ [\;\|\&\$\`\'\"\<\>\(\)\{\}\[\]\\] ]] || [[ "$name" =~ [[:cntrl:]] ]]; then
+        return 1
+    fi
+    # Must be non-empty and reasonable length
+    if [ -z "$name" ] || [ ${#name} -gt 256 ]; then
+        return 1
+    fi
+    return 0
+}
+
+validate_git_url() {
+    local url="$1"
+    # Accept HTTPS GitHub/GitLab URLs or git@ SSH URLs
+    if [[ "$url" =~ ^https://(github\.com|gitlab\.com|bitbucket\.org)/ ]] || \
+       [[ "$url" =~ ^git@(github\.com|gitlab\.com|bitbucket\.org): ]]; then
+        return 0
+    fi
+    return 1
+}
+
 # Configure git identity if env vars are set
 # Run from /tmp to avoid worktree .git file issues
 pushd /tmp > /dev/null
 if [ -n "${GIT_USER_NAME:-}" ]; then
-    git config --global user.name "$GIT_USER_NAME"
-    echo "[OK] Git user.name: $GIT_USER_NAME"
+    if validate_git_name "$GIT_USER_NAME"; then
+        git config --global user.name "$GIT_USER_NAME"
+        echo "[OK] Git user.name: $GIT_USER_NAME"
+    else
+        echo "[WARN] GIT_USER_NAME contains invalid characters, skipping"
+    fi
 fi
 
 if [ -n "${GIT_USER_EMAIL:-}" ]; then
-    git config --global user.email "$GIT_USER_EMAIL"
-    echo "[OK] Git user.email: $GIT_USER_EMAIL"
+    if validate_email "$GIT_USER_EMAIL"; then
+        git config --global user.email "$GIT_USER_EMAIL"
+        echo "[OK] Git user.email: $GIT_USER_EMAIL"
+    else
+        echo "[WARN] GIT_USER_EMAIL is not a valid email format, skipping"
+    fi
 fi
 
-# Configure GitHub token for git operations
+# Configure GitHub token using credential helper (secure - not stored in .gitconfig)
+# Token remains in environment variable, accessed only when needed
 if [ -n "${GITHUB_TOKEN:-}" ]; then
-    git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-    echo "[OK] GitHub token configured for git"
+    # Use gh CLI if available (preferred method)
+    if command -v gh &> /dev/null; then
+        gh auth setup-git 2>/dev/null || true
+        echo "[OK] GitHub auth configured via gh CLI"
+    else
+        # Fallback: configure credential helper to read from environment
+        # This avoids storing the token in .gitconfig
+        git config --global credential.helper "!f() { echo \"username=x-access-token\"; echo \"password=\${GITHUB_TOKEN}\"; }; f"
+        echo "[OK] GitHub credential helper configured (token read from env at runtime)"
+    fi
 fi
 popd > /dev/null
 
 # Clone dotfiles if repo is set and directory is empty
 if [ -n "${DOTFILES_REPO:-}" ] && [ -z "$(ls -A "$DOTFILES_DIR" 2>/dev/null)" ]; then
-    echo "Cloning dotfiles from $DOTFILES_REPO (branch: ${DOTFILES_BRANCH:-main})..."
-    git clone --branch "${DOTFILES_BRANCH:-main}" "$DOTFILES_REPO" "$DOTFILES_DIR"
-    echo "[OK] Dotfiles cloned to $DOTFILES_DIR"
+    # Validate dotfiles repo URL
+    if validate_git_url "$DOTFILES_REPO"; then
+        echo "Cloning dotfiles from $DOTFILES_REPO (branch: ${DOTFILES_BRANCH:-main})..."
+        git clone --branch "${DOTFILES_BRANCH:-main}" "$DOTFILES_REPO" "$DOTFILES_DIR"
+        echo "[OK] Dotfiles cloned to $DOTFILES_DIR"
 
-    # Run install script if it exists
-    if [ -f "$DOTFILES_DIR/install.sh" ]; then
-        echo "Running dotfiles install script${DOTFILES_INSTALL_ARGS:+ with args: $DOTFILES_INSTALL_ARGS}..."
-        # shellcheck disable=SC2086 # Word splitting is intentional for args
-        cd "$DOTFILES_DIR" && chmod +x install.sh && ./install.sh ${DOTFILES_INSTALL_ARGS:-}
-        echo "[OK] Dotfiles install script completed"
+        # Run install script if it exists
+        # WARNING: This executes code from the dotfiles repo - ensure you trust the source
+        if [ -f "$DOTFILES_DIR/install.sh" ]; then
+            echo "Running dotfiles install script${DOTFILES_INSTALL_ARGS:+ with args: $DOTFILES_INSTALL_ARGS}..."
+            echo "[SECURITY] Executing install.sh from $DOTFILES_REPO - ensure this repo is trusted"
+            # shellcheck disable=SC2086 # Word splitting is intentional for args
+            cd "$DOTFILES_DIR" && chmod +x install.sh && ./install.sh ${DOTFILES_INSTALL_ARGS:-}
+            echo "[OK] Dotfiles install script completed"
+        fi
+    else
+        echo "[WARN] DOTFILES_REPO must be a valid GitHub/GitLab/Bitbucket URL, skipping"
+        echo "[WARN] Allowed formats: https://github.com/... or git@github.com:..."
     fi
 elif [ -n "${DOTFILES_REPO:-}" ]; then
     echo "[SKIP] Dotfiles directory not empty, preserving"
@@ -111,8 +169,9 @@ create_symlinks() {
         mkdir -p "$target_dir"
         for item in "$source_dir"/*; do
             if [ -e "$item" ]; then
-                local basename=$(basename "$item")
-                ln -sf "../.library/$dir_name/$basename" "$target_dir/$basename"
+                local item_basename
+                item_basename=$(basename "$item")
+                ln -sf "../.library/$dir_name/$item_basename" "$target_dir/$item_basename"
             fi
         done
         echo "[OK] $dir_name/ symlinks created"
@@ -155,9 +214,11 @@ fi
 # Add claude-config alias to bashrc if not present
 BASHRC="/home/node/.bashrc"
 if ! grep -q "alias claude-config=" "$BASHRC" 2>/dev/null; then
-    echo "" >> "$BASHRC"
-    echo "# Claude Code configuration management" >> "$BASHRC"
-    echo "alias claude-config='~/.claude/scripts/claude-config'" >> "$BASHRC"
+    {
+        echo ""
+        echo "# Claude Code configuration management"
+        echo "alias claude-config='~/.claude/scripts/claude-config'"
+    } >> "$BASHRC"
     echo "[OK] claude-config alias added to .bashrc"
 else
     echo "[SKIP] claude-config alias exists"
