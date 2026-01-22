@@ -540,6 +540,8 @@ rm -f capacity-backend
 
 **Current approach**: Environment variables set via `cf set-env`
 
+> ⚠️ **Security Warning**: Credentials set via `cf set-env` are stored in plain text and visible to anyone with SpaceDeveloper access via `cf env capacity-backend`. This includes CF_PASSWORD, BOSH_CLIENT_SECRET, and VSPHERE_PASSWORD. For production deployments, use CredHub or user-provided services instead.
+
 **Production recommendation**: Use CredHub for credential storage
 
 ```bash

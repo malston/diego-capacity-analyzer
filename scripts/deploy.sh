@@ -192,6 +192,9 @@ state_set() {
 
     # Persist to file atomically
     if [[ "$DRY_RUN" != "true" ]]; then
+        # Clean up any orphaned temp files from interrupted runs
+        rm -f "${STATE_FILE}".?????? 2>/dev/null || true
+
         # Atomic write: temp file + mv prevents corruption if interrupted
         local tmp_file
         tmp_file=$(mktemp "${STATE_FILE}.XXXXXX")
