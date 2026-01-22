@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
-# ABOUTME: Initializes Claude Code configuration from templates.
-# ABOUTME: Configures git identity, dotfiles, MCP servers, and settings.
+# ABOUTME: Initializes Claude Code configuration from project templates.
+# ABOUTME: Deploys settings, hooks, skills, agents, and output-styles to ~/.claude.
 
 set -euo pipefail
 
 CLAUDE_HOME="/home/node/.claude"
-MCP_FILE="$CLAUDE_HOME/mcp.json"
-MCP_TEMPLATE="/usr/local/share/claude-defaults/mcp.json"
-SETTINGS_FILE="$CLAUDE_HOME/settings.json"
-SETTINGS_TEMPLATE="/usr/local/share/claude-defaults/settings.json"
+CONFIG_SOURCE="/usr/local/share/claude-defaults"
 DOTFILES_DIR="/home/node/dotfiles"
 
 echo "Initializing Claude Code configuration..."
@@ -49,23 +46,82 @@ elif [ -n "${DOTFILES_REPO:-}" ]; then
     echo "[SKIP] Dotfiles directory not empty, preserving"
 fi
 
-# Create .claude directory if it doesn't exist
+# Create .claude directory structure
 mkdir -p "$CLAUDE_HOME"
 
-# Copy MCP configuration if it doesn't exist
-if [ ! -f "$MCP_FILE" ] && [ -f "$MCP_TEMPLATE" ]; then
-    cp "$MCP_TEMPLATE" "$MCP_FILE"
+# Deploy .library (source files for hooks, skills, agents, etc.)
+if [ ! -d "$CLAUDE_HOME/.library" ] && [ -d "$CONFIG_SOURCE/.library" ]; then
+    cp -r "$CONFIG_SOURCE/.library" "$CLAUDE_HOME/"
+    echo "[OK] .library deployed (hooks, skills, agents, output-styles, commands)"
+else
+    echo "[SKIP] .library exists, preserving"
+fi
+
+# Deploy settings.json
+if [ ! -f "$CLAUDE_HOME/settings.json" ] && [ -f "$CONFIG_SOURCE/settings.json" ]; then
+    cp "$CONFIG_SOURCE/settings.json" "$CLAUDE_HOME/"
+    echo "[OK] settings.json deployed"
+else
+    echo "[SKIP] settings.json exists, preserving"
+fi
+
+# Deploy enabled.json
+if [ ! -f "$CLAUDE_HOME/enabled.json" ] && [ -f "$CONFIG_SOURCE/enabled.json" ]; then
+    cp "$CONFIG_SOURCE/enabled.json" "$CLAUDE_HOME/"
+    echo "[OK] enabled.json deployed"
+else
+    echo "[SKIP] enabled.json exists, preserving"
+fi
+
+# Deploy CLAUDE.md from template with USER_NAME substitution
+if [ ! -f "$CLAUDE_HOME/CLAUDE.md" ] && [ -f "$CONFIG_SOURCE/CLAUDE.md.template" ]; then
+    USER_NAME="${CLAUDE_USER_NAME:-Developer}"
+    sed "s/{{USER_NAME}}/$USER_NAME/g" "$CONFIG_SOURCE/CLAUDE.md.template" > "$CLAUDE_HOME/CLAUDE.md"
+    echo "[OK] CLAUDE.md deployed (personalized for $USER_NAME)"
+else
+    echo "[SKIP] CLAUDE.md exists, preserving"
+fi
+
+# Deploy MCP configuration
+if [ ! -f "$CLAUDE_HOME/mcp.json" ] && [ -f "$CONFIG_SOURCE/mcp.json" ]; then
+    cp "$CONFIG_SOURCE/mcp.json" "$CLAUDE_HOME/"
     echo "[OK] MCP servers configured"
 else
     echo "[SKIP] MCP config exists, preserving"
 fi
 
-# Copy settings.json if it doesn't exist
-if [ ! -f "$SETTINGS_FILE" ] && [ -f "$SETTINGS_TEMPLATE" ]; then
-    cp "$SETTINGS_TEMPLATE" "$SETTINGS_FILE"
-    echo "[OK] Claude settings initialized"
-else
-    echo "[SKIP] Settings exist, preserving"
+# Create symlinks from top-level directories to .library
+# This matches the structure Claude Code expects
+create_symlinks() {
+    local dir_name="$1"
+    local source_dir="$CLAUDE_HOME/.library/$dir_name"
+    local target_dir="$CLAUDE_HOME/$dir_name"
+
+    if [ -d "$source_dir" ] && [ ! -d "$target_dir" ]; then
+        mkdir -p "$target_dir"
+        for item in "$source_dir"/*; do
+            if [ -e "$item" ]; then
+                local basename=$(basename "$item")
+                ln -sf "../.library/$dir_name/$basename" "$target_dir/$basename"
+            fi
+        done
+        echo "[OK] $dir_name/ symlinks created"
+    elif [ -d "$target_dir" ]; then
+        echo "[SKIP] $dir_name/ exists, preserving"
+    fi
+}
+
+# Create symlinks for each category
+create_symlinks "hooks"
+create_symlinks "skills"
+create_symlinks "agents"
+create_symlinks "commands"
+create_symlinks "output-styles"
+
+# Ensure hook scripts are executable
+if [ -d "$CLAUDE_HOME/.library/hooks" ]; then
+    chmod +x "$CLAUDE_HOME/.library/hooks"/*.sh 2>/dev/null || true
+    chmod +x "$CLAUDE_HOME/.library/hooks"/*.py 2>/dev/null || true
 fi
 
 # Ensure npm global directory exists
