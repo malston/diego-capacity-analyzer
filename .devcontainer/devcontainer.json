@@ -86,6 +86,7 @@
       "onAutoForward": "silent"
     }
   },
+  "initializeCommand": "mkdir -p ~/.claude-mem ~/.ssh",
   "postCreateCommand": "npm install -g npm@latest && npm install -g @anthropic-ai/claude-code@latest && /usr/local/bin/init-claude-config.sh && /usr/local/bin/init-claude-hooks.sh && /usr/local/bin/init-claudeup.sh",
   "postStartCommand": "bash ${containerWorkspaceFolder}/.devcontainer/setup-git-hooks.sh",
   "waitFor": "postCreateCommand"

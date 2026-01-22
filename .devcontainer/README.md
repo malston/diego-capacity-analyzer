@@ -182,6 +182,8 @@ These directories are mounted from your host machine:
 ~/.ssh         → /home/node/.ssh         (SSH keys, read-only)
 ```
 
+**Note:** These directories are created automatically on the host if they don't exist (via `initializeCommand`), ensuring the container starts successfully on any machine.
+
 ## Troubleshooting
 
 ### Container Won't Start
