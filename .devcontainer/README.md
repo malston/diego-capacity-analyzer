@@ -38,15 +38,17 @@ make shell
 Run from `.devcontainer/` directory:
 
 ```bash
-make help      # Show all targets
-make build     # Build container image
-make rebuild   # Rebuild (no cache)
-make up        # Start container
-make shell     # Open interactive shell
-make stop      # Stop container
-make down      # Stop and remove container
-make status    # Show container status
-make run CMD="make test"  # Run command in container
+make help           # Show all targets
+make build          # Build container image
+make rebuild        # Rebuild (no cache)
+make up             # Start container
+make shell          # Open interactive shell
+make stop           # Stop container
+make down           # Stop and remove container
+make status         # Show container status
+make run CMD="..."  # Run command in container
+make clean-volumes  # Remove all persistent volumes
+make reset          # Full reset (down + clean + rebuild + up)
 ```
 
 Or from project root: `make -C .devcontainer <target>`
@@ -209,6 +211,24 @@ docker info
 
 ```bash
 docker system info | grep Memory
+```
+
+### Need to Re-run Init Scripts
+
+Init scripts (`postCreateCommand`) only run once when volumes are empty. To force re-initialization:
+
+```bash
+cd .devcontainer
+make reset    # Full reset: removes volumes and rebuilds
+```
+
+Or manually:
+
+```bash
+make down
+make clean-volumes
+make rebuild
+make up
 ```
 
 ### Environment Variables Not Set
