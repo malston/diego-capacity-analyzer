@@ -80,9 +80,17 @@ RUN mkdir -p /usr/local/share/claude-defaults/hooks && \
 COPY --chmod=755 init-claude-config.sh /usr/local/bin/
 COPY --chmod=755 init-claude-hooks.sh /usr/local/bin/
 COPY --chmod=755 init-claudeup.sh /usr/local/bin/
-COPY --chown=node:node settings.json.template /usr/local/share/claude-defaults/settings.json
 COPY --chown=node:node mcp.json.template /usr/local/share/claude-defaults/mcp.json
 COPY --chmod=755 session-start.sh.template /usr/local/share/claude-defaults/hooks/session-start.sh
 COPY --chown=node:node docker-profile.json /usr/local/share/claude-defaults/docker-profile.json
+
+# Copy Claude Code configuration snapshot
+COPY --chown=node:node claude-config/settings.json /usr/local/share/claude-defaults/settings.json
+COPY --chown=node:node claude-config/enabled.json /usr/local/share/claude-defaults/enabled.json
+COPY --chown=node:node claude-config/CLAUDE.md.template /usr/local/share/claude-defaults/CLAUDE.md.template
+COPY --chown=node:node claude-config/claude.json.template /usr/local/share/claude-defaults/claude.json.template
+COPY --chown=node:node claude-config/.library /usr/local/share/claude-defaults/.library
+COPY --chown=node:node --chmod=755 claude-config/scripts /usr/local/share/claude-defaults/scripts
+COPY --chown=node:node claude-config/completions /usr/local/share/claude-defaults/completions
 
 USER node

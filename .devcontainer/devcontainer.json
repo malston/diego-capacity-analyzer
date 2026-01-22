@@ -67,7 +67,9 @@
     "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}",
     "DOTFILES_REPO": "${localEnv:DOTFILES_REPO}",
     "DOTFILES_BRANCH": "${localEnv:DOTFILES_BRANCH}",
-    "CONTEXT7_API_KEY": "${localEnv:CONTEXT7_API_KEY}"
+    "DOTFILES_INSTALL_ARGS": "${localEnv:DOTFILES_INSTALL_ARGS}",
+    "CONTEXT7_API_KEY": "${localEnv:CONTEXT7_API_KEY}",
+    "CLAUDE_USER_NAME": "${localEnv:CLAUDE_USER_NAME:Developer}"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "forwardPorts": [3000, 5173, 8080],
@@ -85,6 +87,7 @@
       "onAutoForward": "silent"
     }
   },
+  "initializeCommand": "mkdir -p ~/.claude-mem ~/.ssh",
   "postCreateCommand": "npm install -g npm@latest && npm install -g @anthropic-ai/claude-code@latest && /usr/local/bin/init-claude-config.sh && /usr/local/bin/init-claude-hooks.sh && /usr/local/bin/init-claudeup.sh",
   "postStartCommand": "bash ${containerWorkspaceFolder}/.devcontainer/setup-git-hooks.sh",
   "waitFor": "postCreateCommand"

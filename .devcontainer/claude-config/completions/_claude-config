@@ -1,0 +1,148 @@
+#compdef claude-config
+# ABOUTME: Zsh completion for claude-config script.
+# ABOUTME: Provides tab completion for commands, categories, flags, and items.
+
+_claude-config() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    local -a commands categories
+
+    commands=(
+        'sync:Sync symlinks based on enabled.json'
+        'list:List items and their status'
+        'view:View contents of an item'
+        'enable:Enable one or more items'
+        'disable:Disable one or more items'
+        'add:Add a new item from source path'
+        'help:Show usage information'
+    )
+
+    categories=(
+        'agents:Agent definitions'
+        'commands:Slash commands'
+        'hooks:Hook scripts'
+        'output-styles:Output style definitions'
+        'rules:Rule definitions'
+        'skills:Skill definitions'
+    )
+
+    _arguments -C \
+        '1: :->command' \
+        '*: :->args'
+
+    case $state in
+        command)
+            _describe -t commands 'claude-config commands' commands
+            ;;
+        args)
+            case $words[2] in
+                sync|help)
+                    # No additional arguments
+                    ;;
+                list)
+                    # list [CATEGORY] [--enabled|--disabled]
+                    local -a list_opts
+                    list_opts=(
+                        '-e:Show only enabled items'
+                        '--enabled:Show only enabled items'
+                        '-d:Show only disabled items'
+                        '--disabled:Show only disabled items'
+                    )
+                    if (( CURRENT == 3 )); then
+                        _alternative \
+                            'categories:category:_describe -t categories "category" categories' \
+                            'options:option:_describe -t options "option" list_opts'
+                    else
+                        _describe -t options 'option' list_opts
+                    fi
+                    ;;
+                view)
+                    # view CATEGORY ITEM
+                    if (( CURRENT == 3 )); then
+                        _describe -t categories 'category' categories
+                    elif (( CURRENT == 4 )); then
+                        _claude-config_items $words[3]
+                    fi
+                    ;;
+                enable|disable)
+                    # enable/disable CATEGORY ITEM...
+                    if (( CURRENT == 3 )); then
+                        _describe -t categories 'category' categories
+                    else
+                        _claude-config_items $words[3]
+                    fi
+                    ;;
+                add)
+                    # add CATEGORY PATH
+                    if (( CURRENT == 3 )); then
+                        _describe -t categories 'category' categories
+                    elif (( CURRENT == 4 )); then
+                        _files
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_claude-config_items() {
+    local category=$1
+    local claude_dir="${HOME}/.claude"
+    local library_dir="${claude_dir}/.library"
+    local -a items
+
+    case $category in
+        agents)
+            # For agents, offer both group/* wildcards and individual agents
+            local -a groups agents
+            if [[ -d "${library_dir}/agents" ]]; then
+                # Add group wildcards
+                for group in "${library_dir}/agents"/*(N/); do
+                    local gname=${group:t}
+                    [[ $gname != .* ]] && groups+=("${gname}/*:All agents in ${gname}")
+                done
+                # Add individual agents (without .md extension for convenience)
+                for group in "${library_dir}/agents"/*(N/); do
+                    [[ ${group:t} == .* ]] && continue
+                    for agent in "${group}"/*.md(N); do
+                        local aname=${agent:t:r}
+                        [[ $aname != CLAUDE ]] && agents+=($aname)
+                    done
+                done
+                _alternative \
+                    'groups:agent group:_describe -t groups "agent group" groups' \
+                    'agents:agent:compadd -a agents'
+            fi
+            ;;
+        skills)
+            # Skills are directories
+            if [[ -d "${library_dir}/skills" ]]; then
+                for item in "${library_dir}/skills"/*(N/); do
+                    local name=${item:t}
+                    [[ $name != .* ]] && items+=($name)
+                done
+                compadd -a items
+            fi
+            ;;
+        commands|hooks|output-styles|rules)
+            # These are files, offer without extension
+            if [[ -d "${library_dir}/${category}" ]]; then
+                for item in "${library_dir}/${category}"/*(.N); do
+                    local name=${item:t:r}
+                    [[ $name != CLAUDE && ${item:t} != .* ]] && items+=($name)
+                done
+                # Also add directories for commands
+                if [[ $category == "commands" ]]; then
+                    for item in "${library_dir}/${category}"/*(N/); do
+                        local name=${item:t}
+                        [[ $name != .* ]] && items+=($name)
+                    done
+                fi
+                compadd -a items
+            fi
+            ;;
+    esac
+}
+
+_claude-config "$@"

@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(make test:*)",
+      "Bash(make lint:*)",
+      "Bash(make build:*)",
+      "Bash(make check:*)",
+      "mcp__git__git_commit",
+      "Bash(source:*)",
+      "Bash(time make:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue create:*)",
+      "Bash(gh issue edit:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh auth status:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run:*)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(go test:*)",
+      "Bash(go build:*)",
+      "Bash(go run:*)",
+      "Bash(direnv:*)",
+      "Bash(eval \"$(direnv export bash)\":*)",
+      "Skill(code-reviewer)",
+      "Bash(HEADLESS=true npm run test:e2e:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /:*)",
+      "Bash(rm -rf /*:*)",
+      "Bash(rm -rf ~:*)",
+      "Bash(chmod 777:*)",
+      "Bash(curl:* | sh:*)",
+      "Bash(curl:* | bash:*)",
+      "Bash(wget:* | sh:*)",
+      "Bash(wget:* | bash:*)"
+    ],
+    "ask": ["Bash(rm:*)", "Bash(curl:*)", "Bash(wget:*)", "Bash(sed -i:*)"],
+    "defaultMode": "acceptEdits"
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "notify-send 'Claude Code' 'Awaiting your input'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/format-on-save.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/log-bash-commands.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/block-dangerous-commands.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/protect-sensitive-files.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash -c '~/.bun/bin/bun \"$(ls -td ~/.claude/plugins/cache/claude-hud/claude-hud/*/ 2>/dev/null | head -1)src/index.ts\"'"
+  },
+  "enabledPlugins": {
+    "claude-hud@claude-hud": true,
+    "claude-mem@thedotmack": true,
+    "commit-commands@claude-code-plugins": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "hookify@claude-code-plugins": true,
+    "openapi@openapi-dev": true,
+    "pr-review-toolkit@claude-code-plugins": true,
+    "security-guidance@claude-code-plugins": true,
+    "greptile@claude-plugins-official": true,
+    "vercel@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true
+  }
+}
