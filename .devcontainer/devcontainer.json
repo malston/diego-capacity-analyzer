@@ -67,6 +67,7 @@
     "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}",
     "DOTFILES_REPO": "${localEnv:DOTFILES_REPO}",
     "DOTFILES_BRANCH": "${localEnv:DOTFILES_BRANCH}",
+    "DOTFILES_INSTALL_ARGS": "${localEnv:DOTFILES_INSTALL_ARGS}",
     "CONTEXT7_API_KEY": "${localEnv:CONTEXT7_API_KEY}",
     "CLAUDE_USER_NAME": "${localEnv:CLAUDE_USER_NAME:Developer}"
   },

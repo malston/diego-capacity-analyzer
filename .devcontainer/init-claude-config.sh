@@ -38,8 +38,9 @@ if [ -n "${DOTFILES_REPO:-}" ] && [ -z "$(ls -A "$DOTFILES_DIR" 2>/dev/null)" ];
 
     # Run install script if it exists
     if [ -f "$DOTFILES_DIR/install.sh" ]; then
-        echo "Running dotfiles install script..."
-        cd "$DOTFILES_DIR" && chmod +x install.sh && ./install.sh
+        echo "Running dotfiles install script${DOTFILES_INSTALL_ARGS:+ with args: $DOTFILES_INSTALL_ARGS}..."
+        # shellcheck disable=SC2086 # Word splitting is intentional for args
+        cd "$DOTFILES_DIR" && chmod +x install.sh && ./install.sh ${DOTFILES_INSTALL_ARGS:-}
         echo "[OK] Dotfiles install script completed"
     fi
 elif [ -n "${DOTFILES_REPO:-}" ]; then

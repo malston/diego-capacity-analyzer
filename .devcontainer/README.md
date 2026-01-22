@@ -86,15 +86,16 @@ Or from project root: `make -C .devcontainer <target>`
 
 Set these before starting the container:
 
-| Variable           | Required | Description                                            |
-| ------------------ | -------- | ------------------------------------------------------ |
-| `GIT_USER_NAME`    | Yes      | Git commit author name                                 |
-| `GIT_USER_EMAIL`   | Yes      | Git commit author email                                |
-| `GITHUB_TOKEN`     | Yes      | GitHub PAT for git operations                          |
-| `CLAUDE_USER_NAME` | No       | Your name for Claude interactions (default: Developer) |
-| `DOTFILES_REPO`    | No       | Dotfiles repo URL to clone                             |
-| `DOTFILES_BRANCH`  | No       | Dotfiles branch (default: main)                        |
-| `CONTEXT7_API_KEY` | No       | Context7 MCP server API key                            |
+| Variable                | Required | Description                                            |
+| ----------------------- | -------- | ------------------------------------------------------ |
+| `GIT_USER_NAME`         | Yes      | Git commit author name                                 |
+| `GIT_USER_EMAIL`        | Yes      | Git commit author email                                |
+| `GITHUB_TOKEN`          | Yes      | GitHub PAT for git operations                          |
+| `CLAUDE_USER_NAME`      | No       | Your name for Claude interactions (default: Developer) |
+| `DOTFILES_REPO`         | No       | Dotfiles repo URL to clone                             |
+| `DOTFILES_BRANCH`       | No       | Dotfiles branch (default: main)                        |
+| `DOTFILES_INSTALL_ARGS` | No       | Arguments passed to dotfiles install.sh (e.g., `-l`)   |
+| `CONTEXT7_API_KEY`      | No       | Context7 MCP server API key                            |
 
 ## Configuration Files
 
