@@ -66,40 +66,13 @@ diego-capacity
 | `q`      | Any        | Quit application            |
 | `Ctrl+C` | Any        | Quit application            |
 
-### TUI Screenshots
+### TUI Screenshot
 
-**Data Source Selection:**
+**Scenario Comparison View:**
 
-```
-┌──────────────────────────────────────────────────┐
-│  Diego Capacity Analyzer                         │
-│                                                  │
-│  Select data source:                             │
-│                                                  │
-│  > ● Live vSphere      (vcenter.example.com)     │
-│    ○ Load JSON file                              │
-│    ○ Manual input                                │
-│                                                  │
-│  [Enter] Select   [q] Quit                       │
-└──────────────────────────────────────────────────┘
-```
+![TUI Scenario Comparison](images/tui-scenario-comparison.png)
 
-**Dashboard with Actions:**
-
-```
-┌─────────────────────────────────┬────────────────────────────┐
-│  Current Infrastructure         │  Actions                   │
-│  ─────────────────────────      │  ────────                  │
-│  Clusters: 2                    │                            │
-│  Hosts: 8                       │  [w] Run scenario wizard   │
-│  Diego Cells: 24                │  [r] Refresh data          │
-│                                 │  [q] Quit                  │
-│  Memory Utilization             │                            │
-│  ████████████░░░░ 78%           │                            │
-│                                 │                            │
-│  HA Status: OK                  │                            │
-└─────────────────────────────────┴────────────────────────────┘
-```
+The TUI displays infrastructure metrics on the left panel (memory utilization, CPU ratio, cluster/host counts, N-1 capacity, and HA status) with scenario comparison results on the right panel showing current vs proposed configurations, impact summary, and warnings.
 
 ## Commands
 
