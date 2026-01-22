@@ -12,9 +12,9 @@ import (
 
 type Config struct {
 	// Server
-	Port           string
-	CacheTTL       int // seconds, default for general cache
-	DashboardTTL   int // seconds, for BOSH/CF data (default 30s)
+	Port         string
+	CacheTTL     int // seconds, default for general cache
+	DashboardTTL int // seconds, for BOSH/CF data (default 30s)
 
 	// CF API
 	CFAPIUrl   string
@@ -71,7 +71,7 @@ func Load() (*Config, error) {
 		VSphereUsername:   os.Getenv("VSPHERE_USERNAME"),
 		VSpherePassword:   os.Getenv("VSPHERE_PASSWORD"),
 		VSphereDatacenter: os.Getenv("VSPHERE_DATACENTER"),
-		VSphereInsecure:   getEnvBool("VSPHERE_INSECURE", true),
+		VSphereInsecure:   getEnvBool("VSPHERE_INSECURE", false),
 		VSphereCacheTTL:   getEnvInt("VSPHERE_CACHE_TTL", 300),
 	}
 

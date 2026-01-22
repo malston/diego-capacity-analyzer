@@ -20,6 +20,23 @@ OM_TARGET=opsman.example.com OM_USERNAME=admin OM_PASSWORD=secret ./scripts/depl
 
 See `./scripts/deploy.sh --help` for all options including single-phase execution and dry-run mode.
 
+### What the Script Does
+
+The deployment script automates the full deployment lifecycle:
+
+1. **Prerequisites** — Verifies cf CLI v8+, om CLI, Node.js 18+, and CF login
+2. **Environment** — Runs `generate-env.sh` to derive all credentials from Ops Manager:
+   - BOSH Director credentials (client, secret, CA cert, deployment name)
+   - CF API credentials (admin user)
+   - vSphere credentials (from Ops Manager's IaaS config)
+   - CredHub credentials (for secret management)
+   - Frontend build variables (`VITE_*`)
+3. **Backend** — Pushes Go app to CF, sets credentials via `cf set-env`
+4. **Frontend** — Builds React app with baked-in API URL, pushes to CF
+5. **Verify** — Confirms both apps are healthy
+
+Use `--dry-run` to preview actions without executing, or `--phase=<name>` to run individual phases.
+
 ---
 
 ## Manual Deployment
@@ -70,6 +87,18 @@ cf target -o system -s system
 ## Step 1: Get BOSH Credentials from Ops Manager
 
 The backend service needs BOSH Director credentials to query Diego cell metrics. Use the `om` CLI to retrieve these from Ops Manager.
+
+> **Tip:** For a simpler approach, use `./generate-env.sh` which automates all credential extraction:
+>
+> ```bash
+> export OM_TARGET=opsmgr.your-domain.com
+> export OM_USERNAME=admin
+> export OM_PASSWORD=<password>
+> ./generate-env.sh   # Creates .env with all credentials
+> source .env         # Load into current shell
+> ```
+>
+> The script extracts BOSH, CF, vSphere, and CredHub credentials automatically. Skip to [Step 2](#step-2-deploy-backend-service) if using this method.
 
 ### Configure om CLI Environment
 
@@ -140,9 +169,9 @@ export BOSH_DEPLOYMENT=$(bosh deployments --json | jq -r '.Tables[0].Rows[] | se
 
 The backend is a Go application that provides the REST API for capacity analysis.
 
-### Update Backend Manifest
+### Review Backend Manifest
 
-Edit `backend/manifest.yml` and update the placeholder values:
+The `backend/manifest.yml` is pre-configured with sensible defaults:
 
 ```yaml
 ---
@@ -153,11 +182,11 @@ applications:
     buildpacks:
       - go_buildpack
     env:
-      CF_API_URL: https://api.sys.your-domain.com # Update this
-      BOSH_ENVIRONMENT: https://10.0.0.6:25555 # Update this
-      BOSH_DEPLOYMENT: cf-abc123def456 # Update this
       CACHE_TTL: 300
+    # Sensitive credentials are set via cf set-env (see below)
 ```
+
+> **Note:** Do not add credentials to the manifest. Sensitive environment variables (CF*API_URL, CF_USERNAME, CF_PASSWORD, BOSH*\*) are set securely via `cf set-env` after pushing the app.
 
 ### Push Backend App
 
@@ -247,9 +276,9 @@ npm run build
 # This creates the dist/ directory with static assets
 ```
 
-### Update Frontend Manifest (Optional)
+### Review Frontend Manifest
 
-The `frontend/manifest.yml` is already configured, but you can verify it points to the correct backend:
+The `frontend/manifest.yml` is pre-configured:
 
 ```yaml
 ---
@@ -260,9 +289,9 @@ applications:
     buildpacks:
       - staticfile_buildpack
     path: dist
-    env:
-      VITE_API_URL: https://capacity-backend.apps.your-domain.com
 ```
+
+> **Note:** `VITE_API_URL` is a build-time variable baked into the JavaScript bundle during `npm run build`. It cannot be set via CF environment variables. The `.env` file created earlier configures this automatically.
 
 ### Push Frontend App
 
@@ -610,15 +639,39 @@ time=2025-12-23T10:00:01Z level=INFO msg="CF API authenticated" api_url=https://
 }
 ```
 
-### Adjust Cache TTL
+### Cache Configuration
 
-Default: 5 minutes (300 seconds)
+The backend uses multiple cache layers with configurable TTLs:
+
+| Variable              | Default | Description                                 |
+| --------------------- | ------- | ------------------------------------------- |
+| `CACHE_TTL`           | 300s    | General cache TTL (5 minutes)               |
+| `DASHBOARD_CACHE_TTL` | 30s     | Dashboard data TTL (BOSH/CF live data)      |
+| `VSPHERE_CACHE_TTL`   | 300s    | vSphere infrastructure data TTL (5 minutes) |
 
 ```bash
-# Increase to 10 minutes
+# Increase general cache to 10 minutes
 cf set-env capacity-backend CACHE_TTL 600
+
+# Increase dashboard refresh interval to 60 seconds
+cf set-env capacity-backend DASHBOARD_CACHE_TTL 60
+
 cf restage capacity-backend
 ```
+
+### vSphere Configuration
+
+Optional variables for vCenter integration:
+
+| Variable             | Default | Description                       |
+| -------------------- | ------- | --------------------------------- |
+| `VSPHERE_HOST`       | -       | vCenter hostname                  |
+| `VSPHERE_DATACENTER` | -       | Datacenter name                   |
+| `VSPHERE_USERNAME`   | -       | vCenter username                  |
+| `VSPHERE_PASSWORD`   | -       | vCenter password                  |
+| `VSPHERE_INSECURE`   | false   | Skip TLS certificate verification |
+
+All four connection variables must be set for vSphere integration to activate.
 
 ### Scale Backend
 
