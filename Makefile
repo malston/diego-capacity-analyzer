@@ -40,7 +40,11 @@ clean: backend-clean frontend-clean cli-clean ## Clean all build artifacts
 #
 
 backend-build: ## Build Go backend binary
-	cp openapi.yaml backend/handlers/openapi.yaml
+	@if [ ! -f openapi.yaml ]; then \
+		echo "Error: openapi.yaml not found in project root"; \
+		exit 1; \
+	fi
+	@cp openapi.yaml backend/handlers/openapi.yaml
 	cd backend && go build -o capacity-backend .
 
 backend-test: ## Run backend tests

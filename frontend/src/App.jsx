@@ -9,8 +9,9 @@ import "./index.css";
 const AppContent = () => {
   const { isAuthenticated, loading } = useAuth();
 
-  // Serve API docs without auth
-  if (window.location.pathname === "/docs") {
+  // Serve API docs without auth (normalize to handle trailing slash)
+  const path = window.location.pathname.replace(/\/$/, "");
+  if (path === "/docs") {
     return <SwaggerDocs />;
   }
 
