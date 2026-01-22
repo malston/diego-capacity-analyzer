@@ -73,6 +73,8 @@ VSPHERE_DATACENTER=$(om curl -s --path /api/v0/staged/director/properties | jq -
 VSPHERE_USERNAME=$(om curl -s --path /api/v0/staged/director/properties | jq -r '.iaas_configuration?.vcenter_username')
 export VSPHERE_PASSWORD
 VSPHERE_PASSWORD=$(om staged-director-config --no-redact | yq '.iaas-configurations[].vcenter_password')
+export VSPHERE_INSECURE
+VSPHERE_INSECURE=$(om curl -s --path /api/v0/staged/director/properties | jq -r '.iaas_configuration?.vcenter_ca_certificate' | jq -r 'if . == null then "true" else "false" end')
 
 cat > .env << EOF
 BOSH_CA_CERT="$BOSH_CA_CERT"
@@ -91,7 +93,7 @@ fi
 
 cat >> .env << EOF
 
-CF_API_URL=api.$CF_SYSTEM_DOMAIN
+CF_API_URL=https://api.$CF_SYSTEM_DOMAIN
 CF_USERNAME=$CF_USERNAME
 CF_PASSWORD=$CF_PASSWORD
 
@@ -143,6 +145,7 @@ VSPHERE_HOST=$VSPHERE_HOST
 VSPHERE_DATACENTER=$VSPHERE_DATACENTER
 VSPHERE_USERNAME=$VSPHERE_USERNAME
 VSPHERE_PASSWORD=$VSPHERE_PASSWORD
+VSPHERE_INSECURE=$VSPHERE_INSECURE
 EOF
 
 echo "Generated .env file with credentials for:"
