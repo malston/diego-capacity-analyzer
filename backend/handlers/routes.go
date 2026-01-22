@@ -34,5 +34,8 @@ func (h *Handler) Routes() []Route {
 		// Analysis
 		{Method: http.MethodGet, Path: "/api/v1/bottleneck", Handler: h.AnalyzeBottleneck},
 		{Method: http.MethodGet, Path: "/api/v1/recommendations", Handler: h.GetRecommendations},
+
+		// Documentation
+		{Method: http.MethodGet, Path: "/api/v1/openapi.yaml", Handler: h.OpenAPISpec},
 	}
 }

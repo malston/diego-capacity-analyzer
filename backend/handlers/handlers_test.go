@@ -1508,3 +1508,30 @@ func TestHandler_writeErrorWithDetails(t *testing.T) {
 		t.Errorf("Code = %d, want %d", result.Code, http.StatusBadRequest)
 	}
 }
+
+func TestHandler_OpenAPISpec(t *testing.T) {
+	h := &Handler{}
+	req := httptest.NewRequest("GET", "/api/v1/openapi.yaml", nil)
+	rec := httptest.NewRecorder()
+
+	h.OpenAPISpec(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusOK)
+	}
+
+	ct := rec.Header().Get("Content-Type")
+	if ct != "application/yaml" {
+		t.Errorf("Content-Type = %q, want %q", ct, "application/yaml")
+	}
+
+	if rec.Body.Len() == 0 {
+		t.Error("Expected non-empty response body")
+	}
+
+	// Verify the response contains valid OpenAPI content
+	body := rec.Body.String()
+	if !strings.Contains(body, "openapi:") {
+		t.Error("Response body does not contain 'openapi:' - may not be valid OpenAPI spec")
+	}
+}

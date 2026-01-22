@@ -1,12 +1,19 @@
-import { AuthProvider, useAuth } from './contexts/AuthContext'
-import TASCapacityAnalyzer from './TASCapacityAnalyzer'
-import Login from './components/Login'
-import { Loader } from 'lucide-react'
-import './index.css'
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import TASCapacityAnalyzer from "./TASCapacityAnalyzer";
+import Login from "./components/Login";
+import SwaggerDocs from "./components/SwaggerDocs";
+import { Loader } from "lucide-react";
+import "./index.css";
 
 // Main app component that handles routing based on auth
 const AppContent = () => {
   const { isAuthenticated, loading } = useAuth();
+
+  // Serve API docs without auth (normalize to handle trailing slash)
+  const path = window.location.pathname.replace(/\/$/, "");
+  if (path === "/docs") {
+    return <SwaggerDocs />;
+  }
 
   if (loading) {
     return (
@@ -30,4 +37,4 @@ function App() {
   );
 }
 
-export default App
+export default App;

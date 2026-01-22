@@ -8,8 +8,9 @@ All endpoints return JSON responses and support CORS.
 
 An OpenAPI 3.0 specification is available for this API:
 
-- **OpenAPI Spec**: [`openapi.yaml`](../openapi.yaml) in the repository root
-- **Swagger UI**: Run `make openapi-serve` to launch interactive documentation at http://localhost:8090
+- **OpenAPI Spec**: [`backend/handlers/openapi.yaml`](../backend/handlers/openapi.yaml)
+- **Swagger UI**: Access `/docs` on the frontend (e.g., `http://localhost:5173/docs` or the deployed URL)
+- **Validation**: Run `make openapi-validate` to check spec syntax
 
 The Swagger UI provides an interactive interface to explore endpoints, view schemas, and test API calls.
 
@@ -34,11 +35,11 @@ Health check endpoint.
 }
 ```
 
-| Field | Description |
-|-------|-------------|
-| `cf_api` | CF API connectivity status |
-| `bosh_api` | BOSH API status (`ok` or `not_configured`) |
-| `cache_status` | Current cache state |
+| Field          | Description                                |
+| -------------- | ------------------------------------------ |
+| `cf_api`       | CF API connectivity status                 |
+| `bosh_api`     | BOSH API status (`ok` or `not_configured`) |
+| `cache_status` | Current cache state                        |
 
 ---
 
@@ -235,23 +236,23 @@ Returns current infrastructure data source status and capacity metrics.
 
 **Response Fields:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `vsphere_configured` | boolean | Whether vSphere credentials are configured |
-| `has_data` | boolean | Whether infrastructure data has been loaded |
-| `source` | string | Data source: "vsphere", "manual", or "json" |
-| `name` | string | Infrastructure name (vCenter hostname or custom) |
-| `cluster_count` | integer | Number of clusters |
-| `host_count` | integer | Total ESXi hosts |
-| `cell_count` | integer | Total Diego cells |
-| `timestamp` | string | When data was loaded (ISO 8601) |
-| `constraining_resource` | string | Primary bottleneck: "memory", "CPU", or "disk" |
-| `bottleneck_summary` | string | Human-readable bottleneck description |
-| `memory_utilization` | float | Host memory utilization percentage |
-| `n1_capacity_percent` | float | Percentage of N-1 memory capacity used by cells |
-| `n1_status` | string | N-1 capacity status: "ok", "warning", "critical", or "unavailable" |
-| `ha_min_host_failures_survived` | integer | Number of host failures the cluster can survive |
-| `ha_status` | string | HA status: "ok" or "at-risk" |
+| Field                           | Type    | Description                                                        |
+| ------------------------------- | ------- | ------------------------------------------------------------------ |
+| `vsphere_configured`            | boolean | Whether vSphere credentials are configured                         |
+| `has_data`                      | boolean | Whether infrastructure data has been loaded                        |
+| `source`                        | string  | Data source: "vsphere", "manual", or "json"                        |
+| `name`                          | string  | Infrastructure name (vCenter hostname or custom)                   |
+| `cluster_count`                 | integer | Number of clusters                                                 |
+| `host_count`                    | integer | Total ESXi hosts                                                   |
+| `cell_count`                    | integer | Total Diego cells                                                  |
+| `timestamp`                     | string  | When data was loaded (ISO 8601)                                    |
+| `constraining_resource`         | string  | Primary bottleneck: "memory", "CPU", or "disk"                     |
+| `bottleneck_summary`            | string  | Human-readable bottleneck description                              |
+| `memory_utilization`            | float   | Host memory utilization percentage                                 |
+| `n1_capacity_percent`           | float   | Percentage of N-1 memory capacity used by cells                    |
+| `n1_status`                     | string  | N-1 capacity status: "ok", "warning", "critical", or "unavailable" |
+| `ha_min_host_failures_survived` | integer | Number of host failures the cluster can survive                    |
+| `ha_status`                     | string  | HA status: "ok" or "at-risk"                                       |
 
 **Note:** `n1_status` is set to "unavailable" and `n1_capacity_percent` to 0 for single-host clusters where N-1 capacity cannot be calculated.
 
@@ -295,29 +296,29 @@ Returns detailed per-app breakdown of memory, disk, and instance allocation from
 
 **Response Fields:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `total_app_memory_gb` | integer | Total requested memory across all apps (GB, rounded) |
-| `total_app_disk_gb` | integer | Total requested disk across all apps (GB, rounded) |
-| `total_app_instances` | integer | Total running instances across all apps |
-| `apps` | array | Per-app details |
-| `apps[].name` | string | Application name |
-| `apps[].guid` | string | CF application GUID |
-| `apps[].instances` | integer | Number of running instances |
-| `apps[].requested_mb` | integer | Total requested memory (instances × memory per instance) |
-| `apps[].actual_mb` | integer | Actual memory usage from Log Cache (if available) |
-| `apps[].requested_disk_mb` | integer | Total requested disk (instances × disk per instance) |
-| `apps[].isolation_segment` | string | Isolation segment name ("default" if none assigned) |
+| Field                      | Type    | Description                                              |
+| -------------------------- | ------- | -------------------------------------------------------- |
+| `total_app_memory_gb`      | integer | Total requested memory across all apps (GB, rounded)     |
+| `total_app_disk_gb`        | integer | Total requested disk across all apps (GB, rounded)       |
+| `total_app_instances`      | integer | Total running instances across all apps                  |
+| `apps`                     | array   | Per-app details                                          |
+| `apps[].name`              | string  | Application name                                         |
+| `apps[].guid`              | string  | CF application GUID                                      |
+| `apps[].instances`         | integer | Number of running instances                              |
+| `apps[].requested_mb`      | integer | Total requested memory (instances × memory per instance) |
+| `apps[].actual_mb`         | integer | Actual memory usage from Log Cache (if available)        |
+| `apps[].requested_disk_mb` | integer | Total requested disk (instances × disk per instance)     |
+| `apps[].isolation_segment` | string  | Isolation segment name ("default" if none assigned)      |
 
 **Note:** GB totals are rounded to the nearest integer (e.g., 2047 MB → 2 GB, 2560 MB → 3 GB).
 
 **Error Responses:**
 
-| Code | Description |
-|------|-------------|
-| 503 | CF API not configured |
-| 503 | CF authentication failed |
-| 500 | Failed to fetch apps |
+| Code | Description              |
+| ---- | ------------------------ |
+| 503  | CF API not configured    |
+| 503  | CF authentication failed |
+| 500  | Failed to fetch apps     |
 
 ---
 
@@ -339,11 +340,11 @@ Calculate maximum deployable Diego cells given IaaS capacity constraints.
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `cell_memory_gb` | int | Desired memory per Diego cell (GB) |
-| `cell_cpu` | int | Desired vCPUs per Diego cell |
-| `overhead_pct` | float | Memory overhead percentage (default: 7) |
+| Field            | Type  | Description                             |
+| ---------------- | ----- | --------------------------------------- |
+| `cell_memory_gb` | int   | Desired memory per Diego cell (GB)      |
+| `cell_cpu`       | int   | Desired vCPUs per Diego cell            |
+| `overhead_pct`   | float | Memory overhead percentage (default: 7) |
 
 **Response:**
 
@@ -403,27 +404,27 @@ Compare current infrastructure state against a proposed configuration.
     "disk_gb": 4
   },
   "tps_curve": [
-    {"cells": 1, "tps": 284},
-    {"cells": 3, "tps": 1964},
-    {"cells": 100, "tps": 1389}
+    { "cells": 1, "tps": 284 },
+    { "cells": 3, "tps": 1964 },
+    { "cells": 100, "tps": 1389 }
   ]
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `proposed_cell_memory_gb` | int | Proposed memory per cell (GB) |
-| `proposed_cell_cpu` | int | Proposed vCPUs per cell |
-| `proposed_cell_disk_gb` | int | Proposed disk per cell (GB) |
-| `proposed_cell_count` | int | Proposed number of cells |
-| `target_cluster` | string | Target cluster (empty = all) |
-| `selected_resources` | array | Resources to analyze: `memory`, `cpu`, `disk` |
-| `overhead_pct` | float | Memory overhead % for Garden/OS inside each cell (default: 7). See note below. |
-| `host_count` | int | Number of ESXi hosts (for HA calculations) |
-| `memory_per_host_gb` | int | Memory per host in GB (for HA calculations) |
-| `ha_admission_pct` | int | vSphere HA admission control % (for HA calculations) |
-| `additional_app` | object | Optional hypothetical app to model |
-| `tps_curve` | array | Optional custom TPS performance curve |
+| Field                     | Type   | Description                                                                    |
+| ------------------------- | ------ | ------------------------------------------------------------------------------ |
+| `proposed_cell_memory_gb` | int    | Proposed memory per cell (GB)                                                  |
+| `proposed_cell_cpu`       | int    | Proposed vCPUs per cell                                                        |
+| `proposed_cell_disk_gb`   | int    | Proposed disk per cell (GB)                                                    |
+| `proposed_cell_count`     | int    | Proposed number of cells                                                       |
+| `target_cluster`          | string | Target cluster (empty = all)                                                   |
+| `selected_resources`      | array  | Resources to analyze: `memory`, `cpu`, `disk`                                  |
+| `overhead_pct`            | float  | Memory overhead % for Garden/OS inside each cell (default: 7). See note below. |
+| `host_count`              | int    | Number of ESXi hosts (for HA calculations)                                     |
+| `memory_per_host_gb`      | int    | Memory per host in GB (for HA calculations)                                    |
+| `ha_admission_pct`        | int    | vSphere HA admission control % (for HA calculations)                           |
+| `additional_app`          | object | Optional hypothetical app to model                                             |
+| `tps_curve`               | array  | Optional custom TPS performance curve                                          |
 
 **Note: `overhead_pct` vs `ha_admission_pct`**
 
@@ -432,7 +433,7 @@ These operate at different layers and are not redundant:
 - **`overhead_pct` (7%)**: Memory inside each Diego cell consumed by Garden runtime and OS processes. A 32GB cell has ~30GB available for app containers.
 - **`ha_admission_pct`**: Cluster-level memory reserved by vSphere to restart VMs after host failure. vSphere sees full VM footprint (32GB), not what's inside.
 
-Both are needed: HA admission determines if you can *deploy* the VMs; memory overhead determines how much *workload* fits inside them.
+Both are needed: HA admission determines if you can _deploy_ the VMs; memory overhead determines how much _workload_ fits inside them.
 
 **Response:**
 
@@ -578,12 +579,12 @@ All endpoints return errors in a consistent format:
 }
 ```
 
-| Code | Description |
-|------|-------------|
-| 400 | Bad Request - Invalid input |
-| 405 | Method Not Allowed |
-| 500 | Internal Server Error |
-| 503 | Service Unavailable - External service not configured |
+| Code | Description                                           |
+| ---- | ----------------------------------------------------- |
+| 400  | Bad Request - Invalid input                           |
+| 405  | Method Not Allowed                                    |
+| 500  | Internal Server Error                                 |
+| 503  | Service Unavailable - External service not configured |
 
 ---
 
@@ -591,11 +592,11 @@ All endpoints return errors in a consistent format:
 
 The backend implements in-memory caching with configurable TTLs:
 
-| Cache Key | Default TTL | Environment Variable |
-|-----------|-------------|---------------------|
-| Dashboard data | 30s | `DASHBOARD_CACHE_TTL` |
-| vSphere infrastructure | 300s | `VSPHERE_CACHE_TTL` |
-| General cache | 300s | `CACHE_TTL` |
+| Cache Key              | Default TTL | Environment Variable  |
+| ---------------------- | ----------- | --------------------- |
+| Dashboard data         | 30s         | `DASHBOARD_CACHE_TTL` |
+| vSphere infrastructure | 300s        | `VSPHERE_CACHE_TTL`   |
+| General cache          | 300s        | `CACHE_TTL`           |
 
 Cached responses include `"cached": true` in the metadata.
 
@@ -608,6 +609,7 @@ When using `GET /api/v1/infrastructure` with both vSphere and CF credentials con
 3. **Combined result** is cached using `VSPHERE_CACHE_TTL`
 
 This means:
+
 - Both vSphere and CF data share the same cache TTL (default: 300s)
 - If CF data changes frequently, consider lowering `VSPHERE_CACHE_TTL`
 - Cache invalidation clears both data sources together
@@ -624,11 +626,11 @@ When using the manual infrastructure input endpoint (`POST /api/v1/infrastructur
 
 The following fields require app workload data:
 
-| Field | Description |
-|-------|-------------|
+| Field                 | Description                                         |
+| --------------------- | --------------------------------------------------- |
 | `total_app_memory_gb` | Total memory allocated to all application instances |
-| `total_app_disk_gb` | Total disk allocated to all application instances |
-| `total_app_instances` | Total number of running application instances |
+| `total_app_disk_gb`   | Total disk allocated to all application instances   |
+| `total_app_instances` | Total number of running application instances       |
 
 ### Option 1: From Healthwatch / Aria Operations Dashboards
 
@@ -650,11 +652,11 @@ sum(ts("tas.rep.CapacityAllocatedMemory")) / 1024
 
 **Diego Rep Metrics Reference**:
 
-| Metric | Origin | Units | Description |
-|--------|--------|-------|-------------|
-| `rep.CapacityTotalMemory` | rep | MiB | Max memory available for app allocation |
-| `rep.CapacityRemainingMemory` | rep | MiB | Remaining allocatable memory |
-| `rep.CapacityAllocatedMemory` | rep | MiB | Memory allocated to containers |
+| Metric                        | Origin | Units | Description                             |
+| ----------------------------- | ------ | ----- | --------------------------------------- |
+| `rep.CapacityTotalMemory`     | rep    | MiB   | Max memory available for app allocation |
+| `rep.CapacityRemainingMemory` | rep    | MiB   | Remaining allocatable memory            |
+| `rep.CapacityAllocatedMemory` | rep    | MiB   | Memory allocated to containers          |
 
 Formula: `TotalMemory = AllocatedMemory + RemainingMemory`
 
@@ -691,11 +693,11 @@ cf curl "/v3/processes?per_page=5000" | jq '[.resources[] | .disk_in_mb * .insta
 
 ### Understanding the Numbers
 
-| Field | CF API Source | Calculation |
-|-------|--------------|-------------|
+| Field                 | CF API Source   | Calculation                                      |
+| --------------------- | --------------- | ------------------------------------------------ |
 | `total_app_memory_gb` | `/v3/processes` | Sum of (memory_in_mb × instances), convert to GB |
-| `total_app_instances` | `/v3/processes` | Sum of instances |
-| `total_app_disk_gb` | `/v3/processes` | Sum of (disk_in_mb × instances), convert to GB |
+| `total_app_instances` | `/v3/processes` | Sum of instances                                 |
+| `total_app_disk_gb`   | `/v3/processes` | Sum of (disk_in_mb × instances), convert to GB   |
 
 ### Example Manual JSON Input
 

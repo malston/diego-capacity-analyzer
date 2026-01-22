@@ -1,0 +1,3 @@
+# Cloud Foundry Staticfile Buildpack configuration
+# pushstate enables client-side routing (required for /docs path to work)
+pushstate: enabled

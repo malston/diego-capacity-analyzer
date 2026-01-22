@@ -46,9 +46,8 @@ cli/diego-capacity
 !/CLAUDE.md
 .claudeup/
 
-# OpenAPI documentation server (generated)
-.openapi-server/
 
 # Deployment script state and config
 .state/
 config/deploy.conf
+
