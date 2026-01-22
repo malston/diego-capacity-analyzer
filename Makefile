@@ -40,6 +40,7 @@ clean: backend-clean frontend-clean cli-clean ## Clean all build artifacts
 #
 
 backend-build: ## Build Go backend binary
+	cp openapi.yaml backend/handlers/openapi.yaml
 	cd backend && go build -o capacity-backend .
 
 backend-test: ## Run backend tests

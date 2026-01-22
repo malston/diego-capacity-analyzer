@@ -52,3 +52,6 @@ cli/diego-capacity
 # Deployment script state and config
 .state/
 config/deploy.conf
+
+# Copied OpenAPI spec for backend embedding
+backend/handlers/openapi.yaml
