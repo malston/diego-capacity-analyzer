@@ -118,6 +118,78 @@ Max Cells by CPU    = Available for Cells / Cell vCPU
 
 ---
 
+## Memory Overcommit & Ballooning
+
+### What is Memory Overcommit?
+
+Promising more virtual RAM to VMs than physical RAM exists on the host.
+
+```
+Overcommit Ratio = Total VM Memory / Physical Host Memory
+```
+
+| Ratio    | Risk    | Use Case                        |
+| -------- | ------- | ------------------------------- |
+| 1.0-1.3x | Low     | Production, mission-critical    |
+| 1.3-2.0x | Medium  | Dev/test, predictable workloads |
+| 2.0-3.0x | High    | Labs, demos only                |
+| > 3.0x   | Extreme | Not recommended                 |
+
+### Why These Thresholds?
+
+When VMs collectively demand more than physical RAM, vSphere must **reclaim memory**. The reclamation hierarchy (in order of severity):
+
+| Technique                | Impact     | What Happens                                    |
+| ------------------------ | ---------- | ----------------------------------------------- |
+| Transparent Page Sharing | Low        | Dedupe identical memory pages across VMs        |
+| **Ballooning**           | Medium     | Balloon driver inflates, guest OS pages to swap |
+| Memory Compression       | Medium     | Compress infrequently used pages                |
+| Host Swapping            | **Severe** | Hypervisor swaps VM pages to disk               |
+
+### Memory Ballooning Explained
+
+```
+Overcommit Pressure
+    ↓
+vSphere detects memory contention
+    ↓
+Balloon driver (vmmemctl) inflates inside guest VM
+    ↓
+Guest OS sees "less available RAM"
+    ↓
+Guest OS pages to its own swap
+    ↓
+App performance degrades (latency spikes, GC pauses)
+```
+
+**The 1.3x threshold** = the point where ballooning is unlikely under normal load variance.
+
+Above 1.3x, you're gambling that workloads won't spike simultaneously.
+
+### Diego-Specific Concerns
+
+Diego cells run Java processes (Garden, executor) and containers. When ballooning triggers:
+
+- Container memory limits become unreliable (guest is paging)
+- Apps get OOM-killed unexpectedly
+- Latency spikes cascade through the platform
+- `cf push` staging may timeout
+
+### Monitoring for Ballooning
+
+In vSphere, watch these metrics:
+
+| Metric              | Healthy | Warning | Critical  |
+| ------------------- | ------- | ------- | --------- |
+| Balloon (MB)        | 0       | > 0     | > 1 GB    |
+| Swapped (MB)        | 0       | > 0     | Any       |
+| Memory Contention   | 0%      | > 1%    | > 5%      |
+| Mem Usage vs Active | Similar | Gap     | Large gap |
+
+**If you see ballooning > 0 on Diego cells:** Reduce overcommit or add hosts.
+
+---
+
 ## Resilience Calculations
 
 ### Blast Radius (Single Cell Failure Impact)

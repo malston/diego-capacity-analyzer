@@ -73,8 +73,27 @@ This works because apps rarely use 100% of their allocation simultaneously. But 
 | Ratio    | Risk   | Use case   |
 | -------- | ------ | ---------- |
 | 1.0-1.3x | Low    | Production |
-| 1.5-2.0x | Medium | Dev/test   |
+| 1.3-2.0x | Medium | Dev/test   |
 | 2.0-3.0x | High   | Labs only  |
+
+---
+
+### Q: What's the connection between overcommit and memory ballooning?
+
+**A:** Overcommit creates memory pressure; ballooning is how vSphere reclaims memory when that pressure hits.
+
+When VMs demand more RAM than physically exists, vSphere uses this hierarchy:
+
+1. **Transparent Page Sharing** — dedupe identical pages (low impact)
+2. **Ballooning** — inflate balloon driver, force guest to page (medium impact)
+3. **Compression** — compress cold pages (medium impact)
+4. **Host Swapping** — hypervisor swaps to disk (severe impact)
+
+The **1.3x threshold** is where ballooning becomes unlikely under normal load. Above that, you're betting workloads won't spike together.
+
+**Diego impact:** When ballooning hits Diego cells, container memory limits become unreliable, apps get unexpected OOM kills, and `cf push` may timeout.
+
+**Bottom line:** If you see `Balloon > 0` on Diego cells in vSphere, reduce overcommit or add hosts.
 
 ---
 
