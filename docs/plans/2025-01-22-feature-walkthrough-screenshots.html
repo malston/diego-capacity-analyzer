@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diego Capacity Analyzer — Feature Walkthrough (with Screenshots)</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css">
+    <style>
+        :root {
+            --r-background-color: #0f0f23;
+            --r-main-color: #ccc;
+            --r-heading-color: #00cc66;
+            --r-link-color: #ffcc00;
+        }
+        .reveal { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .reveal h1, .reveal h2, .reveal h3 { text-transform: none; font-weight: 600; }
+        .reveal h1 { font-size: 2.2em; color: var(--r-heading-color); }
+        .reveal h2 { font-size: 1.6em; color: var(--r-heading-color); }
+        .reveal h3 { font-size: 1.2em; color: #ffcc00; }
+        .reveal ul { display: block; text-align: left; }
+        .reveal li { margin-bottom: 0.4em; line-height: 1.3; }
+        .reveal .emoji { font-size: 1.5em; }
+        .reveal table { margin: 0 auto; border-collapse: collapse; font-size: 0.7em; }
+        .reveal th, .reveal td { border: 1px solid #333; padding: 0.3em 0.6em; text-align: left; }
+        .reveal th { background: #1a1a3e; color: #00cc66; }
+        .reveal .good { color: #00cc66; }
+        .reveal .warn { color: #ffcc00; }
+        .reveal .bad { color: #ff6666; }
+        .reveal .formula { font-family: 'Courier New', monospace; background: #1a1a3e; padding: 0.4em 0.8em; border-radius: 8px; display: inline-block; font-size: 0.9em; }
+        .reveal .feature-box { background: #1a1a3e; border-left: 4px solid #00cc66; padding: 0.8em; margin: 0.4em 0; text-align: left; border-radius: 0 8px 8px 0; font-size: 0.85em; }
+        .reveal .tip { background: #2a2a1e; border-left: 4px solid #ffcc00; padding: 0.4em 0.8em; margin: 0.4em 0; text-align: left; font-size: 0.8em; }
+        .reveal small { color: #888; }
+        .reveal .section-title { font-size: 2.5em; margin-bottom: 0.5em; }
+        .reveal .fun { font-size: 3em; }
+        .reveal img.screenshot {
+            max-width: 90%;
+            max-height: 55vh;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+        .reveal img.screenshot-small {
+            max-width: 70%;
+            max-height: 45vh;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+        .reveal .two-col {
+            display: flex;
+            gap: 2em;
+            align-items: flex-start;
+        }
+        .reveal .two-col > div {
+            flex: 1;
+        }
+        .reveal .callout {
+            background: linear-gradient(135deg, #1a1a3e 0%, #2a2a4e 100%);
+            padding: 1em;
+            border-radius: 12px;
+            border: 1px solid #00cc66;
+            font-size: 0.85em;
+        }
+        .reveal .callout-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+            margin: 0.3em 0;
+        }
+        .reveal .number-badge {
+            background: #00cc66;
+            color: #0f0f23;
+            border-radius: 50%;
+            width: 1.5em;
+            height: 1.5em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- TITLE -->
+            <section>
+                <h1>Diego Capacity Analyzer</h1>
+                <p class="fun">🔍</p>
+                <h3>Feature Walkthrough</h3>
+                <p><small>Every button, every metric, every gauge — with screenshots!</small></p>
+                <aside class="notes">Informal walkthrough for the team. Uses actual app screenshots.</aside>
+            </section>
+
+            <!-- SECTION: DASHBOARD OVERVIEW -->
+            <section>
+                <h2 class="section-title">📊 Dashboard Tab</h2>
+                <p>Real-time visibility into your Diego cells</p>
+            </section>
+
+            <section>
+                <h2>Dashboard at a Glance</h2>
+                <img src="../images/dashboard.gif" alt="Dashboard Overview" class="screenshot">
+                <aside class="notes">This is the main dashboard. Shows 6 cells, 60% utilization, isolation segments.</aside>
+            </section>
+
+            <section>
+                <h2>Metric Cards (Top Row)</h2>
+                <img src="../images/dashboard.gif" alt="Metric Cards" class="screenshot-small">
+                <div class="callout" style="margin-top: 0.5em;">
+                    <div class="callout-item"><span class="number-badge">1</span> <strong>Total Cells</strong> — 6 cells, 120 GB capacity</div>
+                    <div class="callout-item"><span class="number-badge">2</span> <strong>Utilization</strong> — 60.2% (72.3 / 120 GB)</div>
+                    <div class="callout-item"><span class="number-badge">3</span> <strong>Avg CPU</strong> — 49.8% across all cells</div>
+                    <div class="callout-item"><span class="number-badge">4</span> <strong>Unused Memory</strong> — 6.2 GB over-allocated</div>
+                </div>
+                <aside class="notes">These four cards are your quick health check. Glance at them daily.</aside>
+            </section>
+
+            <section>
+                <h2>Cell Capacity Chart</h2>
+                <div class="two-col">
+                    <div>
+                        <img src="../images/dashboard.gif" alt="Cell Capacity Chart" class="screenshot">
+                    </div>
+                    <div class="feature-box">
+                        <p><strong>Stacked bars per cell:</strong></p>
+                        <ul style="margin-left: 0; padding-left: 1em;">
+                            <li><span class="good">■ Blue</span> = Used memory</li>
+                            <li><span class="warn">■ Green</span> = Allocated unused</li>
+                            <li>■ Gray = Available</li>
+                        </ul>
+                        <p style="margin-top: 0.5em;"><em>Large green bars = right-sizing opportunity!</em></p>
+                    </div>
+                </div>
+                <aside class="notes">The gap between blue and green is wasted capacity. Find apps to right-size.</aside>
+            </section>
+
+            <section>
+                <h2>Isolation Segments Pie</h2>
+                <div class="two-col">
+                    <div>
+                        <img src="../images/dashboard.gif" alt="Isolation Segments" class="screenshot">
+                    </div>
+                    <div class="feature-box">
+                        <p><strong>Cell distribution:</strong></p>
+                        <ul style="margin-left: 0; padding-left: 1em;">
+                            <li><span style="color: #00bfff;">●</span> default: 50%</li>
+                            <li><span style="color: #ffa500;">●</span> production: 33%</li>
+                            <li><span style="color: #00cc66;">●</span> development: 17%</li>
+                        </ul>
+                        <p style="margin-top: 0.5em;"><em>Shows how cells are split across segments</em></p>
+                    </div>
+                </div>
+                <aside class="notes">Each segment runs isolated workloads. Balance capacity across them.</aside>
+            </section>
+
+            <section>
+                <h2>Diego Cells Detail Table</h2>
+                <img src="../images/dashboard.gif" alt="Cells Table" class="screenshot-small">
+                <table style="margin-top: 0.5em;">
+                    <tr><th>Column</th><th>What It Means</th></tr>
+                    <tr><td>Cell</td><td>VM name (diego_cell/0)</td></tr>
+                    <tr><td>Segment</td><td>Which isolation segment</td></tr>
+                    <tr><td>Capacity / Allocated / Used</td><td>Memory breakdown</td></tr>
+                    <tr><td>CPU %</td><td>Color-coded: <span class="good">green</span> / <span class="warn">yellow</span> / <span class="bad">red</span></td></tr>
+                </table>
+                <aside class="notes">Per-cell breakdown. Find hot cells. diego_cell/1 is at 62% CPU — watch that one.</aside>
+            </section>
+
+            <section>
+                <h2>What-If Mode</h2>
+                <img src="../images/tas-what-if-mode.gif" alt="What-If Mode" class="screenshot">
+                <div class="tip" style="margin-top: 0.5em;">💡 Toggle "What-If Mode" button → drag slider to model memory overcommit</div>
+                <aside class="notes">This is the "aha" moment. Show how capacity changes as you overcommit.</aside>
+            </section>
+
+            <section>
+                <h2>What-If: Understanding Overcommit</h2>
+                <div class="feature-box">
+                    <p><strong>Memory Overcommit Slider:</strong></p>
+                    <ul>
+                        <li><strong>1.0x</strong> = No overcommit (default, safest)</li>
+                        <li><strong>1.5x</strong> = Promise 50% more than physical</li>
+                        <li><strong>2.0x+</strong> = High risk — labs only!</li>
+                    </ul>
+                </div>
+                <table style="margin-top: 0.5em;">
+                    <tr><th>Ratio</th><th>Risk</th><th>Use Case</th></tr>
+                    <tr><td class="good">1.0-1.3x</td><td>Low</td><td>Production</td></tr>
+                    <tr><td class="warn">1.5-2.0x</td><td>Medium</td><td>Dev/test</td></tr>
+                    <tr><td class="bad">2.0-3.0x</td><td>High</td><td>Labs only</td></tr>
+                </table>
+                <aside class="notes">Overcommit works because apps rarely use 100% simultaneously. But spike together = OOM.</aside>
+            </section>
+
+            <!-- SECTION: CAPACITY PLANNING -->
+            <section>
+                <h2 class="section-title">🔮 Capacity Planning</h2>
+                <p>"Will my workloads fit?"</p>
+            </section>
+
+            <section>
+                <h2>Capacity Planning Overview</h2>
+                <img src="../images/capacity-planning.gif" alt="Capacity Planning" class="screenshot">
+                <aside class="notes">This is the scenario analysis wizard. Load data, configure cells, see if it fits.</aside>
+            </section>
+
+            <section>
+                <h2>IaaS Capacity Section</h2>
+                <img src="../images/capacity-planning.gif" alt="IaaS Capacity" class="screenshot-small">
+                <div class="callout" style="margin-top: 0.5em;">
+                    <div class="callout-item"><span class="number-badge">1</span> <strong>Hosts</strong> — 15 hosts across 2 clusters</div>
+                    <div class="callout-item"><span class="number-badge">2</span> <strong>Total Memory</strong> — 30.7 TB (N-1: 26.6T usable)</div>
+                    <div class="callout-item"><span class="number-badge">3</span> <strong>Total vCPUs</strong> — 960 physical cores</div>
+                    <div class="callout-item"><span class="number-badge">4</span> <strong>Max Cells</strong> — 240 (cpu-limited!)</div>
+                </div>
+                <aside class="notes">Shows infrastructure capacity. Note "cpu-limited" — CPU is the bottleneck here.</aside>
+            </section>
+
+            <section>
+                <h2>Current Configuration</h2>
+                <img src="../images/capacity-planning.gif" alt="Current Config" class="screenshot-small">
+                <div class="feature-box" style="margin-top: 0.5em;">
+                    <p><strong>From loaded data:</strong></p>
+                    <ul>
+                        <li><strong>Cells:</strong> 500 across 2 clusters</li>
+                        <li><strong>Cell Size:</strong> 4 vCPU × 32 GB</li>
+                        <li><strong>Total Memory:</strong> 16.0 TB (500 × 32 GB)</li>
+                        <li><strong>Total Disk:</strong> 64.0 TB (500 × 128 GB)</li>
+                    </ul>
+                </div>
+                <p><small>⚠️ Notice: "Proposed exceeds by 260" — current config is over capacity!</small></p>
+                <aside class="notes">This shows what's currently deployed. Red warning = exceeds max cells.</aside>
+            </section>
+
+            <section>
+                <h2>Wizard Step 1: Resources</h2>
+                <img src="../images/tas-scenario-results.gif" alt="Step 1 Resources" class="screenshot-small">
+                <div class="feature-box" style="margin-top: 0.5em;">
+                    <p><strong>Which resources to analyze?</strong></p>
+                    <ul>
+                        <li><span class="good">✓ Memory</span> — Always on</li>
+                        <li><span class="good">✓ CPU</span> — Toggle for vCPU:pCPU analysis</li>
+                        <li><span class="good">✓ Disk</span> — Toggle for disk capacity</li>
+                    </ul>
+                    <p><strong>Disk per Cell:</strong> 128 GB default</p>
+                </div>
+                <aside class="notes">Select which resources matter for your scenario. Memory is always included.</aside>
+            </section>
+
+            <section>
+                <h2>Wizard Step 2: Cell Config</h2>
+                <div class="feature-box">
+                    <p><strong>Configure your proposed cells:</strong></p>
+                    <table>
+                        <tr><th>Input</th><th>Description</th></tr>
+                        <tr><td>VM Size Preset</td><td>Small (4/32) → XXL (16/256)</td></tr>
+                        <tr><td>Cell Count</td><td>How many Diego cells</td></tr>
+                        <tr><td>Memory Overhead</td><td>% for Garden (default 7%)</td></tr>
+                    </table>
+                </div>
+                <div class="tip" style="margin-top: 0.5em;">💡 Cell presets: 4×32, 4×64, 8×64, 8×128, 16×128, 16×256</div>
+                <aside class="notes">Pick a preset or go custom. Bigger cells = fewer cells = less scheduler overhead.</aside>
+            </section>
+
+            <section>
+                <h2>Wizard Step 3: Advanced Options</h2>
+                <div class="feature-box">
+                    <p><strong>Power user settings:</strong></p>
+                    <ul>
+                        <li><strong>Memory Overhead slider</strong> — Adjust 1-20%</li>
+                        <li><strong>Hypothetical App</strong> — "Can I fit this new app?"</li>
+                        <li><strong>TPS Curve</strong> — Customize scheduler benchmark</li>
+                    </ul>
+                </div>
+                <p><small>Most people skip this. Use it to model specific scenarios.</small></p>
+                <aside class="notes">Advanced options for fine-tuning. The 7% overhead is empirically derived.</aside>
+            </section>
+
+            <!-- SECTION: RESULTS -->
+            <section>
+                <h2 class="section-title">📈 Results</h2>
+                <p>The answers you came for</p>
+            </section>
+
+            <section>
+                <h2>The Big Answer</h2>
+                <p class="fun">✅ YES / ⚠️ MAYBE / ❌ NO</p>
+                <table>
+                    <tr><th>Status</th><th>What It Means</th><th>Action</th></tr>
+                    <tr><td class="good">✓ YES</td><td>All checks pass</td><td>Good to go!</td></tr>
+                    <tr><td class="warn">⚠ MAYBE</td><td>Warnings present</td><td>Review warnings</td></tr>
+                    <tr><td class="bad">✗ NO</td><td>Critical issues</td><td>Adjust config</td></tr>
+                </table>
+                <aside class="notes">This is what everyone wants to know first. Green = ship it.</aside>
+            </section>
+
+            <section>
+                <h2>Why "NO"? Common Reasons</h2>
+                <ul>
+                    <li class="bad"><strong>Exceeds N-1/HA capacity</strong> — Can't survive host failure</li>
+                    <li class="bad"><strong>Memory utilization > 90%</strong> — Cells are full</li>
+                    <li class="bad"><strong>vCPU ratio too high</strong> — CPU oversubscribed (> 8:1)</li>
+                    <li class="warn"><strong>Low staging capacity</strong> — < 10 free chunks</li>
+                </ul>
+                <div class="tip" style="margin-top: 0.5em;">💡 Check the Bottleneck Card to see which resource is constraining you</div>
+                <aside class="notes">The warnings tell you exactly what's wrong. Fix the bottleneck first.</aside>
+            </section>
+
+            <section>
+                <h2>Capacity Gauge: HA / N-1</h2>
+                <div class="feature-box">
+                    <p class="formula">Utilization = (Cell Memory + Platform VMs) / Usable Capacity</p>
+                </div>
+                <table>
+                    <tr><th>Utilization</th><th>Status</th><th>Meaning</th></tr>
+                    <tr><td class="good">< 75%</td><td>Good</td><td>Safe headroom for failures</td></tr>
+                    <tr><td class="warn">75-85%</td><td>Warning</td><td>Approaching limits</td></tr>
+                    <tr><td class="bad">> 85%</td><td>Critical</td><td>Can't survive host failure</td></tr>
+                </table>
+                <div class="tip" style="margin-top: 0.5em;">💡 Gauge label shows constraint: "HA 25% (≈N-3)" or "N-1"</div>
+                <aside class="notes">This gauge answers "can I survive a host failure?" — the key question.</aside>
+            </section>
+
+            <section>
+                <h2>N-1 vs HA Admission Control</h2>
+                <div class="feature-box">
+                    <table>
+                        <tr><th>Constraint</th><th>How It Works</th></tr>
+                        <tr><td><strong>N-1</strong></td><td>Reserve one host's worth of memory</td></tr>
+                        <tr><td><strong>HA Admission</strong></td><td>vSphere setting: reserve X% of cluster</td></tr>
+                    </table>
+                </div>
+                <p style="margin-top: 0.5em;"><strong>Example:</strong> 15 hosts × 2 TB each = 30 TB</p>
+                <ul style="font-size: 0.85em;">
+                    <li>HA 25% reserves 7.5 TB (≈ N-3 to N-4)</li>
+                    <li>N-1 reserves 2 TB (one host)</li>
+                    <li><span class="warn">HA wins — it's more restrictive</span></li>
+                </ul>
+                <aside class="notes">The tool compares both and shows whichever is more restrictive.</aside>
+            </section>
+
+            <section>
+                <h2>Memory & Disk Gauges</h2>
+                <table>
+                    <tr><th>Gauge</th><th class="good">Good</th><th class="warn">Warning</th><th class="bad">Critical</th></tr>
+                    <tr><td>Memory Utilization</td><td>< 80%</td><td>80-90%</td><td>> 90%</td></tr>
+                    <tr><td>Disk Utilization</td><td>< 80%</td><td>80-90%</td><td>> 90%</td></tr>
+                </table>
+                <div class="feature-box" style="margin-top: 0.5em;">
+                    <p class="formula">Memory Util = App Memory Used / Total App Capacity</p>
+                    <p><small>This is <em>app-level</em> utilization, separate from HA capacity.</small></p>
+                </div>
+                <aside class="notes">These are inside-the-cell metrics. HA gauge is infrastructure-level.</aside>
+            </section>
+
+            <section>
+                <h2>Free Chunks (Staging Capacity)</h2>
+                <div class="feature-box">
+                    <p class="formula">Free Chunks = (App Capacity - Used) / 4 GB</p>
+                </div>
+                <table>
+                    <tr><th>Chunks</th><th>Status</th><th>Impact</th></tr>
+                    <tr><td class="good">≥ 20</td><td>Healthy</td><td>No deploy delays</td></tr>
+                    <tr><td class="warn">10-19</td><td>Limited</td><td>May queue during busy periods</td></tr>
+                    <tr><td class="bad">< 10</td><td>Constrained</td><td>Deployment bottleneck</td></tr>
+                </table>
+                <p><small>Each <code>cf push</code> needs ~4 GB to stage a droplet</small></p>
+                <aside class="notes">Low chunks = long deploy queues. This is why pushes sometimes hang.</aside>
+            </section>
+
+            <section>
+                <h2>vCPU:pCPU Ratio</h2>
+                <div class="feature-box">
+                    <p class="formula">Ratio = (Cells × Cell vCPU) / Total Physical Cores</p>
+                </div>
+                <table>
+                    <tr><th>Ratio</th><th>Risk Level</th><th>Guidance</th></tr>
+                    <tr><td class="good">≤ 4:1</td><td>Conservative</td><td>Production safe</td></tr>
+                    <tr><td class="warn">4-8:1</td><td>Moderate</td><td>Monitor CPU Ready %</td></tr>
+                    <tr><td class="bad">> 8:1</td><td>Aggressive</td><td>Expect contention</td></tr>
+                </table>
+                <p><small>CPU Ready > 5% in vSphere = problems brewing</small></p>
+                <aside class="notes">Ratio is calculated, not set. Change cell count or vCPU to adjust it.</aside>
+            </section>
+
+            <section>
+                <h2>TPS (Scheduler Performance)</h2>
+                <div class="feature-box">
+                    <p><strong>Tasks Per Second</strong> — how fast Diego schedules containers</p>
+                    <table>
+                        <tr><th>Cells</th><th>TPS</th><th>Notes</th></tr>
+                        <tr><td>3</td><td class="good">1,964</td><td>Peak performance</td></tr>
+                        <tr><td>100</td><td class="warn">1,389</td><td>-30% from peak</td></tr>
+                        <tr><td>210+</td><td class="bad">< 200</td><td>Severe degradation</td></tr>
+                    </table>
+                </div>
+                <div class="tip" style="margin-top: 0.5em;">💡 More cells = more coordination overhead. Consider bigger cells instead.</div>
+                <aside class="notes">This is modeled from benchmarks, not live. Customize in Advanced Options.</aside>
+            </section>
+
+            <section>
+                <h2>Blast Radius</h2>
+                <div class="feature-box">
+                    <p class="formula">Blast Radius = 100 / Cell Count</p>
+                </div>
+                <table>
+                    <tr><th>Cells</th><th>Blast Radius</th><th>Risk</th></tr>
+                    <tr><td>5</td><td class="bad">20%</td><td>One failure hurts!</td></tr>
+                    <tr><td>20</td><td class="warn">5%</td><td>Reasonable</td></tr>
+                    <tr><td>100</td><td class="good">1%</td><td>Excellent</td></tr>
+                </table>
+                <p><small>Production should aim for < 5% blast radius</small></p>
+                <aside class="notes">Low cell count = outsized impact per failure. Spread the risk.</aside>
+            </section>
+
+            <section>
+                <h2>Bottleneck Card</h2>
+                <div class="feature-box">
+                    <p><strong>Resources ranked by utilization:</strong></p>
+                    <ol style="margin-left: 1em;">
+                        <li><span class="bad">Memory (92%)</span> ← Constraining!</li>
+                        <li>CPU (67%)</li>
+                        <li>Disk (45%)</li>
+                    </ol>
+                    <p style="margin-top: 0.5em;"><em>Fix #1 first. Others don't matter until then.</em></p>
+                </div>
+                <aside class="notes">This tells you WHERE to focus. Always address the bottleneck first.</aside>
+            </section>
+
+            <section>
+                <h2>Recommendations</h2>
+                <div class="feature-box">
+                    <p><strong>Prioritized actions based on bottleneck:</strong></p>
+                    <table>
+                        <tr><th>Type</th><th>Action</th></tr>
+                        <tr><td style="color: #00bfff;">Scale-out</td><td>Add more cells</td></tr>
+                        <tr><td style="color: #00cc66;">Scale-up</td><td>Bigger cells</td></tr>
+                        <tr><td style="color: #ff9900;">Infrastructure</td><td>Add hosts</td></tr>
+                        <tr><td style="color: #ff66ff;">Optimization</td><td>Right-size apps</td></tr>
+                    </table>
+                </div>
+                <p><small>Each shows impact + priority (1 = do first)</small></p>
+                <aside class="notes">These are suggestions. You know your constraints best.</aside>
+            </section>
+
+            <!-- SECTION: QUICK REFERENCE -->
+            <section>
+                <h2 class="section-title">📋 Quick Reference</h2>
+                <p>All thresholds at a glance</p>
+            </section>
+
+            <section>
+                <h2>Threshold Cheatsheet</h2>
+                <table>
+                    <tr><th>Metric</th><th class="good">Good</th><th class="warn">Warning</th><th class="bad">Critical</th></tr>
+                    <tr><td>HA/N-1 Capacity</td><td>< 75%</td><td>75-85%</td><td>> 85%</td></tr>
+                    <tr><td>Memory Util</td><td>< 80%</td><td>80-90%</td><td>> 90%</td></tr>
+                    <tr><td>Disk Util</td><td>< 80%</td><td>80-90%</td><td>> 90%</td></tr>
+                    <tr><td>Free Chunks</td><td>≥ 20</td><td>10-19</td><td>< 10</td></tr>
+                    <tr><td>Blast Radius</td><td>≤ 5%</td><td>5-20%</td><td>> 20%</td></tr>
+                    <tr><td>vCPU Ratio</td><td>≤ 4:1</td><td>4-8:1</td><td>> 8:1</td></tr>
+                </table>
+                <aside class="notes">Print this. Stick it on your monitor.</aside>
+            </section>
+
+            <section>
+                <h2>Key Formulas</h2>
+                <p class="formula">Max Cells = Usable Memory / Cell Memory</p>
+                <p class="formula">N-1 Usable = Total - One Host</p>
+                <p class="formula">HA Usable = Total × (1 - HA%)</p>
+                <p class="formula">vCPU Ratio = (Cells × vCPU) / pCPUs</p>
+                <p class="formula">Blast Radius = 100 / Cell Count</p>
+                <aside class="notes">The math that powers everything.</aside>
+            </section>
+
+            <!-- END -->
+            <section>
+                <h2>That's Everything! 🎉</h2>
+                <p>Questions?</p>
+                <br>
+                <p><small>
+                    📄 Full docs: <code>docs/UI-GUIDE.md</code><br>
+                    🧮 Formulas: <code>docs/plans/2025-01-22-formula-cheatsheet.md</code><br>
+                    ❓ FAQ: <code>docs/FAQ.md</code>
+                </small></p>
+                <aside class="notes">Open floor for questions.</aside>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: true,
+            transition: 'slide',
+            plugins: [ RevealNotes ]
+        });
+    </script>
+</body>
+</html>
