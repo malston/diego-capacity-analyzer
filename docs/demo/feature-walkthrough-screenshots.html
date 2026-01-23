@@ -238,14 +238,13 @@
                 <aside class="notes">Shows infrastructure capacity. Note "cpu-limited" — CPU is the bottleneck here.</aside>
             </section>
 
-            <section style="overflow-y: hidden;">
+            <section>
                 <h2>Current Configuration</h2>
-                <img src="../images/capacity-planning.gif" alt="Current Config" class="screenshot-small">
+                <img src="../images/capacity-planning.gif" alt="Current Config" class="screenshot-small" style="max-height: 25vh;">
                 <div class="feature-box" style="margin-top: 0.3em;">
-                    <p><strong>From loaded data:</strong> <strong>Cells:</strong> 500 across 2 clusters · <strong>Cell Size:</strong> 4 vCPU × 32 GB</p>
-                    <p><strong>Total Memory:</strong> 16.0 TB · <strong>Total Disk:</strong> 64.0 TB</p>
+                    <p><strong>From loaded data:</strong> 500 cells (4 vCPU × 32 GB each) · 16.0 TB memory · 64.0 TB disk</p>
                 </div>
-                <p style="margin-top: 0.2em;"><small>⚠️ Notice: "Proposed exceeds by 260" — current config is over capacity!</small></p>
+                <p style="margin-top: 0.2em;"><small>⚠️ "Proposed exceeds by 260" — current config is over capacity!</small></p>
                 <aside class="notes">This shows what's currently deployed. Red warning = exceeds max cells.</aside>
             </section>
 
