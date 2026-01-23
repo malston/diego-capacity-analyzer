@@ -276,6 +276,8 @@ GitHub Actions workflows run automatically:
 - **[API Reference](docs/API.md)** - Backend REST API documentation
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Cloud Foundry deployment
 - **[Authentication](docs/AUTHENTICATION.md)** - OAuth2/UAA authentication flow
+- **[FAQ](docs/FAQ.md)** - Common questions and answers
+- **[Demo Materials](docs/demo/)** - Presentation slides, scripts, and reference materials
 - **[Backend README](backend/README.md)** - Backend-specific documentation
 
 ## Project Structure
