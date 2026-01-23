@@ -183,7 +183,7 @@ main() {
     start_frontend
 
     # Optionally start slides server
-    if [[ "${SLIDES:-false}" == "true" ]]; then
+    if [[ "${SLIDES:-true}" == "true" ]]; then
         start_slides
     fi
 
@@ -192,7 +192,7 @@ main() {
     echo ""
     echo "  📊 Dashboard:    http://localhost:${FRONTEND_PORT:-5173}"
     echo "  🔌 Backend API:  http://localhost:${BACKEND_PORT:-8080}/api/v1/health"
-    if [[ "${SLIDES:-false}" == "true" ]]; then
+    if [[ "${SLIDES:-true}" == "true" ]]; then
         echo "  📽️  Slides:       http://localhost:${SLIDES_PORT:-8888}/demo/"
     fi
     echo ""
@@ -237,12 +237,12 @@ Environment variables:
   BACKEND_PORT   Backend server port (default: 8080)
   FRONTEND_PORT  Frontend dev server port (default: 5173)
   SLIDES_PORT    Slides HTTP server port (default: 8888)
-  SLIDES=true    Also start the presentation slides server
+  SLIDES=false   Skip starting the presentation slides server
   NO_BROWSER=true  Don't auto-open browser
 
 Examples:
-  ./run-demo.sh                    # Start demo, open browser
-  SLIDES=true ./run-demo.sh        # Also serve presentation slides
+  ./run-demo.sh                    # Start demo with slides, open browser
+  SLIDES=false ./run-demo.sh       # Skip presentation slides server
   NO_BROWSER=true ./run-demo.sh    # Don't open browser
 
 Presentation slides available at:
