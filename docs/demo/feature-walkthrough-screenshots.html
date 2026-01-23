@@ -121,18 +121,18 @@
 
             <section>
                 <h2>Dashboard at a Glance</h2>
-                <img src="../images/dashboard.gif" alt="Dashboard Overview" class="screenshot">
+                <img src="../images/dashboard.gif" alt="Dashboard Overview" class="screenshot" style="max-height: 40vh;">
                 <aside class="notes">This is the main dashboard. Shows 6 cells, 60% utilization, isolation segments.</aside>
             </section>
 
             <section>
                 <h2>Metric Cards (Top Row)</h2>
-                <img src="../images/dashboard.gif" alt="Metric Cards" class="screenshot-small">
-                <div class="callout" style="margin-top: 0.5em;">
-                    <div class="callout-item"><span class="number-badge">1</span> <strong>Total Cells</strong> — 6 cells, 120 GB capacity</div>
-                    <div class="callout-item"><span class="number-badge">2</span> <strong>Utilization</strong> — 60.2% (72.3 / 120 GB)</div>
-                    <div class="callout-item"><span class="number-badge">3</span> <strong>Avg CPU</strong> — 49.8% across all cells</div>
-                    <div class="callout-item"><span class="number-badge">4</span> <strong>Unused Memory</strong> — 6.2 GB over-allocated</div>
+                <img src="../images/dashboard.gif" alt="Metric Cards" class="screenshot-small" style="max-height: 25vh;">
+                <div class="callout" style="margin-top: 0.3em; padding: 0.6em;">
+                    <div class="callout-item"><span class="number-badge">1</span> <strong>Total Cells</strong> — 6 cells, 120 GB</div>
+                    <div class="callout-item"><span class="number-badge">2</span> <strong>Utilization</strong> — 60.2%</div>
+                    <div class="callout-item"><span class="number-badge">3</span> <strong>Avg CPU</strong> — 49.8%</div>
+                    <div class="callout-item"><span class="number-badge">4</span> <strong>Unused Memory</strong> — 6.2 GB</div>
                 </div>
                 <aside class="notes">These four cards are your quick health check. Glance at them daily.</aside>
             </section>
@@ -177,21 +177,21 @@
 
             <section>
                 <h2>Diego Cells Detail Table</h2>
-                <img src="../images/dashboard.gif" alt="Cells Table" class="screenshot-small">
-                <table style="margin-top: 0.5em;">
+                <img src="../images/dashboard.gif" alt="Cells Table" class="screenshot-small" style="max-height: 25vh;">
+                <table style="margin-top: 0.3em; font-size: 0.65em;">
                     <tr><th>Column</th><th>What It Means</th></tr>
                     <tr><td>Cell</td><td>VM name (diego_cell/0)</td></tr>
-                    <tr><td>Segment</td><td>Which isolation segment</td></tr>
-                    <tr><td>Capacity / Allocated / Used</td><td>Memory breakdown</td></tr>
-                    <tr><td>CPU %</td><td>Color-coded: <span class="good">green</span> / <span class="warn">yellow</span> / <span class="bad">red</span></td></tr>
+                    <tr><td>Segment</td><td>Isolation segment</td></tr>
+                    <tr><td>Capacity/Allocated/Used</td><td>Memory breakdown</td></tr>
+                    <tr><td>CPU %</td><td><span class="good">green</span>/<span class="warn">yellow</span>/<span class="bad">red</span></td></tr>
                 </table>
                 <aside class="notes">Per-cell breakdown. Find hot cells. diego_cell/1 is at 62% CPU — watch that one.</aside>
             </section>
 
             <section>
                 <h2>What-If Mode</h2>
-                <img src="../images/tas-what-if-mode.gif" alt="What-If Mode" class="screenshot">
-                <div class="tip" style="margin-top: 0.5em;">💡 Toggle "What-If Mode" button → drag slider to model memory overcommit</div>
+                <img src="../images/tas-what-if-mode.gif" alt="What-If Mode" class="screenshot" style="max-height: 40vh;">
+                <div class="tip" style="margin-top: 0.3em;">💡 Toggle "What-If Mode" → drag slider to model memory overcommit</div>
                 <aside class="notes">This is the "aha" moment. Show how capacity changes as you overcommit.</aside>
             </section>
 
@@ -228,12 +228,12 @@
 
             <section>
                 <h2>IaaS Capacity Section</h2>
-                <img src="../images/capacity-planning.gif" alt="IaaS Capacity" class="screenshot-small">
-                <div class="callout" style="margin-top: 0.5em;">
-                    <div class="callout-item"><span class="number-badge">1</span> <strong>Hosts</strong> — 15 hosts across 2 clusters</div>
-                    <div class="callout-item"><span class="number-badge">2</span> <strong>Total Memory</strong> — 30.7 TB (N-1: 26.6T usable)</div>
-                    <div class="callout-item"><span class="number-badge">3</span> <strong>Total vCPUs</strong> — 960 physical cores</div>
-                    <div class="callout-item"><span class="number-badge">4</span> <strong>Max Cells</strong> — 240 (cpu-limited!)</div>
+                <img src="../images/capacity-planning.gif" alt="IaaS Capacity" class="screenshot-small" style="max-height: 25vh;">
+                <div class="callout" style="margin-top: 0.3em; padding: 0.6em;">
+                    <div class="callout-item"><span class="number-badge">1</span> <strong>Hosts</strong> — 15 across 2 clusters</div>
+                    <div class="callout-item"><span class="number-badge">2</span> <strong>Memory</strong> — 30.7 TB (N-1: 26.6T)</div>
+                    <div class="callout-item"><span class="number-badge">3</span> <strong>vCPUs</strong> — 960 pCores</div>
+                    <div class="callout-item"><span class="number-badge">4</span> <strong>Max Cells</strong> — 240 (cpu-limited)</div>
                 </div>
                 <aside class="notes">Shows infrastructure capacity. Note "cpu-limited" — CPU is the bottleneck here.</aside>
             </section>
@@ -250,14 +250,9 @@
 
             <section>
                 <h2>Wizard Step 1: Resources</h2>
-                <img src="../images/tas-scenario-results.gif" alt="Step 1 Resources" class="screenshot-small">
-                <div class="feature-box" style="margin-top: 0.5em;">
-                    <p><strong>Which resources to analyze?</strong></p>
-                    <ul>
-                        <li><span class="good">✓ Memory</span> — Always on</li>
-                        <li><span class="good">✓ CPU</span> — Toggle for vCPU:pCPU analysis</li>
-                        <li><span class="good">✓ Disk</span> — Toggle for disk capacity</li>
-                    </ul>
+                <img src="../images/tas-scenario-results.gif" alt="Step 1 Resources" class="screenshot-small" style="max-height: 25vh;">
+                <div class="feature-box" style="margin-top: 0.3em;">
+                    <p><strong>Resources to analyze:</strong> <span class="good">✓ Memory</span> (always on) · <span class="good">✓ CPU</span> · <span class="good">✓ Disk</span></p>
                     <p><strong>Disk per Cell:</strong> 128 GB default</p>
                 </div>
                 <aside class="notes">Select which resources matter for your scenario. Memory is always included.</aside>
