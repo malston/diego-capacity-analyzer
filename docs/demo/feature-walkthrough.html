@@ -34,6 +34,21 @@
         .reveal small { color: #888; }
         .reveal .section-title { font-size: 2.5em; margin-bottom: 0.5em; }
         .reveal .fun { font-size: 3em; }
+        /* Enable scrolling on slides that overflow */
+        .reveal .slides section {
+            overflow-y: auto;
+            max-height: 100%;
+        }
+        .reveal .slides section::-webkit-scrollbar {
+            width: 6px;
+        }
+        .reveal .slides section::-webkit-scrollbar-track {
+            background: #1a1a3e;
+        }
+        .reveal .slides section::-webkit-scrollbar-thumb {
+            background: #00cc66;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
@@ -393,9 +408,10 @@
             // Auto-scaling: fit content to viewport
             width: 1280,
             height: 720,
-            margin: 0.1,
+            margin: 0.04,
             minScale: 0.2,
             maxScale: 1.5,
+            center: false,  // Top-align slides
             plugins: [ RevealNotes ]
         });
     </script>
