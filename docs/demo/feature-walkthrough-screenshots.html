@@ -81,6 +81,21 @@
             font-weight: bold;
             font-size: 0.9em;
         }
+        /* Enable scrolling on slides that overflow */
+        .reveal .slides section {
+            overflow-y: auto;
+            max-height: 100%;
+        }
+        .reveal .slides section::-webkit-scrollbar {
+            width: 6px;
+        }
+        .reveal .slides section::-webkit-scrollbar-track {
+            background: #1a1a3e;
+        }
+        .reveal .slides section::-webkit-scrollbar-thumb {
+            background: #00cc66;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
