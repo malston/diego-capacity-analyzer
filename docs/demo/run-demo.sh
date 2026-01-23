@@ -19,6 +19,19 @@ log_success() { echo -e "${GREEN}[OK]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 
+# Check if a port is in use
+port_in_use() {
+    local port="$1"
+    if command -v lsof &>/dev/null; then
+        lsof -i :"$port" &>/dev/null
+    elif command -v nc &>/dev/null; then
+        nc -z localhost "$port" &>/dev/null
+    else
+        # Fallback: try to connect with bash
+        (echo >/dev/tcp/localhost/"$port") 2>/dev/null
+    fi
+}
+
 # Cleanup function
 cleanup() {
     log_info "Shutting down demo..."
@@ -76,7 +89,14 @@ install_deps() {
 
 # Start backend
 start_backend() {
-    log_info "Starting backend on port ${BACKEND_PORT:-8080}..."
+    local port="${BACKEND_PORT:-8080}"
+    if port_in_use "$port"; then
+        log_warn "Backend port $port already in use — skipping (using existing service)"
+        BACKEND_SKIPPED=true
+        return 0
+    fi
+
+    log_info "Starting backend on port $port..."
     cd "$PROJECT_ROOT/backend"
     go build -o capacity-backend . || { log_error "Backend build failed"; exit 1; }
     ./capacity-backend &
@@ -94,7 +114,14 @@ start_backend() {
 
 # Start frontend
 start_frontend() {
-    log_info "Starting frontend on port ${FRONTEND_PORT:-5173}..."
+    local port="${FRONTEND_PORT:-5173}"
+    if port_in_use "$port"; then
+        log_warn "Frontend port $port already in use — skipping (using existing service)"
+        FRONTEND_SKIPPED=true
+        return 0
+    fi
+
+    log_info "Starting frontend on port $port..."
     cd "$PROJECT_ROOT/frontend"
     $PKG_MANAGER run dev &
     FRONTEND_PID=$!
@@ -110,9 +137,16 @@ start_frontend() {
 
 # Serve presentation slides
 start_slides() {
-    log_info "Starting slides server on port ${SLIDES_PORT:-8888}..."
+    local port="${SLIDES_PORT:-8888}"
+    if port_in_use "$port"; then
+        log_warn "Slides port $port already in use — skipping (using existing service)"
+        SLIDES_SKIPPED=true
+        return 0
+    fi
+
+    log_info "Starting slides server on port $port..."
     cd "$PROJECT_ROOT/docs"
-    python3 -m http.server "${SLIDES_PORT:-8888}" &
+    python3 -m http.server "$port" &
     SLIDES_PID=$!
     sleep 1
 
@@ -162,17 +196,34 @@ main() {
         echo "  📽️  Slides:       http://localhost:${SLIDES_PORT:-8888}/demo/"
     fi
     echo ""
-    echo "  Press Ctrl+C to stop the demo"
-    echo ""
 
-    # Open browser to dashboard
-    if [[ "${NO_BROWSER:-false}" != "true" ]]; then
-        sleep 1
-        open_browser "http://localhost:${FRONTEND_PORT:-5173}"
+    # Check if we started any processes
+    local started_any=false
+    if [[ -n "${BACKEND_PID:-}" ]] || [[ -n "${FRONTEND_PID:-}" ]] || [[ -n "${SLIDES_PID:-}" ]]; then
+        started_any=true
     fi
 
-    # Wait for user interrupt
-    wait
+    if [[ "$started_any" == "true" ]]; then
+        echo "  Press Ctrl+C to stop the demo"
+        echo ""
+
+        # Open browser to dashboard
+        if [[ "${NO_BROWSER:-false}" != "true" ]]; then
+            sleep 1
+            open_browser "http://localhost:${FRONTEND_PORT:-5173}"
+        fi
+
+        # Wait for user interrupt
+        wait
+    else
+        echo "  All services already running — nothing to manage"
+        echo ""
+
+        # Open browser to dashboard
+        if [[ "${NO_BROWSER:-false}" != "true" ]]; then
+            open_browser "http://localhost:${FRONTEND_PORT:-5173}"
+        fi
+    fi
 }
 
 # Help
