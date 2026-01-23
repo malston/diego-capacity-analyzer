@@ -45,7 +45,7 @@
         }
         .reveal img.screenshot-small {
             max-width: 70%;
-            max-height: 35vh;
+            max-height: 30vh;
             border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
             border: 1px solid #333;
@@ -241,16 +241,11 @@
             <section>
                 <h2>Current Configuration</h2>
                 <img src="../images/capacity-planning.gif" alt="Current Config" class="screenshot-small">
-                <div class="feature-box" style="margin-top: 0.5em;">
-                    <p><strong>From loaded data:</strong></p>
-                    <ul>
-                        <li><strong>Cells:</strong> 500 across 2 clusters</li>
-                        <li><strong>Cell Size:</strong> 4 vCPU × 32 GB</li>
-                        <li><strong>Total Memory:</strong> 16.0 TB (500 × 32 GB)</li>
-                        <li><strong>Total Disk:</strong> 64.0 TB (500 × 128 GB)</li>
-                    </ul>
+                <div class="feature-box" style="margin-top: 0.3em;">
+                    <p><strong>From loaded data:</strong> <strong>Cells:</strong> 500 across 2 clusters · <strong>Cell Size:</strong> 4 vCPU × 32 GB</p>
+                    <p><strong>Total Memory:</strong> 16.0 TB · <strong>Total Disk:</strong> 64.0 TB</p>
                 </div>
-                <p><small>⚠️ Notice: "Proposed exceeds by 260" — current config is over capacity!</small></p>
+                <p style="margin-top: 0.2em;"><small>⚠️ Notice: "Proposed exceeds by 260" — current config is over capacity!</small></p>
                 <aside class="notes">This shows what's currently deployed. Red warning = exceeds max cells.</aside>
             </section>
 
