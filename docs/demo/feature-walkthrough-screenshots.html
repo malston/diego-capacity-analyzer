@@ -121,14 +121,14 @@
 
             <section>
                 <h2>Dashboard at a Glance</h2>
-                <img src="../images/dashboard.gif" alt="Dashboard Overview" class="screenshot" style="max-height: 40vh;">
+                <img src="../images/dashboard.gif" alt="Dashboard Overview" class="screenshot">
                 <aside class="notes">This is the main dashboard. Shows 6 cells, 60% utilization, isolation segments.</aside>
             </section>
 
             <section>
                 <h2>Metric Cards (Top Row)</h2>
-                <img src="../images/dashboard.gif" alt="Metric Cards" class="screenshot-small" style="max-height: 25vh;">
-                <div class="callout" style="margin-top: 0.3em; padding: 0.6em;">
+                <img src="../images/dashboard.gif" alt="Metric Cards" class="screenshot-small">
+                <div class="callout">
                     <div class="callout-item"><span class="number-badge">1</span> <strong>Total Cells</strong> — 6 cells, 120 GB</div>
                     <div class="callout-item"><span class="number-badge">2</span> <strong>Utilization</strong> — 60.2%</div>
                     <div class="callout-item"><span class="number-badge">3</span> <strong>Avg CPU</strong> — 49.8%</div>
@@ -177,8 +177,8 @@
 
             <section>
                 <h2>Diego Cells Detail Table</h2>
-                <img src="../images/dashboard.gif" alt="Cells Table" class="screenshot-small" style="max-height: 25vh;">
-                <table style="margin-top: 0.3em; font-size: 0.65em;">
+                <img src="../images/dashboard.gif" alt="Cells Table" class="screenshot-small">
+                <table style="margin-top: 0.5em;">
                     <tr><th>Column</th><th>What It Means</th></tr>
                     <tr><td>Cell</td><td>VM name (diego_cell/0)</td></tr>
                     <tr><td>Segment</td><td>Isolation segment</td></tr>
@@ -190,8 +190,8 @@
 
             <section>
                 <h2>What-If Mode</h2>
-                <img src="../images/tas-what-if-mode.gif" alt="What-If Mode" class="screenshot" style="max-height: 40vh;">
-                <div class="tip" style="margin-top: 0.3em;">💡 Toggle "What-If Mode" → drag slider to model memory overcommit</div>
+                <img src="../images/tas-what-if-mode.gif" alt="What-If Mode" class="screenshot">
+                <div class="tip">💡 Toggle "What-If Mode" → drag slider to model memory overcommit</div>
                 <aside class="notes">This is the "aha" moment. Show how capacity changes as you overcommit.</aside>
             </section>
 
@@ -228,8 +228,8 @@
 
             <section>
                 <h2>IaaS Capacity Section</h2>
-                <img src="../images/capacity-planning.gif" alt="IaaS Capacity" class="screenshot-small" style="max-height: 25vh;">
-                <div class="callout" style="margin-top: 0.3em; padding: 0.6em;">
+                <img src="../images/capacity-planning.gif" alt="IaaS Capacity" class="screenshot-small">
+                <div class="callout">
                     <div class="callout-item"><span class="number-badge">1</span> <strong>Hosts</strong> — 15 across 2 clusters</div>
                     <div class="callout-item"><span class="number-badge">2</span> <strong>Memory</strong> — 30.7 TB (N-1: 26.6T)</div>
                     <div class="callout-item"><span class="number-badge">3</span> <strong>vCPUs</strong> — 960 pCores</div>
@@ -240,19 +240,27 @@
 
             <section>
                 <h2>Current Configuration</h2>
-                <img src="../images/capacity-planning.gif" alt="Current Config" class="screenshot-small" style="max-height: 25vh;">
-                <div class="feature-box" style="margin-top: 0.3em;">
-                    <p><strong>From loaded data:</strong> 500 cells (4 vCPU × 32 GB each) · 16.0 TB memory · 64.0 TB disk</p>
+                <img src="../images/capacity-planning.gif" alt="Current Config" class="screenshot-small">
+                <div class="feature-box">
+                    <p><strong>From loaded data:</strong></p>
+                    <ul>
+                        <li>500 cells (4 vCPU × 32 GB each)</li>
+                        <li>16.0 TB memory · 64.0 TB disk</li>
+                    </ul>
                 </div>
-                <p style="margin-top: 0.2em;"><small>⚠️ "Proposed exceeds by 260" — current config is over capacity!</small></p>
+                <p><small>⚠️ "Proposed exceeds by 260" — current config is over capacity!</small></p>
                 <aside class="notes">This shows what's currently deployed. Red warning = exceeds max cells.</aside>
             </section>
 
             <section>
                 <h2>Wizard Step 1: Resources</h2>
-                <img src="../images/tas-scenario-results.gif" alt="Step 1 Resources" class="screenshot-small" style="max-height: 25vh;">
-                <div class="feature-box" style="margin-top: 0.3em;">
-                    <p><strong>Resources to analyze:</strong> <span class="good">✓ Memory</span> (always on) · <span class="good">✓ CPU</span> · <span class="good">✓ Disk</span></p>
+                <img src="../images/tas-scenario-results.gif" alt="Step 1 Resources" class="screenshot-small">
+                <div class="feature-box">
+                    <p><strong>Resources to analyze:</strong></p>
+                    <ul>
+                        <li><span class="good">✓ Memory</span> (always on)</li>
+                        <li><span class="good">✓ CPU</span> · <span class="good">✓ Disk</span></li>
+                    </ul>
                     <p><strong>Disk per Cell:</strong> 128 GB default</p>
                 </div>
                 <aside class="notes">Select which resources matter for your scenario. Memory is always included.</aside>
