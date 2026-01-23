@@ -515,12 +515,12 @@
             hash: true,
             slideNumber: true,
             transition: 'slide',
-            // Auto-scaling: fit content to viewport
+            // Larger virtual canvas = smaller content at 100% zoom
             width: 1280,
-            height: 720,
-            margin: 0.04,
+            height: 960,
+            margin: 0.02,
             minScale: 0.2,
-            maxScale: 1.5,
+            maxScale: 2.0,
             center: false,  // Top-align slides
             plugins: [ RevealNotes ]
         });
