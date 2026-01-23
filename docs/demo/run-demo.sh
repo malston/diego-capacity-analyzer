@@ -77,10 +77,11 @@ install_deps() {
 # Start backend
 start_backend() {
     log_info "Starting backend on port ${BACKEND_PORT:-8080}..."
-    cd "$PROJECT_ROOT"
-    go build -o ./backend/diego-analyzer ./backend/... 2>/dev/null
-    ./backend/diego-analyzer &
+    cd "$PROJECT_ROOT/backend"
+    go build -o capacity-backend . || { log_error "Backend build failed"; exit 1; }
+    ./capacity-backend &
     BACKEND_PID=$!
+    cd "$PROJECT_ROOT"
     sleep 2
 
     if kill -0 "$BACKEND_PID" 2>/dev/null; then
