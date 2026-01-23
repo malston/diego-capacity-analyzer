@@ -130,6 +130,21 @@
             font-size: 12px;
             color: #666;
         }
+        /* Enable scrolling on slides that overflow */
+        .reveal .slides section {
+            overflow-y: auto;
+            max-height: 100%;
+        }
+        .reveal .slides section::-webkit-scrollbar {
+            width: 6px;
+        }
+        .reveal .slides section::-webkit-scrollbar-track {
+            background: #1a1a3e;
+        }
+        .reveal .slides section::-webkit-scrollbar-thumb {
+            background: #16db93;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
@@ -329,9 +344,10 @@ $ make backend-run</code></pre>
             // Auto-scaling: fit content to viewport
             width: 1280,
             height: 720,
-            margin: 0.1,
+            margin: 0.04,
             minScale: 0.2,
             maxScale: 1.5,
+            center: false,
             plugins: [ RevealNotes ]
         });
     </script>
