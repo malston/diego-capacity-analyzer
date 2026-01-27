@@ -13,8 +13,9 @@ import (
 type Config struct {
 	// Server
 	Port         string
-	CacheTTL     int // seconds, default for general cache
-	DashboardTTL int // seconds, for BOSH/CF data (default 30s)
+	CacheTTL     int    // seconds, default for general cache
+	DashboardTTL int    // seconds, for BOSH/CF data (default 30s)
+	AuthMode     string // disabled, optional, required (default: optional)
 
 	// CF API
 	CFAPIUrl   string
@@ -52,6 +53,7 @@ func Load() (*Config, error) {
 		Port:         getEnv("PORT", "8080"),
 		CacheTTL:     getEnvInt("CACHE_TTL", 300),
 		DashboardTTL: getEnvInt("DASHBOARD_CACHE_TTL", 30),
+		AuthMode:     getEnv("AUTH_MODE", "optional"),
 
 		CFAPIUrl:   ensureScheme(os.Getenv("CF_API_URL")),
 		CFUsername: os.Getenv("CF_USERNAME"),

@@ -76,6 +76,40 @@ func TestEnsureScheme(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_AuthModeDefault(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("CF_API_URL", "https://api.sys.test.com")
+	os.Setenv("CF_USERNAME", "admin")
+	os.Setenv("CF_PASSWORD", "secret")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Default should be "optional"
+	if cfg.AuthMode != "optional" {
+		t.Errorf("Expected default AuthMode 'optional', got %q", cfg.AuthMode)
+	}
+}
+
+func TestLoadConfig_AuthModeFromEnv(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("CF_API_URL", "https://api.sys.test.com")
+	os.Setenv("CF_USERNAME", "admin")
+	os.Setenv("CF_PASSWORD", "secret")
+	os.Setenv("AUTH_MODE", "required")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.AuthMode != "required" {
+		t.Errorf("Expected AuthMode 'required', got %q", cfg.AuthMode)
+	}
+}
+
 func TestLoadConfig_URLSchemePrefixing(t *testing.T) {
 	os.Clearenv()
 	os.Setenv("CF_API_URL", "api.sys.test.com")

@@ -46,6 +46,36 @@ func TestRoutes_NoDuplicatePaths(t *testing.T) {
 	}
 }
 
+func TestRoutes_PublicEndpointsMarked(t *testing.T) {
+	h := NewHandler(nil, nil)
+	routes := h.Routes()
+
+	// These endpoints should be public (no auth required)
+	expectedPublic := map[string]bool{
+		"/api/v1/health":       true,
+		"/api/v1/openapi.yaml": true,
+	}
+
+	for _, route := range routes {
+		isPublic, shouldBePublic := expectedPublic[route.Path]
+		if shouldBePublic && !route.Public {
+			t.Errorf("Route %s should be marked Public=true", route.Path)
+		}
+		if !shouldBePublic && route.Public {
+			t.Errorf("Route %s should NOT be marked Public=true", route.Path)
+		}
+		// Mark that we found this public route
+		if isPublic {
+			delete(expectedPublic, route.Path)
+		}
+	}
+
+	// Check we found all expected public routes
+	for path := range expectedPublic {
+		t.Errorf("Expected public route not found: %s", path)
+	}
+}
+
 func TestRoutes_ExpectedEndpoints(t *testing.T) {
 	h := NewHandler(nil, nil)
 	routes := h.Routes()

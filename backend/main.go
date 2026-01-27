@@ -41,6 +41,17 @@ func main() {
 		slog.Info("vSphere not configured, manual mode only")
 	}
 
+	// Configure authentication middleware
+	authMode, err := middleware.ValidateAuthMode(cfg.AuthMode)
+	if err != nil {
+		slog.Error("Invalid AUTH_MODE", "error", err)
+		os.Exit(1)
+	}
+	authCfg := middleware.AuthConfig{
+		Mode: authMode,
+	}
+	slog.Info("Auth mode configured", "mode", authMode)
+
 	// Initialize cache
 	cacheTTL := time.Duration(cfg.CacheTTL) * time.Second
 	c := cache.New(cacheTTL)
@@ -58,7 +69,16 @@ func main() {
 		}
 		// Go 1.22+ pattern: "METHOD /path"
 		pattern := route.Method + " " + route.Path
-		handler := middleware.Chain(route.Handler, middleware.CORS, middleware.LogRequest)
+
+		// Apply middleware chain: CORS -> Auth (if not public) -> LogRequest -> Handler
+		var handler http.HandlerFunc
+		if route.Public {
+			// Public routes: no auth
+			handler = middleware.Chain(route.Handler, middleware.CORS, middleware.LogRequest)
+		} else {
+			// Protected routes: apply auth middleware
+			handler = middleware.Chain(route.Handler, middleware.CORS, middleware.Auth(authCfg), middleware.LogRequest)
+		}
 		mux.HandleFunc(pattern, handler)
 
 		// Backward compatibility: also register without /v1/
@@ -66,9 +86,9 @@ func main() {
 		if legacyPath != route.Path {
 			legacyPattern := route.Method + " " + legacyPath
 			mux.HandleFunc(legacyPattern, handler)
-			slog.Debug("Registered route", "pattern", pattern, "legacy", legacyPattern)
+			slog.Debug("Registered route", "pattern", pattern, "legacy", legacyPattern, "public", route.Public)
 		} else {
-			slog.Debug("Registered route", "pattern", pattern)
+			slog.Debug("Registered route", "pattern", pattern, "public", route.Public)
 		}
 	}
 
