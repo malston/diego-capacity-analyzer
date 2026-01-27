@@ -2,7 +2,30 @@
 // ABOUTME: API client for what-if scenario analysis endpoints
 // ABOUTME: Handles manual infrastructure input and scenario comparison
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+import { cfAuth } from "./cfAuth";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
+/**
+ * Build headers for API requests, including Authorization if authenticated
+ * @returns {Promise<Object>} Headers object
+ */
+async function buildHeaders() {
+  const headers = { "Content-Type": "application/json" };
+
+  try {
+    // Include auth token if user is authenticated
+    if (cfAuth.isAuthenticated()) {
+      const token = await cfAuth.getToken();
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  } catch (err) {
+    // If token retrieval fails, proceed without auth
+    console.warn("Failed to get auth token:", err.message);
+  }
+
+  return headers;
+}
 
 export const scenarioApi = {
   /**
@@ -11,14 +34,15 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async setManualInfrastructure(data) {
+    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/infrastructure/manual`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers,
       body: JSON.stringify(data),
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to set infrastructure');
+      throw new Error(error.error || "Failed to set infrastructure");
     }
     return response.json();
   },
@@ -29,14 +53,15 @@ export const scenarioApi = {
    * @returns {Promise<Object>} ScenarioComparison
    */
   async compareScenario(input) {
+    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/scenario/compare`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers,
       body: JSON.stringify(input),
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to compare scenario');
+      throw new Error(error.error || "Failed to compare scenario");
     }
     return response.json();
   },
@@ -46,13 +71,14 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async getLiveInfrastructure() {
+    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/infrastructure`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      method: "GET",
+      headers,
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch live infrastructure');
+      throw new Error(error.error || "Failed to fetch live infrastructure");
     }
     return response.json();
   },
@@ -62,9 +88,10 @@ export const scenarioApi = {
    * @returns {Promise<Object>} Status including vsphere_configured, has_data, source
    */
   async getInfrastructureStatus() {
+    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/infrastructure/status`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      method: "GET",
+      headers,
     });
     if (!response.ok) {
       return { vsphere_configured: false, has_data: false };
@@ -78,14 +105,15 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async setInfrastructureState(state) {
+    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/infrastructure/state`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers,
       body: JSON.stringify(state),
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to set infrastructure state');
+      throw new Error(error.error || "Failed to set infrastructure state");
     }
     return response.json();
   },
@@ -96,14 +124,15 @@ export const scenarioApi = {
    * @returns {Promise<Object>} PlanningResponse with result and recommendations
    */
   async calculatePlanning(input) {
+    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/infrastructure/planning`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers,
       body: JSON.stringify(input),
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to calculate planning');
+      throw new Error(error.error || "Failed to calculate planning");
     }
     return response.json();
   },

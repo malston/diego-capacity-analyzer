@@ -30,6 +30,7 @@ func main() {
 
 	slog.Info("Starting Diego Capacity Analyzer Backend")
 	slog.Info("CF API configured", "url", cfg.CFAPIUrl)
+	slog.Info("Auth mode", "mode", cfg.AuthMode)
 	if cfg.BOSHEnvironment != "" {
 		slog.Info("BOSH configured", "environment", cfg.BOSHEnvironment)
 	} else {
@@ -39,6 +40,11 @@ func main() {
 		slog.Info("vSphere configured", "host", cfg.VSphereHost, "datacenter", cfg.VSphereDatacenter)
 	} else {
 		slog.Info("vSphere not configured, manual mode only")
+	}
+
+	// Configure authentication middleware
+	authCfg := middleware.AuthConfig{
+		Mode: middleware.AuthMode(cfg.AuthMode),
 	}
 
 	// Initialize cache
@@ -58,7 +64,16 @@ func main() {
 		}
 		// Go 1.22+ pattern: "METHOD /path"
 		pattern := route.Method + " " + route.Path
-		handler := middleware.Chain(route.Handler, middleware.CORS, middleware.LogRequest)
+
+		// Apply middleware chain: CORS -> Auth (if not public) -> LogRequest -> Handler
+		var handler http.HandlerFunc
+		if route.Public {
+			// Public routes: no auth
+			handler = middleware.Chain(route.Handler, middleware.CORS, middleware.LogRequest)
+		} else {
+			// Protected routes: apply auth middleware
+			handler = middleware.Chain(route.Handler, middleware.CORS, middleware.Auth(authCfg), middleware.LogRequest)
+		}
 		mux.HandleFunc(pattern, handler)
 
 		// Backward compatibility: also register without /v1/
@@ -66,9 +81,9 @@ func main() {
 		if legacyPath != route.Path {
 			legacyPattern := route.Method + " " + legacyPath
 			mux.HandleFunc(legacyPattern, handler)
-			slog.Debug("Registered route", "pattern", pattern, "legacy", legacyPattern)
+			slog.Debug("Registered route", "pattern", pattern, "legacy", legacyPattern, "public", route.Public)
 		} else {
-			slog.Debug("Registered route", "pattern", pattern)
+			slog.Debug("Registered route", "pattern", pattern, "public", route.Public)
 		}
 	}
 

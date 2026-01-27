@@ -10,14 +10,15 @@ type Route struct {
 	Method  string           // HTTP method (GET, POST, etc.)
 	Path    string           // URL path (e.g., "/api/v1/health")
 	Handler http.HandlerFunc // Handler function
+	Public  bool             // If true, no authentication required
 }
 
 // Routes returns all API routes for registration.
 // Routes use /api/v1/ prefix; legacy /api/ routes are registered separately.
 func (h *Handler) Routes() []Route {
 	return []Route{
-		// Health & Status
-		{Method: http.MethodGet, Path: "/api/v1/health", Handler: h.Health},
+		// Health & Status (public - no auth required)
+		{Method: http.MethodGet, Path: "/api/v1/health", Handler: h.Health, Public: true},
 		{Method: http.MethodGet, Path: "/api/v1/dashboard", Handler: h.Dashboard},
 
 		// Infrastructure
@@ -35,7 +36,7 @@ func (h *Handler) Routes() []Route {
 		{Method: http.MethodGet, Path: "/api/v1/bottleneck", Handler: h.AnalyzeBottleneck},
 		{Method: http.MethodGet, Path: "/api/v1/recommendations", Handler: h.GetRecommendations},
 
-		// Documentation
-		{Method: http.MethodGet, Path: "/api/v1/openapi.yaml", Handler: h.OpenAPISpec},
+		// Documentation (public - no auth required)
+		{Method: http.MethodGet, Path: "/api/v1/openapi.yaml", Handler: h.OpenAPISpec, Public: true},
 	}
 }
