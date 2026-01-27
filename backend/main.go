@@ -30,7 +30,6 @@ func main() {
 
 	slog.Info("Starting Diego Capacity Analyzer Backend")
 	slog.Info("CF API configured", "url", cfg.CFAPIUrl)
-	slog.Info("Auth mode", "mode", cfg.AuthMode)
 	if cfg.BOSHEnvironment != "" {
 		slog.Info("BOSH configured", "environment", cfg.BOSHEnvironment)
 	} else {
@@ -51,6 +50,7 @@ func main() {
 	authCfg := middleware.AuthConfig{
 		Mode: authMode,
 	}
+	slog.Info("Auth mode configured", "mode", authMode)
 
 	// Initialize cache
 	cacheTTL := time.Duration(cfg.CacheTTL) * time.Second
