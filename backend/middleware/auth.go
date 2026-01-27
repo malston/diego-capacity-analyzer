@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -75,16 +76,19 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
 				if cfg.Mode == AuthModeRequired {
+					slog.Debug("Auth rejected: no Authorization header", "path", r.URL.Path, "mode", cfg.Mode)
 					http.Error(w, "Authorization header required", http.StatusUnauthorized)
 					return
 				}
 				// Optional mode with no header: pass through
+				slog.Debug("Auth: anonymous request allowed", "path", r.URL.Path, "mode", cfg.Mode)
 				next(w, r)
 				return
 			}
 
 			// Validate Bearer format
 			if !strings.HasPrefix(authHeader, "Bearer ") {
+				slog.Debug("Auth rejected: invalid format", "path", r.URL.Path)
 				http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
 				return
 			}
@@ -92,9 +96,12 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 			token := strings.TrimPrefix(authHeader, "Bearer ")
 			claims, err := parseJWT(token)
 			if err != nil {
+				slog.Debug("Auth rejected: invalid token", "path", r.URL.Path, "error", err.Error())
 				http.Error(w, "Invalid token: "+err.Error(), http.StatusUnauthorized)
 				return
 			}
+
+			slog.Debug("Auth: valid token", "path", r.URL.Path, "user", claims.Username)
 
 			// Add claims to request context
 			ctx := context.WithValue(r.Context(), userClaimsKey, claims)
