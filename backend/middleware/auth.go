@@ -5,7 +5,9 @@ package middleware
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -26,6 +28,22 @@ const (
 // AuthConfig holds authentication middleware settings
 type AuthConfig struct {
 	Mode AuthMode
+}
+
+// ValidateAuthMode validates an auth mode string and returns the corresponding AuthMode.
+// Empty string defaults to AuthModeOptional.
+// Returns error for invalid mode values.
+func ValidateAuthMode(mode string) (AuthMode, error) {
+	switch mode {
+	case "", "optional":
+		return AuthModeOptional, nil
+	case "disabled":
+		return AuthModeDisabled, nil
+	case "required":
+		return AuthModeRequired, nil
+	default:
+		return "", fmt.Errorf("invalid auth mode: %q (must be disabled, optional, or required)", mode)
+	}
 }
 
 // UserClaims contains extracted JWT claims
@@ -120,6 +138,11 @@ func parseJWT(token string) (*UserClaims, error) {
 		return nil, &jwtError{"token expired"}
 	}
 
+	// Validate required claims
+	if claims.UserName == "" {
+		return nil, &jwtError{"missing required claim: user_name"}
+	}
+
 	return &UserClaims{
 		Username: claims.UserName,
 		UserID:   claims.UserID,
@@ -144,45 +167,15 @@ func (e *jwtError) Error() string {
 
 // base64URLDecode decodes base64url encoded data (RFC 4648)
 func base64URLDecode(s string) ([]byte, error) {
-	// Add padding if missing
-	switch len(s) % 4 {
-	case 2:
-		s += "=="
-	case 3:
-		s += "="
-	}
-
-	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-	var lookup [256]int
-	for i := range lookup {
-		lookup[i] = -1
-	}
-	for i, c := range alphabet {
-		lookup[c] = i
-	}
-	lookup['='] = 0
-
-	if len(s)%4 != 0 {
-		return nil, &jwtError{"invalid base64 length"}
-	}
-
-	result := make([]byte, 0, len(s)*3/4)
-	for i := 0; i < len(s); i += 4 {
-		var n uint32
-		for j := 0; j < 4; j++ {
-			v := lookup[s[i+j]]
-			if v < 0 {
-				return nil, &jwtError{"invalid base64 character"}
-			}
-			n = n<<6 | uint32(v)
+	// RawURLEncoding handles base64url without padding
+	// Add padding if present in input (some JWTs include it)
+	data, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		// Try with standard URL encoding (with padding) as fallback
+		data, err = base64.URLEncoding.DecodeString(s)
+		if err != nil {
+			return nil, &jwtError{"invalid payload encoding"}
 		}
-		result = append(result, byte(n>>16), byte(n>>8), byte(n))
 	}
-
-	// Remove padding bytes
-	padCount := 0
-	for i := len(s) - 1; i >= 0 && s[i] == '='; i-- {
-		padCount++
-	}
-	return result[:len(result)-padCount], nil
+	return data, nil
 }

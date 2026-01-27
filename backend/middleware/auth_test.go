@@ -215,6 +215,66 @@ func TestGetUserClaims_WithClaimsInContext_ReturnsClaims(t *testing.T) {
 	}
 }
 
+func TestValidateAuthMode_ValidModes(t *testing.T) {
+	tests := []struct {
+		mode string
+		want AuthMode
+	}{
+		{"disabled", AuthModeDisabled},
+		{"optional", AuthModeOptional},
+		{"required", AuthModeRequired},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.mode, func(t *testing.T) {
+			got, err := ValidateAuthMode(tt.mode)
+			if err != nil {
+				t.Errorf("ValidateAuthMode(%q) error = %v", tt.mode, err)
+			}
+			if got != tt.want {
+				t.Errorf("ValidateAuthMode(%q) = %v, want %v", tt.mode, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateAuthMode_InvalidMode(t *testing.T) {
+	_, err := ValidateAuthMode("invalid")
+	if err == nil {
+		t.Error("ValidateAuthMode(\"invalid\") should return error")
+	}
+}
+
+func TestValidateAuthMode_EmptyMode(t *testing.T) {
+	// Empty string should default to optional
+	got, err := ValidateAuthMode("")
+	if err != nil {
+		t.Errorf("ValidateAuthMode(\"\") error = %v", err)
+	}
+	if got != AuthModeOptional {
+		t.Errorf("ValidateAuthMode(\"\") = %v, want %v", got, AuthModeOptional)
+	}
+}
+
+func TestAuth_TokenWithEmptyUsername_Returns401(t *testing.T) {
+	cfg := AuthConfig{Mode: AuthModeRequired}
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("Handler should not be called with empty username")
+	})
+
+	// Create token with empty username
+	token := createTestToken(t, "", "user-id", time.Now().Add(time.Hour))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
 // createTestToken creates a simple JWT token for testing.
 // Note: This creates a real JWT structure but doesn't sign with a real key.
 // For this demo-level implementation, we only check structure and expiration.

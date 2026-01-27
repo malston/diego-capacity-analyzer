@@ -43,8 +43,13 @@ func main() {
 	}
 
 	// Configure authentication middleware
+	authMode, err := middleware.ValidateAuthMode(cfg.AuthMode)
+	if err != nil {
+		slog.Error("Invalid AUTH_MODE", "error", err)
+		os.Exit(1)
+	}
 	authCfg := middleware.AuthConfig{
-		Mode: middleware.AuthMode(cfg.AuthMode),
+		Mode: authMode,
 	}
 
 	// Initialize cache
