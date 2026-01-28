@@ -6,8 +6,8 @@ package middleware
 import "net/http"
 
 // CORS returns middleware that adds CORS headers to responses.
-// It handles OPTIONS preflight requests by returning 200 OK without
-// calling the wrapped handler.
+// It handles OPTIONS preflight requests by returning 204 No Content
+// without calling the wrapped handler.
 //
 // Deprecated: Use CORSWithConfig for production deployments. This function
 // allows all origins (*) which is insecure for APIs with authentication.
@@ -18,7 +18,7 @@ func CORS(next http.HandlerFunc) http.HandlerFunc {
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 

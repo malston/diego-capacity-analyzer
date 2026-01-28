@@ -39,8 +39,8 @@ func TestCORS_HandlesPreflight(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Errorf("Status = %d, want %d", rec.Code, http.StatusOK)
+	if rec.Code != http.StatusNoContent {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusNoContent)
 	}
 	if handlerCalled {
 		t.Error("Handler should not be called for OPTIONS preflight")

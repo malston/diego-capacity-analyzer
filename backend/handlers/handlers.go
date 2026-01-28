@@ -41,7 +41,7 @@ func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 
 		// BOSH client is optional
 		if cfg.BOSHEnvironment != "" {
-			h.boshClient = services.NewBOSHClient(
+			boshClient, err := services.NewBOSHClient(
 				cfg.BOSHEnvironment,
 				cfg.BOSHClient,
 				cfg.BOSHSecret,
@@ -49,6 +49,11 @@ func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 				cfg.BOSHDeployment,
 				cfg.BOSHSkipSSLValidation,
 			)
+			if err != nil {
+				slog.Error("Failed to create BOSH client, running in degraded mode", "error", err)
+			} else {
+				h.boshClient = boshClient
+			}
 		}
 
 		// vSphere client is optional

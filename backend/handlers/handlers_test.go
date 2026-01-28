@@ -884,7 +884,7 @@ func TestDashboardHandler_AppMemoryCalculation(t *testing.T) {
 	h.cfClient = services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword, true)
 
 	// Create BOSH client with TLS skip verify for test server
-	h.boshClient = services.NewBOSHClient(
+	h.boshClient, _ = services.NewBOSHClient(
 		boshServer.URL,
 		cfg.BOSHClient,
 		cfg.BOSHSecret,

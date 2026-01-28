@@ -37,7 +37,7 @@ type BOSHClient struct {
 	tokenMutex  sync.RWMutex
 }
 
-func NewBOSHClient(environment, clientID, secret, caCert, deployment string, skipSSLValidation bool) *BOSHClient {
+func NewBOSHClient(environment, clientID, secret, caCert, deployment string, skipSSLValidation bool) (*BOSHClient, error) {
 	// Normalize environment URL - bosh cli omits protocol and sometimes port
 	if environment != "" {
 		// Add https:// if missing
@@ -58,11 +58,14 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string, ski
 		if ok := certPool.AppendCertsFromPEM([]byte(caCert)); ok {
 			tlsConfig.RootCAs = certPool
 		} else {
-			slog.Warn("Failed to parse BOSH_CA_CERT")
-			// Only skip verification if explicitly requested
+			// CA cert was provided but is malformed - fail fast with clear error
+			slog.Error("BOSH_CA_CERT is malformed - certificate could not be parsed")
 			if skipSSLValidation {
-				slog.Warn("BOSH_SKIP_SSL_VALIDATION=true, skipping certificate verification")
+				slog.Warn("BOSH_SKIP_SSL_VALIDATION=true, falling back to insecure mode")
 				tlsConfig.InsecureSkipVerify = true
+			} else {
+				// Don't silently fall back to system CA - user expected their cert to work
+				return nil, fmt.Errorf("BOSH_CA_CERT is malformed and BOSH_SKIP_SSL_VALIDATION=false; fix the certificate or set BOSH_SKIP_SSL_VALIDATION=true")
 			}
 		}
 	} else if skipSSLValidation {
@@ -95,7 +98,7 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string, ski
 			Timeout:   120 * time.Second,
 			Transport: transport,
 		},
-	}
+	}, nil
 }
 
 // SetHTTPClient allows overriding the HTTP client (useful for testing)
