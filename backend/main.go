@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/markalston/diego-capacity-analyzer/backend/cache"
 	"github.com/markalston/diego-capacity-analyzer/backend/config"
 	"github.com/markalston/diego-capacity-analyzer/backend/handlers"
@@ -20,6 +21,16 @@ import (
 func main() {
 	// Initialize structured logging
 	logger.Init()
+
+	// Load .env file if present (optional, won't fail if missing)
+	// Try current directory first, then parent (project root)
+	if err := godotenv.Load(); err == nil {
+		slog.Info("Loaded .env file", "path", ".env")
+	} else if err := godotenv.Load("../.env"); err == nil {
+		slog.Info("Loaded .env file", "path", "../.env")
+	} else {
+		slog.Debug("No .env file found")
+	}
 
 	// Load configuration
 	cfg, err := config.Load()
