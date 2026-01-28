@@ -17,6 +17,7 @@ type Config struct {
 	DashboardTTL       int      // seconds, for BOSH/CF data (default 30s)
 	AuthMode           string   // disabled, optional, required (default: optional)
 	CORSAllowedOrigins []string // allowed CORS origins (empty = block all cross-origin)
+	CookieSecure       bool     // Set Secure flag on session cookies (default: true)
 
 	// CF API
 	CFAPIUrl            string
@@ -58,6 +59,7 @@ func Load() (*Config, error) {
 		DashboardTTL:       getEnvInt("DASHBOARD_CACHE_TTL", 30),
 		AuthMode:           getEnv("AUTH_MODE", "optional"),
 		CORSAllowedOrigins: getEnvStringList("CORS_ALLOWED_ORIGINS"),
+		CookieSecure:       getEnvBool("COOKIE_SECURE", true),
 
 		CFAPIUrl:            ensureScheme(os.Getenv("CF_API_URL")),
 		CFUsername:          os.Getenv("CF_USERNAME"),

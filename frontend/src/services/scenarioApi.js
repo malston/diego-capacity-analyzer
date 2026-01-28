@@ -1,31 +1,7 @@
-// frontend/src/services/scenarioApi.js
 // ABOUTME: API client for what-if scenario analysis endpoints
-// ABOUTME: Handles manual infrastructure input and scenario comparison
-
-import { cfAuth } from "./cfAuth";
+// ABOUTME: Handles manual infrastructure input and scenario comparison with BFF auth
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
-
-/**
- * Build headers for API requests, including Authorization if authenticated
- * @returns {Promise<Object>} Headers object
- */
-async function buildHeaders() {
-  const headers = { "Content-Type": "application/json" };
-
-  try {
-    // Include auth token if user is authenticated
-    if (cfAuth.isAuthenticated()) {
-      const token = await cfAuth.getToken();
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-  } catch (err) {
-    // If token retrieval fails, proceed without auth
-    console.warn("Failed to get auth token:", err.message);
-  }
-
-  return headers;
-}
 
 export const scenarioApi = {
   /**
@@ -34,10 +10,10 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async setManualInfrastructure(data) {
-    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/infrastructure/manual`, {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -53,10 +29,10 @@ export const scenarioApi = {
    * @returns {Promise<Object>} ScenarioComparison
    */
   async compareScenario(input) {
-    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/scenario/compare`, {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(input),
     });
     if (!response.ok) {
@@ -71,10 +47,10 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async getLiveInfrastructure() {
-    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/infrastructure`, {
       method: "GET",
-      headers,
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
     });
     if (!response.ok) {
       const error = await response.json();
@@ -88,10 +64,10 @@ export const scenarioApi = {
    * @returns {Promise<Object>} Status including vsphere_configured, has_data, source
    */
   async getInfrastructureStatus() {
-    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/infrastructure/status`, {
       method: "GET",
-      headers,
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
     });
     if (!response.ok) {
       return { vsphere_configured: false, has_data: false };
@@ -105,10 +81,10 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async setInfrastructureState(state) {
-    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/infrastructure/state`, {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(state),
     });
     if (!response.ok) {
@@ -124,10 +100,10 @@ export const scenarioApi = {
    * @returns {Promise<Object>} PlanningResponse with result and recommendations
    */
   async calculatePlanning(input) {
-    const headers = await buildHeaders();
     const response = await fetch(`${API_URL}/api/v1/infrastructure/planning`, {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(input),
     });
     if (!response.ok) {

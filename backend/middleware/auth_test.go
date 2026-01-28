@@ -275,6 +275,158 @@ func TestAuth_TokenWithEmptyUsername_Returns401(t *testing.T) {
 	}
 }
 
+// Tests for session cookie authentication
+
+func TestAuthWithSession_ValidCookie_ExtractsClaims(t *testing.T) {
+	// Mock session validator that returns claims for valid session ID
+	sessionValidator := func(sessionID string) *UserClaims {
+		if sessionID == "valid-session-123" {
+			return &UserClaims{Username: "session-user", UserID: "session-user-id"}
+		}
+		return nil
+	}
+
+	cfg := AuthConfig{
+		Mode:             AuthModeRequired,
+		SessionValidator: sessionValidator,
+	}
+
+	var extractedClaims *UserClaims
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		extractedClaims = GetUserClaims(r)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "valid-session-123"})
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if extractedClaims == nil {
+		t.Fatal("Expected claims to be extracted from session")
+	}
+	if extractedClaims.Username != "session-user" {
+		t.Errorf("Username = %q, want %q", extractedClaims.Username, "session-user")
+	}
+	if extractedClaims.UserID != "session-user-id" {
+		t.Errorf("UserID = %q, want %q", extractedClaims.UserID, "session-user-id")
+	}
+}
+
+func TestAuthWithSession_InvalidCookie_Returns401(t *testing.T) {
+	sessionValidator := func(sessionID string) *UserClaims {
+		return nil // All sessions invalid
+	}
+
+	cfg := AuthConfig{
+		Mode:             AuthModeRequired,
+		SessionValidator: sessionValidator,
+	}
+
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("Handler should not be called with invalid session")
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "invalid-session"})
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestAuthWithSession_BearerTakesPrecedence(t *testing.T) {
+	sessionValidator := func(sessionID string) *UserClaims {
+		return &UserClaims{Username: "session-user", UserID: "session-id"}
+	}
+
+	cfg := AuthConfig{
+		Mode:             AuthModeRequired,
+		SessionValidator: sessionValidator,
+	}
+
+	var extractedClaims *UserClaims
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		extractedClaims = GetUserClaims(r)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Valid JWT token
+	token := createTestToken(t, "bearer-user", "bearer-id", time.Now().Add(time.Hour))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "valid-session"})
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	// Bearer token should take precedence over session cookie
+	if extractedClaims == nil {
+		t.Fatal("Expected claims")
+	}
+	if extractedClaims.Username != "bearer-user" {
+		t.Errorf("Username = %q, want %q (Bearer should take precedence)", extractedClaims.Username, "bearer-user")
+	}
+}
+
+func TestAuthWithSession_OptionalMode_NoCookie_PassesThrough(t *testing.T) {
+	sessionValidator := func(sessionID string) *UserClaims {
+		return nil
+	}
+
+	cfg := AuthConfig{
+		Mode:             AuthModeOptional,
+		SessionValidator: sessionValidator,
+	}
+
+	handlerCalled := false
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if !handlerCalled {
+		t.Error("Handler should be called in optional mode without auth")
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
+func TestAuthWithSession_NoValidator_FallsBackToToken(t *testing.T) {
+	// If SessionValidator is nil, session cookies should be ignored
+	cfg := AuthConfig{
+		Mode:             AuthModeRequired,
+		SessionValidator: nil, // No session support
+	}
+
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("Handler should not be called without valid auth")
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "some-session"})
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	// Should reject because no Bearer token and no session validator configured
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
 // createTestToken creates a simple JWT token for testing.
 // Note: This creates a real JWT structure but doesn't sign with a real key.
 // For this demo-level implementation, we only check structure and expiration.
