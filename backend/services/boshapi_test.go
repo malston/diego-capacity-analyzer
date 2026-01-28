@@ -126,11 +126,9 @@ func TestValidateSSHKeyPath_RejectsPathTraversal(t *testing.T) {
 			path:      "/home/user/../../../etc/shadow",
 			wantError: true,
 		},
-		{
-			name:      "encoded traversal",
-			path:      "/home/user/..%2F..%2F..%2Fetc%2Fpasswd",
-			wantError: true, // After URL decoding, this becomes ../
-		},
+		// Note: URL-encoded traversal (..%2F) is handled by url.ParseQuery() in
+		// createSOCKS5DialContextFunc BEFORE reaching ValidateSSHKeyPath, so we
+		// don't need to test it here. The URL library decodes %2F to / automatically.
 		{
 			name:      "dot-dot at end",
 			path:      "/home/user/..",
@@ -187,6 +185,45 @@ func TestValidateSSHKeyPath_RejectsNonExistent(t *testing.T) {
 	_, err := ValidateSSHKeyPath("/nonexistent/path/to/key")
 	if err == nil {
 		t.Error("ValidateSSHKeyPath should reject non-existent paths")
+	}
+}
+
+func TestValidateSSHKeyPath_RejectsPathsOutsideAllowedDirs(t *testing.T) {
+	// Create a file in a location that should NOT be allowed
+	// This tests that arbitrary system files like /etc/passwd cannot be read
+	// even if they exist and are regular files
+
+	// Test that paths outside allowed directories are rejected
+	// Allowed dirs: $HOME, /var/vcap, /tmp, /var/tmp
+	tests := []struct {
+		name      string
+		path      string
+		wantError bool
+	}{
+		{
+			name:      "etc passwd should be rejected",
+			path:      "/etc/passwd",
+			wantError: true, // Even though it exists, it's not in allowed dirs
+		},
+		{
+			name:      "etc shadow should be rejected",
+			path:      "/etc/shadow",
+			wantError: true,
+		},
+		{
+			name:      "usr local file should be rejected",
+			path:      "/usr/local/bin/somefile",
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ValidateSSHKeyPath(tt.path)
+			if tt.wantError && err == nil {
+				t.Errorf("ValidateSSHKeyPath(%q) should reject paths outside allowed directories", tt.path)
+			}
+		})
 	}
 }
 

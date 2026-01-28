@@ -5,6 +5,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
@@ -19,8 +20,9 @@ func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
 
 	var input models.ScenarioInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		// Check if error is due to body size limit
-		if err.Error() == "http: request body too large" {
+		// Check if error is due to body size limit (type assertion is more robust than string matching)
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
 			h.writeError(w, "Request body too large", http.StatusBadRequest)
 			return
 		}

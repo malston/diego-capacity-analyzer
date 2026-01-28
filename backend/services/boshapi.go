@@ -201,8 +201,54 @@ func (b *BOSHClient) authenticate() error {
 	return nil
 }
 
+// sshKeyAllowedDirs defines directories where SSH keys are allowed to be read from.
+// This prevents arbitrary file reads even when path traversal is blocked.
+// Can be overridden via BOSH_SSH_KEY_ALLOWED_DIRS environment variable (colon-separated).
+var sshKeyAllowedDirs = []string{
+	"/var/vcap",    // BOSH-managed locations
+	"/tmp",         // Temp directory
+	"/var/tmp",     // Persistent temp
+	"/var/folders", // macOS temp directories
+}
+
+// getSSHKeyAllowedDirs returns the list of allowed directories for SSH keys.
+// Includes $HOME if set, plus default system directories.
+func getSSHKeyAllowedDirs() []string {
+	// Check for custom override via environment variable
+	if custom := os.Getenv("BOSH_SSH_KEY_ALLOWED_DIRS"); custom != "" {
+		return strings.Split(custom, ":")
+	}
+
+	dirs := make([]string, len(sshKeyAllowedDirs))
+	copy(dirs, sshKeyAllowedDirs)
+
+	// Add user's home directory if available
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		dirs = append(dirs, home)
+	}
+
+	return dirs
+}
+
+// isPathUnderAllowedDirs checks if absPath is under one of the allowed directories.
+func isPathUnderAllowedDirs(absPath string, allowedDirs []string) bool {
+	for _, dir := range allowedDirs {
+		// Ensure dir ends with separator for proper prefix matching
+		dirWithSep := dir
+		if !strings.HasSuffix(dirWithSep, string(filepath.Separator)) {
+			dirWithSep += string(filepath.Separator)
+		}
+		// Check if path starts with allowed dir (or equals it exactly)
+		if strings.HasPrefix(absPath, dirWithSep) || absPath == dir {
+			return true
+		}
+	}
+	return false
+}
+
 // ValidateSSHKeyPath validates that an SSH key path is safe to read.
-// It prevents path traversal attacks and ensures the file exists and is readable.
+// It prevents path traversal attacks, restricts to allowed directories,
+// and ensures the file exists and is readable.
 func ValidateSSHKeyPath(path string) (string, error) {
 	// Clean the path to remove . and .. components
 	cleanPath := filepath.Clean(path)
@@ -217,6 +263,11 @@ func ValidateSSHKeyPath(path string) (string, error) {
 	absPath, err := filepath.Abs(cleanPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve SSH key path: %w", err)
+	}
+
+	// Verify path is within allowed directories (defense in depth)
+	if !isPathUnderAllowedDirs(absPath, getSSHKeyAllowedDirs()) {
+		return "", fmt.Errorf("SSH key path outside allowed directories")
 	}
 
 	// Verify the file exists and is a regular file

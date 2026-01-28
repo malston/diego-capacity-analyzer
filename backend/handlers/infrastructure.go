@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -91,8 +92,9 @@ func (h *Handler) SetManualInfrastructure(w http.ResponseWriter, r *http.Request
 
 	var input models.ManualInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		// Check if error is due to body size limit
-		if err.Error() == "http: request body too large" {
+		// Check if error is due to body size limit (type assertion is more robust than string matching)
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
 			h.writeError(w, "Request body too large", http.StatusBadRequest)
 			return
 		}
@@ -117,8 +119,9 @@ func (h *Handler) SetInfrastructureState(w http.ResponseWriter, r *http.Request)
 
 	var state models.InfrastructureState
 	if err := json.NewDecoder(r.Body).Decode(&state); err != nil {
-		// Check if error is due to body size limit
-		if err.Error() == "http: request body too large" {
+		// Check if error is due to body size limit (type assertion is more robust than string matching)
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
 			h.writeError(w, "Request body too large", http.StatusBadRequest)
 			return
 		}
@@ -186,8 +189,9 @@ func (h *Handler) PlanInfrastructure(w http.ResponseWriter, r *http.Request) {
 
 	var input models.PlanningInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		// Check if error is due to body size limit
-		if err.Error() == "http: request body too large" {
+		// Check if error is due to body size limit (type assertion is more robust than string matching)
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
 			h.writeError(w, "Request body too large", http.StatusBadRequest)
 			return
 		}
