@@ -37,7 +37,7 @@ func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 
 	// CF client is optional (for testing)
 	if cfg != nil {
-		h.cfClient = services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword)
+		h.cfClient = services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword, cfg.CFSkipSSLValidation)
 
 		// BOSH client is optional
 		if cfg.BOSHEnvironment != "" {
@@ -47,6 +47,7 @@ func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 				cfg.BOSHSecret,
 				cfg.BOSHCACert,
 				cfg.BOSHDeployment,
+				cfg.BOSHSkipSSLValidation,
 			)
 		}
 

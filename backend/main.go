@@ -41,13 +41,22 @@ func main() {
 
 	slog.Info("Starting Diego Capacity Analyzer Backend")
 	slog.Info("CF API configured", "url", cfg.CFAPIUrl)
+	if cfg.CFSkipSSLValidation {
+		slog.Warn("CF_SKIP_SSL_VALIDATION=true, TLS certificate verification disabled for CF/Log Cache")
+	}
 	if cfg.BOSHEnvironment != "" {
 		slog.Info("BOSH configured", "environment", cfg.BOSHEnvironment)
+		if cfg.BOSHSkipSSLValidation {
+			slog.Warn("BOSH_SKIP_SSL_VALIDATION=true, TLS certificate verification disabled for BOSH")
+		}
 	} else {
 		slog.Warn("BOSH not configured, running in degraded mode")
 	}
 	if cfg.VSphereConfigured() {
 		slog.Info("vSphere configured", "host", cfg.VSphereHost, "datacenter", cfg.VSphereDatacenter)
+		if cfg.VSphereInsecure {
+			slog.Warn("VSPHERE_INSECURE=true, TLS certificate verification disabled for vSphere")
+		}
 	} else {
 		slog.Info("vSphere not configured, manual mode only")
 	}

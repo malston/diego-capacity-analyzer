@@ -19,16 +19,18 @@ type Config struct {
 	CORSAllowedOrigins []string // allowed CORS origins (empty = block all cross-origin)
 
 	// CF API
-	CFAPIUrl   string
-	CFUsername string
-	CFPassword string
+	CFAPIUrl            string
+	CFUsername          string
+	CFPassword          string
+	CFSkipSSLValidation bool // explicit opt-in for insecure connections
 
 	// BOSH API (optional)
-	BOSHEnvironment string
-	BOSHClient      string
-	BOSHSecret      string
-	BOSHCACert      string
-	BOSHDeployment  string
+	BOSHEnvironment       string
+	BOSHClient            string
+	BOSHSecret            string
+	BOSHCACert            string
+	BOSHDeployment        string
+	BOSHSkipSSLValidation bool // explicit opt-in for insecure connections (only if no CA cert)
 
 	// CredHub (optional)
 	CredHubURL    string
@@ -57,15 +59,17 @@ func Load() (*Config, error) {
 		AuthMode:           getEnv("AUTH_MODE", "optional"),
 		CORSAllowedOrigins: getEnvStringList("CORS_ALLOWED_ORIGINS"),
 
-		CFAPIUrl:   ensureScheme(os.Getenv("CF_API_URL")),
-		CFUsername: os.Getenv("CF_USERNAME"),
-		CFPassword: os.Getenv("CF_PASSWORD"),
+		CFAPIUrl:            ensureScheme(os.Getenv("CF_API_URL")),
+		CFUsername:          os.Getenv("CF_USERNAME"),
+		CFPassword:          os.Getenv("CF_PASSWORD"),
+		CFSkipSSLValidation: getEnvBool("CF_SKIP_SSL_VALIDATION", false),
 
-		BOSHEnvironment: ensureScheme(os.Getenv("BOSH_ENVIRONMENT")),
-		BOSHClient:      os.Getenv("BOSH_CLIENT"),
-		BOSHSecret:      os.Getenv("BOSH_CLIENT_SECRET"),
-		BOSHCACert:      os.Getenv("BOSH_CA_CERT"),
-		BOSHDeployment:  os.Getenv("BOSH_DEPLOYMENT"),
+		BOSHEnvironment:       ensureScheme(os.Getenv("BOSH_ENVIRONMENT")),
+		BOSHClient:            os.Getenv("BOSH_CLIENT"),
+		BOSHSecret:            os.Getenv("BOSH_CLIENT_SECRET"),
+		BOSHCACert:            os.Getenv("BOSH_CA_CERT"),
+		BOSHDeployment:        os.Getenv("BOSH_DEPLOYMENT"),
+		BOSHSkipSSLValidation: getEnvBool("BOSH_SKIP_SSL_VALIDATION", false),
 
 		CredHubURL:    ensureScheme(os.Getenv("CREDHUB_URL")),
 		CredHubClient: os.Getenv("CREDHUB_CLIENT"),

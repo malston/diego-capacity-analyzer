@@ -37,7 +37,7 @@ type BOSHClient struct {
 	tokenMutex  sync.RWMutex
 }
 
-func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BOSHClient {
+func NewBOSHClient(environment, clientID, secret, caCert, deployment string, skipSSLValidation bool) *BOSHClient {
 	// Normalize environment URL - bosh cli omits protocol and sometimes port
 	if environment != "" {
 		// Add https:// if missing
@@ -53,16 +53,24 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 	tlsConfig := &tls.Config{}
 
 	if caCert != "" {
+		// CA cert provided - use it for verification
 		certPool := x509.NewCertPool()
 		if ok := certPool.AppendCertsFromPEM([]byte(caCert)); ok {
 			tlsConfig.RootCAs = certPool
 		} else {
-			slog.Warn("Failed to parse BOSH_CA_CERT, using InsecureSkipVerify")
-			tlsConfig.InsecureSkipVerify = true
+			slog.Warn("Failed to parse BOSH_CA_CERT")
+			// Only skip verification if explicitly requested
+			if skipSSLValidation {
+				slog.Warn("BOSH_SKIP_SSL_VALIDATION=true, skipping certificate verification")
+				tlsConfig.InsecureSkipVerify = true
+			}
 		}
-	} else {
+	} else if skipSSLValidation {
+		// No CA cert and explicit skip requested
+		slog.Warn("BOSH_SKIP_SSL_VALIDATION=true, skipping certificate verification")
 		tlsConfig.InsecureSkipVerify = true
 	}
+	// If no CA cert and skipSSLValidation=false, TLS will use system CA pool
 
 	transport := &http.Transport{
 		TLSClientConfig:     tlsConfig,

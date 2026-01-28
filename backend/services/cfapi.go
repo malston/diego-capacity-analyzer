@@ -18,23 +18,25 @@ import (
 )
 
 type CFClient struct {
-	apiURL      string
-	username    string
-	password    string
-	token       string
-	client      *http.Client
-	logCache    *LogCacheClient
+	apiURL        string
+	username      string
+	password      string
+	token         string
+	client        *http.Client
+	logCache      *LogCacheClient
+	skipSSLVerify bool
 }
 
-func NewCFClient(apiURL, username, password string) *CFClient {
+func NewCFClient(apiURL, username, password string, skipSSLValidation bool) *CFClient {
 	return &CFClient{
-		apiURL:   apiURL,
-		username: username,
-		password: password,
+		apiURL:        apiURL,
+		username:      username,
+		password:      password,
+		skipSSLVerify: skipSSLValidation,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: skipSSLValidation},
 			},
 		},
 	}
@@ -103,8 +105,8 @@ func (c *CFClient) Authenticate() error {
 	c.token = tokenResp.AccessToken
 	slog.Info("CF API authentication successful", "api_url", c.apiURL)
 
-	// Initialize Log Cache client with the same token
-	c.logCache = NewLogCacheClient(c.apiURL, c.token)
+	// Initialize Log Cache client with the same token and SSL settings
+	c.logCache = NewLogCacheClient(c.apiURL, c.token, c.skipSSLVerify)
 
 	return nil
 }
@@ -154,9 +156,9 @@ func (c *CFClient) GetApps() ([]models.App, error) {
 
 		var result struct {
 			Resources []struct {
-				GUID  string `json:"guid"`
-				Name  string `json:"name"`
-				State string `json:"state"`
+				GUID          string `json:"guid"`
+				Name          string `json:"name"`
+				State         string `json:"state"`
 				Relationships struct {
 					Space struct {
 						Data struct {

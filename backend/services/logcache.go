@@ -49,7 +49,7 @@ type AppMetrics struct {
 }
 
 // NewLogCacheClient creates a Log Cache client from a CF API URL
-func NewLogCacheClient(cfAPIURL, token string) *LogCacheClient {
+func NewLogCacheClient(cfAPIURL, token string, skipSSLValidation bool) *LogCacheClient {
 	// Derive log-cache URL from CF API URL
 	// api.sys.example.com -> log-cache.sys.example.com
 	logCacheURL := strings.Replace(cfAPIURL, "://api.", "://log-cache.", 1)
@@ -60,7 +60,7 @@ func NewLogCacheClient(cfAPIURL, token string) *LogCacheClient {
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: skipSSLValidation},
 			},
 		},
 	}
