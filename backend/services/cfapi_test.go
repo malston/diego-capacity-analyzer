@@ -73,7 +73,7 @@ func TestCFClient_GetApps(t *testing.T) {
 					"resources": [
 						{
 							"guid": "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
-							"name": "test-a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
+							"name": "test-app-1",
 							"state": "STARTED",
 							"relationships": {
 								"space": {
@@ -83,7 +83,7 @@ func TestCFClient_GetApps(t *testing.T) {
 						},
 						{
 							"guid": "b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2",
-							"name": "test-b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2",
+							"name": "test-app-2",
 							"state": "STARTED",
 							"relationships": {
 								"space": {
@@ -172,8 +172,8 @@ func TestCFClient_GetApps(t *testing.T) {
 	}
 
 	// Verify first app
-	if apps[0].Name != "test-a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1" {
-		t.Errorf("Expected app name 'test-a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', got '%s'", apps[0].Name)
+	if apps[0].Name != "test-app-1" {
+		t.Errorf("Expected app name 'test-app-1', got '%s'", apps[0].Name)
 	}
 	if apps[0].GUID != "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1" {
 		t.Errorf("Expected app GUID 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', got '%s'", apps[0].GUID)
@@ -189,8 +189,8 @@ func TestCFClient_GetApps(t *testing.T) {
 	}
 
 	// Verify second app
-	if apps[1].Name != "test-b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2" {
-		t.Errorf("Expected app name 'test-b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', got '%s'", apps[1].Name)
+	if apps[1].Name != "test-app-2" {
+		t.Errorf("Expected app name 'test-app-2', got '%s'", apps[1].Name)
 	}
 	if apps[1].Instances != 3 {
 		t.Errorf("Expected 3 instances, got %d", apps[1].Instances)

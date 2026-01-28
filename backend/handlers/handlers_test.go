@@ -116,7 +116,7 @@ func setupMockCFServerWithApps() (*httptest.Server, *httptest.Server) {
 				"resources": [
 					{
 						"guid": "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
-						"name": "test-a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
+						"name": "test-app-1",
 						"state": "STARTED",
 						"relationships": {
 							"space": {"data": {"guid": "11111111-1111-1111-1111-111111111111"}}
@@ -124,7 +124,7 @@ func setupMockCFServerWithApps() (*httptest.Server, *httptest.Server) {
 					},
 					{
 						"guid": "b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2",
-						"name": "test-b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2",
+						"name": "test-app-2",
 						"state": "STARTED",
 						"relationships": {
 							"space": {"data": {"guid": "11111111-1111-1111-1111-111111111111"}}
