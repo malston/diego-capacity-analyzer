@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -200,6 +201,40 @@ func (b *BOSHClient) authenticate() error {
 	return nil
 }
 
+// ValidateSSHKeyPath validates that an SSH key path is safe to read.
+// It prevents path traversal attacks and ensures the file exists and is readable.
+func ValidateSSHKeyPath(path string) (string, error) {
+	// Clean the path to remove . and .. components
+	cleanPath := filepath.Clean(path)
+
+	// Check for path traversal attempts after cleaning
+	// filepath.Clean resolves .. but we want to detect if they were present
+	if strings.Contains(path, "..") {
+		return "", fmt.Errorf("path traversal detected in SSH key path")
+	}
+
+	// Resolve to absolute path
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve SSH key path: %w", err)
+	}
+
+	// Verify the file exists and is a regular file
+	info, err := os.Stat(absPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("SSH key file does not exist")
+		}
+		return "", fmt.Errorf("cannot access SSH key file: %w", err)
+	}
+
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("SSH key path is not a regular file")
+	}
+
+	return absPath, nil
+}
+
 // createSOCKS5DialContextFunc creates a dial function for SSH+SOCKS5 proxy connections.
 // Supports format: ssh+socks5://user@host:port?private-key=/path/to/key
 func createSOCKS5DialContextFunc(allProxy string) func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -229,9 +264,16 @@ func createSOCKS5DialContextFunc(allProxy string) func(ctx context.Context, netw
 		return nil
 	}
 
-	proxySSHKey, err := os.ReadFile(proxySSHKeyPath)
+	// Validate SSH key path to prevent path traversal attacks (Issue #70)
+	validatedPath, err := ValidateSSHKeyPath(proxySSHKeyPath)
 	if err != nil {
-		slog.Error("Failed to read SSH private key", "path", proxySSHKeyPath, "error", err)
+		slog.Error("Invalid SSH private key path", "error", err)
+		return nil
+	}
+
+	proxySSHKey, err := os.ReadFile(validatedPath)
+	if err != nil {
+		slog.Error("Failed to read SSH private key", "error", err)
 		return nil
 	}
 

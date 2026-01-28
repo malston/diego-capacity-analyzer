@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -103,5 +105,99 @@ func TestBOSHClient_GetDiegoCells(t *testing.T) {
 
 	if len(cells) > 0 && cells[0].Name != "diego_cell/0" {
 		t.Errorf("Expected diego_cell/0, got %s", cells[0].Name)
+	}
+}
+
+// Security Tests - Issue #70: SSH Private Key Path Traversal Vulnerability
+
+func TestValidateSSHKeyPath_RejectsPathTraversal(t *testing.T) {
+	tests := []struct {
+		name      string
+		path      string
+		wantError bool
+	}{
+		{
+			name:      "simple traversal",
+			path:      "../../../etc/passwd",
+			wantError: true,
+		},
+		{
+			name:      "traversal in middle",
+			path:      "/home/user/../../../etc/shadow",
+			wantError: true,
+		},
+		{
+			name:      "encoded traversal",
+			path:      "/home/user/..%2F..%2F..%2Fetc%2Fpasswd",
+			wantError: true, // After URL decoding, this becomes ../
+		},
+		{
+			name:      "dot-dot at end",
+			path:      "/home/user/..",
+			wantError: true,
+		},
+		{
+			name:      "traversal via symlink attempt",
+			path:      "/tmp/../../etc/passwd",
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ValidateSSHKeyPath(tt.path)
+			if tt.wantError && err == nil {
+				t.Errorf("ValidateSSHKeyPath(%q) should return error for path traversal", tt.path)
+			}
+		})
+	}
+}
+
+func TestValidateSSHKeyPath_AcceptsValidPaths(t *testing.T) {
+	// Create a temporary file to test with
+	tmpDir := t.TempDir()
+	keyPath := filepath.Join(tmpDir, "test_key")
+	if err := os.WriteFile(keyPath, []byte("test-key-content"), 0600); err != nil {
+		t.Fatalf("Failed to create test key file: %v", err)
+	}
+
+	// Test that valid absolute path to existing file is accepted
+	validPath, err := ValidateSSHKeyPath(keyPath)
+	if err != nil {
+		t.Errorf("ValidateSSHKeyPath(%q) returned unexpected error: %v", keyPath, err)
+	}
+	if validPath == "" {
+		t.Error("ValidateSSHKeyPath should return non-empty path for valid file")
+	}
+}
+
+func TestValidateSSHKeyPath_RejectsDirectory(t *testing.T) {
+	// Create a temporary directory
+	tmpDir := t.TempDir()
+
+	// Test that directory path is rejected
+	_, err := ValidateSSHKeyPath(tmpDir)
+	if err == nil {
+		t.Error("ValidateSSHKeyPath should reject directory paths")
+	}
+}
+
+func TestValidateSSHKeyPath_RejectsNonExistent(t *testing.T) {
+	// Test that non-existent file is rejected
+	_, err := ValidateSSHKeyPath("/nonexistent/path/to/key")
+	if err == nil {
+		t.Error("ValidateSSHKeyPath should reject non-existent paths")
+	}
+}
+
+func TestCreateSOCKS5DialContextFunc_RejectsTraversalInProxy(t *testing.T) {
+	// Test that path traversal in BOSH_ALL_PROXY private-key param is rejected
+	maliciousProxy := "socks5://user@host:1080?private-key=../../../etc/passwd"
+
+	dialer := createSOCKS5DialContextFunc(maliciousProxy)
+
+	// Should return nil dialer due to path validation failure
+	if dialer != nil {
+		t.Error("createSOCKS5DialContextFunc should return nil for path traversal in private-key")
 	}
 }
