@@ -91,7 +91,8 @@ func (v *VSphereClient) Connect(ctx context.Context) error {
 	v.datacenter = dc
 	v.finder.SetDatacenter(dc)
 
-	slog.Info("vSphere connected", "host", v.creds.Host, "datacenter", v.creds.Datacenter)
+	slog.Info("vSphere connected successfully")
+	slog.Debug("vSphere connection details", "host", v.creds.Host, "datacenter", v.creds.Datacenter)
 	return nil
 }
 
@@ -125,15 +126,15 @@ type HostInfo struct {
 
 // VMInfo holds virtual machine data
 type VMInfo struct {
-	Name          string
-	MemoryMB      int32
-	NumCPU        int32
-	PowerState    string
-	Host          string
-	Cluster       string
-	IsDiegoCell   bool
-	CellMemoryGB  int
-	CellCPU       int
+	Name         string
+	MemoryMB     int32
+	NumCPU       int32
+	PowerState   string
+	Host         string
+	Cluster      string
+	IsDiegoCell  bool
+	CellMemoryGB int
+	CellCPU      int
 }
 
 // GetClusters retrieves all compute clusters in the datacenter
@@ -180,7 +181,7 @@ func (v *VSphereClient) getClusterInfo(ctx context.Context, cluster *object.Clus
 		info.TotalMemoryMB += hostInfo.MemoryMB
 		info.TotalCPUCores += hostInfo.CPUCores
 	}
-	
+
 	// Get Diego cells in this cluster
 	cells, err := v.getDiegoCellsInCluster(ctx, cluster)
 	if err != nil {
@@ -315,7 +316,7 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 		return models.InfrastructureState{}, fmt.Errorf("getting Diego cells: %w", err)
 	}
 
-	slog.Info("vSphere Diego cell discovery complete", "cell_count", len(allCells), "datacenter", v.creds.Datacenter)
+	slog.Info("vSphere Diego cell discovery complete", "cell_count", len(allCells))
 
 	// Build ManualInput from vSphere data to leverage existing calculation logic
 	manualInput := models.ManualInput{

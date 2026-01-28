@@ -37,17 +37,23 @@ func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 
 	// CF client is optional (for testing)
 	if cfg != nil {
-		h.cfClient = services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword)
+		h.cfClient = services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword, cfg.CFSkipSSLValidation)
 
 		// BOSH client is optional
 		if cfg.BOSHEnvironment != "" {
-			h.boshClient = services.NewBOSHClient(
+			boshClient, err := services.NewBOSHClient(
 				cfg.BOSHEnvironment,
 				cfg.BOSHClient,
 				cfg.BOSHSecret,
 				cfg.BOSHCACert,
 				cfg.BOSHDeployment,
+				cfg.BOSHSkipSSLValidation,
 			)
+			if err != nil {
+				slog.Error("Failed to create BOSH client, running in degraded mode", "error", err)
+			} else {
+				h.boshClient = boshClient
+			}
 		}
 
 		// vSphere client is optional

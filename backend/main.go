@@ -40,14 +40,26 @@ func main() {
 	}
 
 	slog.Info("Starting Diego Capacity Analyzer Backend")
-	slog.Info("CF API configured", "url", cfg.CFAPIUrl)
+	slog.Info("CF API configured")
+	slog.Debug("CF API endpoint", "url", cfg.CFAPIUrl)
+	if cfg.CFSkipSSLValidation {
+		slog.Warn("CF_SKIP_SSL_VALIDATION=true, TLS certificate verification disabled for CF/Log Cache")
+	}
 	if cfg.BOSHEnvironment != "" {
-		slog.Info("BOSH configured", "environment", cfg.BOSHEnvironment)
+		slog.Info("BOSH configured")
+		slog.Debug("BOSH endpoint", "environment", cfg.BOSHEnvironment)
+		if cfg.BOSHSkipSSLValidation {
+			slog.Warn("BOSH_SKIP_SSL_VALIDATION=true, TLS certificate verification disabled for BOSH")
+		}
 	} else {
 		slog.Warn("BOSH not configured, running in degraded mode")
 	}
 	if cfg.VSphereConfigured() {
-		slog.Info("vSphere configured", "host", cfg.VSphereHost, "datacenter", cfg.VSphereDatacenter)
+		slog.Info("vSphere configured")
+		slog.Debug("vSphere endpoint", "host", cfg.VSphereHost, "datacenter", cfg.VSphereDatacenter)
+		if cfg.VSphereInsecure {
+			slog.Warn("VSPHERE_INSECURE=true, TLS certificate verification disabled for vSphere")
+		}
 	} else {
 		slog.Info("vSphere not configured, manual mode only")
 	}
@@ -68,6 +80,14 @@ func main() {
 	c := cache.New(cacheTTL)
 	slog.Info("Cache initialized", "ttl", cacheTTL)
 
+	// Configure CORS middleware with allowed origins
+	corsMiddleware := middleware.CORSWithConfig(cfg.CORSAllowedOrigins)
+	if len(cfg.CORSAllowedOrigins) > 0 {
+		slog.Info("CORS configured with origin whitelist", "origins", cfg.CORSAllowedOrigins)
+	} else {
+		slog.Warn("CORS_ALLOWED_ORIGINS not set, cross-origin requests will be blocked")
+	}
+
 	// Initialize handlers
 	h := handlers.NewHandler(cfg, c)
 
@@ -85,10 +105,10 @@ func main() {
 		var handler http.HandlerFunc
 		if route.Public {
 			// Public routes: no auth
-			handler = middleware.Chain(route.Handler, middleware.CORS, middleware.LogRequest)
+			handler = middleware.Chain(route.Handler, corsMiddleware, middleware.LogRequest)
 		} else {
 			// Protected routes: apply auth middleware
-			handler = middleware.Chain(route.Handler, middleware.CORS, middleware.Auth(authCfg), middleware.LogRequest)
+			handler = middleware.Chain(route.Handler, corsMiddleware, middleware.Auth(authCfg), middleware.LogRequest)
 		}
 		mux.HandleFunc(pattern, handler)
 
@@ -104,8 +124,8 @@ func main() {
 	}
 
 	// Handle OPTIONS for all /api/ paths (CORS preflight)
-	mux.HandleFunc("OPTIONS /api/", middleware.CORS(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+	mux.HandleFunc("OPTIONS /api/", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		// Response is handled by CORS middleware for preflight
 	}))
 
 	// Start server

@@ -34,7 +34,7 @@ func TestCFClient_Authenticate(t *testing.T) {
 	defer cfServer.Close()
 	cfServerURL = cfServer.URL
 
-	client := NewCFClient(cfServer.URL, "admin", "secret")
+	client := NewCFClient(cfServer.URL, "admin", "secret", true)
 
 	if err := client.Authenticate(); err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -159,7 +159,7 @@ func TestCFClient_GetApps(t *testing.T) {
 	defer server.Close()
 	serverURL = server.URL
 
-	client := NewCFClient(server.URL, "admin", "secret")
+	client := NewCFClient(server.URL, "admin", "secret", true)
 	client.token = "test-token"
 
 	apps, err := client.GetApps()
@@ -250,7 +250,7 @@ func TestCFClient_GetIsolationSegments(t *testing.T) {
 	defer server.Close()
 	serverURL = server.URL
 
-	client := NewCFClient(server.URL, "admin", "secret")
+	client := NewCFClient(server.URL, "admin", "secret", true)
 	client.token = "test-token"
 
 	segments, err := client.GetIsolationSegments()
@@ -285,7 +285,7 @@ func TestCFClient_GetApps_Unauthenticated(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewCFClient(server.URL, "admin", "secret")
+	client := NewCFClient(server.URL, "admin", "secret", true)
 	// Don't set token
 
 	_, err := client.GetApps()
@@ -303,7 +303,7 @@ func TestCFClient_GetIsolationSegments_Unauthenticated(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewCFClient(server.URL, "admin", "secret")
+	client := NewCFClient(server.URL, "admin", "secret", true)
 	// Don't set token
 
 	_, err := client.GetIsolationSegments()

@@ -37,7 +37,7 @@ type BOSHClient struct {
 	tokenMutex  sync.RWMutex
 }
 
-func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BOSHClient {
+func NewBOSHClient(environment, clientID, secret, caCert, deployment string, skipSSLValidation bool) (*BOSHClient, error) {
 	// Normalize environment URL - bosh cli omits protocol and sometimes port
 	if environment != "" {
 		// Add https:// if missing
@@ -53,16 +53,27 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 	tlsConfig := &tls.Config{}
 
 	if caCert != "" {
+		// CA cert provided - use it for verification
 		certPool := x509.NewCertPool()
 		if ok := certPool.AppendCertsFromPEM([]byte(caCert)); ok {
 			tlsConfig.RootCAs = certPool
 		} else {
-			slog.Warn("Failed to parse BOSH_CA_CERT, using InsecureSkipVerify")
-			tlsConfig.InsecureSkipVerify = true
+			// CA cert was provided but is malformed - fail fast with clear error
+			slog.Error("BOSH_CA_CERT is malformed - certificate could not be parsed")
+			if skipSSLValidation {
+				slog.Warn("BOSH_SKIP_SSL_VALIDATION=true, falling back to insecure mode")
+				tlsConfig.InsecureSkipVerify = true
+			} else {
+				// Don't silently fall back to system CA - user expected their cert to work
+				return nil, fmt.Errorf("BOSH_CA_CERT is malformed and BOSH_SKIP_SSL_VALIDATION=false; fix the certificate or set BOSH_SKIP_SSL_VALIDATION=true")
+			}
 		}
-	} else {
+	} else if skipSSLValidation {
+		// No CA cert and explicit skip requested
+		slog.Warn("BOSH_SKIP_SSL_VALIDATION=true, skipping certificate verification")
 		tlsConfig.InsecureSkipVerify = true
 	}
+	// If no CA cert and skipSSLValidation=false, TLS will use system CA pool
 
 	transport := &http.Transport{
 		TLSClientConfig:     tlsConfig,
@@ -87,7 +98,7 @@ func NewBOSHClient(environment, clientID, secret, caCert, deployment string) *BO
 			Timeout:   120 * time.Second,
 			Transport: transport,
 		},
-	}
+	}, nil
 }
 
 // SetHTTPClient allows overriding the HTTP client (useful for testing)
@@ -400,7 +411,8 @@ func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deployments: %w", err)
 	}
-	slog.Info("Found deployments to query", "count", len(deployments), "deployments", deployments)
+	slog.Info("Found deployments to query", "count", len(deployments))
+	slog.Debug("Deployment names", "deployments", deployments)
 
 	var allCells []models.DiegoCell
 	for _, deployment := range deployments {
@@ -518,12 +530,15 @@ func (b *BOSHClient) getCellsForDeployment(deployment string) ([]models.DiegoCel
 		isolationSegment = "isolated"
 	}
 
-	// Log all VM job names for debugging
-	var jobNames []string
-	for _, vm := range vms {
-		jobNames = append(jobNames, vm.JobName)
+	slog.Info("VMs found in deployment", "vm_count", len(vms))
+	// Log detailed job names at DEBUG level only
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		var jobNames []string
+		for _, vm := range vms {
+			jobNames = append(jobNames, vm.JobName)
+		}
+		slog.Debug("VM details", "deployment", deployment, "job_names", jobNames)
 	}
-	slog.Info("VMs found in deployment", "deployment", deployment, "vm_count", len(vms), "job_names", jobNames)
 
 	var cells []models.DiegoCell
 	for _, vm := range vms {

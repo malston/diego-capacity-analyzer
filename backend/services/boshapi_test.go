@@ -87,9 +87,13 @@ func TestBOSHClient_GetDiegoCells(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewBOSHClient(server.URL, "ops_manager", "secret", "", "cf-test")
+	client, err := NewBOSHClient(server.URL, "ops_manager", "secret", "", "cf-test", true)
+	if err != nil {
+		t.Fatalf("Failed to create BOSH client: %v", err)
+	}
 
-	// Disable TLS verification for test
+	// TLS verification is disabled via skipSSLValidation=true above
+	// Set transport for test server connection
 	client.client.Transport = &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}

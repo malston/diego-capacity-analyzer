@@ -881,15 +881,16 @@ func TestDashboardHandler_AppMemoryCalculation(t *testing.T) {
 		cache:        c,
 		scenarioCalc: services.NewScenarioCalculator(),
 	}
-	h.cfClient = services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword)
+	h.cfClient = services.NewCFClient(cfg.CFAPIUrl, cfg.CFUsername, cfg.CFPassword, true)
 
 	// Create BOSH client with TLS skip verify for test server
-	h.boshClient = services.NewBOSHClient(
+	h.boshClient, _ = services.NewBOSHClient(
 		boshServer.URL,
 		cfg.BOSHClient,
 		cfg.BOSHSecret,
 		"", // no CA cert
 		cfg.BOSHDeployment,
+		true, // skip SSL validation for test
 	)
 	// Override HTTP client to skip TLS verification for test
 	h.boshClient.SetHTTPClient(&http.Client{
