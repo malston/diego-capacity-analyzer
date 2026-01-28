@@ -50,7 +50,7 @@ func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.vsphereClient.Connect(ctx); err != nil {
 		slog.Error("vSphere connection failed", "error", err)
-		h.writeError(w, "Failed to connect to vSphere: "+err.Error(), http.StatusServiceUnavailable)
+		h.writeError(w, "Infrastructure service temporarily unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	defer h.vsphereClient.Disconnect(ctx)
@@ -59,7 +59,7 @@ func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
 	state, err := h.vsphereClient.GetInfrastructureState(ctx)
 	if err != nil {
 		slog.Error("vSphere inventory fetch failed", "error", err)
-		h.writeError(w, "Failed to get vSphere inventory: "+err.Error(), http.StatusInternalServerError)
+		h.writeError(w, "Failed to retrieve infrastructure data", http.StatusInternalServerError)
 		return
 	}
 
@@ -220,7 +220,7 @@ func (h *Handler) GetInfrastructureApps(w http.ResponseWriter, r *http.Request) 
 	// Authenticate with CF
 	if err := h.cfClient.Authenticate(); err != nil {
 		slog.Error("CF authentication failed", "error", err)
-		h.writeError(w, "Failed to authenticate with CF: "+err.Error(), http.StatusServiceUnavailable)
+		h.writeError(w, "Authentication service temporarily unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -228,7 +228,7 @@ func (h *Handler) GetInfrastructureApps(w http.ResponseWriter, r *http.Request) 
 	apps, err := h.cfClient.GetApps()
 	if err != nil {
 		slog.Error("Failed to fetch apps from CF", "error", err)
-		h.writeError(w, "Failed to fetch apps: "+err.Error(), http.StatusInternalServerError)
+		h.writeError(w, "Failed to retrieve application data", http.StatusInternalServerError)
 		return
 	}
 
