@@ -22,8 +22,16 @@ func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Limit request body size to prevent DOS attacks (Issue #68)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+
 	var input models.ScenarioInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		// Check if error is due to body size limit
+		if err.Error() == "http: request body too large" {
+			h.writeError(w, "Request body too large", http.StatusBadRequest)
+			return
+		}
 		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}

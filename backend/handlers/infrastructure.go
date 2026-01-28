@@ -14,6 +14,9 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 )
 
+// maxRequestBodySize limits JSON request bodies to 1MB to prevent DOS attacks
+const maxRequestBodySize = 1 << 20 // 1MB
+
 // AppDetailsResponse contains per-app breakdown of memory, disk, and instances
 type AppDetailsResponse struct {
 	TotalAppMemoryGB  int          `json:"total_app_memory_gb"`
@@ -83,8 +86,16 @@ func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
 // SetManualInfrastructure accepts manual infrastructure input.
 // HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) SetManualInfrastructure(w http.ResponseWriter, r *http.Request) {
+	// Limit request body size to prevent DOS attacks (Issue #68)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+
 	var input models.ManualInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		// Check if error is due to body size limit
+		if err.Error() == "http: request body too large" {
+			h.writeError(w, "Request body too large", http.StatusBadRequest)
+			return
+		}
 		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
@@ -101,8 +112,16 @@ func (h *Handler) SetManualInfrastructure(w http.ResponseWriter, r *http.Request
 // SetInfrastructureState accepts an InfrastructureState directly (e.g., from vSphere cache).
 // HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) SetInfrastructureState(w http.ResponseWriter, r *http.Request) {
+	// Limit request body size to prevent DOS attacks (Issue #68)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+
 	var state models.InfrastructureState
 	if err := json.NewDecoder(r.Body).Decode(&state); err != nil {
+		// Check if error is due to body size limit
+		if err.Error() == "http: request body too large" {
+			h.writeError(w, "Request body too large", http.StatusBadRequest)
+			return
+		}
 		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
@@ -170,8 +189,16 @@ func (h *Handler) PlanInfrastructure(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Limit request body size to prevent DOS attacks (Issue #68)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+
 	var input models.PlanningInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		// Check if error is due to body size limit
+		if err.Error() == "http: request body too large" {
+			h.writeError(w, "Request body too large", http.StatusBadRequest)
+			return
+		}
 		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
