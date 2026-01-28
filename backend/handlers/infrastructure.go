@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,9 @@ import (
 
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 )
+
+// maxRequestBodySize limits JSON request bodies to 1MB to prevent DOS attacks
+const maxRequestBodySize = 1 << 20 // 1MB
 
 // AppDetailsResponse contains per-app breakdown of memory, disk, and instances
 type AppDetailsResponse struct {
@@ -47,7 +51,7 @@ func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.vsphereClient.Connect(ctx); err != nil {
 		slog.Error("vSphere connection failed", "error", err)
-		h.writeError(w, "Failed to connect to vSphere: "+err.Error(), http.StatusServiceUnavailable)
+		h.writeError(w, "Infrastructure service temporarily unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	defer h.vsphereClient.Disconnect(ctx)
@@ -56,7 +60,7 @@ func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
 	state, err := h.vsphereClient.GetInfrastructureState(ctx)
 	if err != nil {
 		slog.Error("vSphere inventory fetch failed", "error", err)
-		h.writeError(w, "Failed to get vSphere inventory: "+err.Error(), http.StatusInternalServerError)
+		h.writeError(w, "Failed to retrieve infrastructure data", http.StatusInternalServerError)
 		return
 	}
 
@@ -83,8 +87,17 @@ func (h *Handler) GetInfrastructure(w http.ResponseWriter, r *http.Request) {
 // SetManualInfrastructure accepts manual infrastructure input.
 // HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) SetManualInfrastructure(w http.ResponseWriter, r *http.Request) {
+	// Limit request body size to prevent DOS attacks (Issue #68)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+
 	var input models.ManualInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		// Check if error is due to body size limit (type assertion is more robust than string matching)
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			h.writeError(w, "Request body too large", http.StatusBadRequest)
+			return
+		}
 		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
@@ -101,8 +114,17 @@ func (h *Handler) SetManualInfrastructure(w http.ResponseWriter, r *http.Request
 // SetInfrastructureState accepts an InfrastructureState directly (e.g., from vSphere cache).
 // HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) SetInfrastructureState(w http.ResponseWriter, r *http.Request) {
+	// Limit request body size to prevent DOS attacks (Issue #68)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+
 	var state models.InfrastructureState
 	if err := json.NewDecoder(r.Body).Decode(&state); err != nil {
+		// Check if error is due to body size limit (type assertion is more robust than string matching)
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			h.writeError(w, "Request body too large", http.StatusBadRequest)
+			return
+		}
 		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
@@ -161,18 +183,28 @@ func (h *Handler) GetInfrastructureStatus(w http.ResponseWriter, r *http.Request
 // PlanInfrastructure calculates max deployable cells given IaaS capacity.
 // HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) PlanInfrastructure(w http.ResponseWriter, r *http.Request) {
+	// Limit request body size to prevent DOS attacks (Issue #68)
+	// MaxBytesReader only triggers on read, so decode body FIRST before state check
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+
+	var input models.PlanningInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		// Check if error is due to body size limit (type assertion is more robust than string matching)
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			h.writeError(w, "Request body too large", http.StatusBadRequest)
+			return
+		}
+		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
 	h.infraMutex.RLock()
 	state := h.infrastructureState
 	h.infraMutex.RUnlock()
 
 	if state == nil {
 		h.writeError(w, "No infrastructure data. Load via /api/v1/infrastructure or /api/v1/infrastructure/manual first.", http.StatusBadRequest)
-		return
-	}
-
-	var input models.PlanningInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -193,7 +225,7 @@ func (h *Handler) GetInfrastructureApps(w http.ResponseWriter, r *http.Request) 
 	// Authenticate with CF
 	if err := h.cfClient.Authenticate(); err != nil {
 		slog.Error("CF authentication failed", "error", err)
-		h.writeError(w, "Failed to authenticate with CF: "+err.Error(), http.StatusServiceUnavailable)
+		h.writeError(w, "Authentication service temporarily unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -201,7 +233,7 @@ func (h *Handler) GetInfrastructureApps(w http.ResponseWriter, r *http.Request) 
 	apps, err := h.cfClient.GetApps()
 	if err != nil {
 		slog.Error("Failed to fetch apps from CF", "error", err)
-		h.writeError(w, "Failed to fetch apps: "+err.Error(), http.StatusInternalServerError)
+		h.writeError(w, "Failed to retrieve application data", http.StatusInternalServerError)
 		return
 	}
 

@@ -1535,3 +1535,300 @@ func TestHandler_OpenAPISpec(t *testing.T) {
 		t.Error("Response body does not contain 'openapi:' - may not be valid OpenAPI spec")
 	}
 }
+
+// Security Tests - Issue #68: Unbounded Request Bodies Allow DOS Attack
+
+func TestSetManualInfrastructure_RejectsOversizedBody(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// Create a payload larger than the 1MB limit (1.5MB)
+	largePayload := strings.Repeat("x", 1536*1024)
+	body := `{"name":"` + largePayload + `","clusters":[]}`
+
+	req := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.SetManualInfrastructure(w, req)
+
+	// Should reject with 400 Bad Request due to size limit
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for oversized body, got %d", w.Code)
+	}
+
+	// Error message should indicate the body was too large
+	var resp models.ErrorResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if !strings.Contains(strings.ToLower(resp.Error), "too large") && !strings.Contains(strings.ToLower(resp.Error), "request body") {
+		t.Errorf("Expected error message about request size, got: %s", resp.Error)
+	}
+}
+
+func TestSetInfrastructureState_RejectsOversizedBody(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// Create a payload larger than the 1MB limit (1.5MB)
+	largePayload := strings.Repeat("x", 1536*1024)
+	body := `{"name":"` + largePayload + `","source":"manual","clusters":[]}`
+
+	req := httptest.NewRequest("POST", "/api/infrastructure/state", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.SetInfrastructureState(w, req)
+
+	// Should reject with 400 Bad Request due to size limit
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for oversized body, got %d", w.Code)
+	}
+}
+
+func TestPlanInfrastructure_RejectsOversizedBody(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// First set up infrastructure data so we don't get "No infrastructure data" error
+	manualBody := `{
+		"name": "Test Env",
+		"clusters": [{
+			"name": "cluster-01",
+			"host_count": 4,
+			"memory_gb_per_host": 1024,
+			"cpu_cores_per_host": 64,
+			"diego_cell_count": 100,
+			"diego_cell_memory_gb": 32,
+			"diego_cell_cpu": 4
+		}]
+	}`
+	setupReq := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
+	setupReq.Header.Set("Content-Type", "application/json")
+	setupW := httptest.NewRecorder()
+	handler.SetManualInfrastructure(setupW, setupReq)
+
+	// Now try with oversized planning request (1.5MB)
+	largePayload := strings.Repeat("x", 1536*1024)
+	body := `{"cell_memory_gb":32,"notes":"` + largePayload + `"}`
+
+	req := httptest.NewRequest("POST", "/api/infrastructure/planning", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.PlanInfrastructure(w, req)
+
+	// Should reject with 400 Bad Request due to size limit
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for oversized body, got %d", w.Code)
+	}
+}
+
+func TestCompareScenario_RejectsOversizedBody(t *testing.T) {
+	cfg := &config.Config{}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	// First set up infrastructure data so we don't get "No infrastructure data" error
+	manualBody := `{
+		"name": "Test Env",
+		"clusters": [{
+			"name": "cluster-01",
+			"host_count": 4,
+			"memory_gb_per_host": 1024,
+			"cpu_cores_per_host": 64,
+			"diego_cell_count": 100,
+			"diego_cell_memory_gb": 32,
+			"diego_cell_cpu": 4
+		}]
+	}`
+	setupReq := httptest.NewRequest("POST", "/api/infrastructure/manual", strings.NewReader(manualBody))
+	setupReq.Header.Set("Content-Type", "application/json")
+	setupW := httptest.NewRecorder()
+	handler.SetManualInfrastructure(setupW, setupReq)
+
+	// Now try with oversized scenario comparison request (1.5MB)
+	largePayload := strings.Repeat("x", 1536*1024)
+	body := `{"proposed_cell_memory_gb":64,"notes":"` + largePayload + `"}`
+
+	req := httptest.NewRequest("POST", "/api/scenario/compare", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.CompareScenario(w, req)
+
+	// Should reject with 400 Bad Request due to size limit
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for oversized body, got %d", w.Code)
+	}
+}
+
+// Security Tests - Issue #69: Error Messages Leak Internal System Details
+
+// sensitivePatterns contains strings that should never appear in error responses
+var sensitivePatterns = []string{
+	"vcenter",
+	"vsphere",
+	"10.0.",    // Internal IP prefixes
+	"192.168.", // Internal IP prefixes
+	"internal", // Internal hostnames
+	".local",   // Local domain names
+	"password", // Password references
+	"secret",   // Secret references
+	"token",    // Token references
+	"https://", // Full URLs
+	"http://",  // Full URLs
+	"connection refused",
+	"dial tcp",
+	"x509:", // Certificate errors
+	"tls:",  // TLS errors
+}
+
+func containsSensitiveInfo(body string) bool {
+	lowerBody := strings.ToLower(body)
+	for _, pattern := range sensitivePatterns {
+		if strings.Contains(lowerBody, strings.ToLower(pattern)) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestVSphereConnectionError_NoInternalDetailsExposed(t *testing.T) {
+	cfg := &config.Config{
+		VSphereHost:       "vcenter.internal.acme.com",
+		VSphereUsername:   "admin@vsphere.local",
+		VSpherePassword:   "secret-password",
+		VSphereDatacenter: "DC-Internal",
+	}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("GET", "/api/infrastructure", nil)
+	w := httptest.NewRecorder()
+
+	handler.GetInfrastructure(w, req)
+
+	// We expect an error (can't connect to fake vSphere), but it should NOT expose internal details
+	if w.Code == http.StatusOK {
+		t.Skip("Test only applies when vSphere connection fails")
+	}
+
+	body := w.Body.String()
+
+	// Error response should NOT contain sensitive internal details
+	if containsSensitiveInfo(body) {
+		t.Errorf("Error response contains sensitive information: %s", body)
+	}
+
+	// Error response should NOT contain the configured hostname
+	if strings.Contains(body, "vcenter.internal.acme.com") {
+		t.Error("Error response exposes internal vCenter hostname")
+	}
+
+	// Error response should NOT contain the datacenter name
+	if strings.Contains(body, "DC-Internal") {
+		t.Error("Error response exposes internal datacenter name")
+	}
+}
+
+func TestDashboardCFAuthError_NoInternalDetailsExposed(t *testing.T) {
+	// Mock CF server that returns an auth error with internal details
+	cfServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v3/info" {
+			w.Header().Set("Content-Type", "application/json")
+			// Return info with an internal UAA URL that should never be exposed
+			w.Write([]byte(`{"links":{"login":{"href":"https://uaa.internal.corp:8443"}}}`))
+			return
+		}
+		// Return auth error with internal details
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"invalid_grant","error_description":"User admin not found at ldap://ldap.internal.corp:389"}`))
+	}))
+	defer cfServer.Close()
+
+	cfg := &config.Config{
+		CFAPIUrl:   cfServer.URL,
+		CFUsername: "admin",
+		CFPassword: "wrong-password",
+	}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("GET", "/api/dashboard", nil)
+	w := httptest.NewRecorder()
+
+	handler.Dashboard(w, req)
+
+	// Should return error
+	if w.Code == http.StatusOK {
+		t.Skip("Test only applies when CF auth fails")
+	}
+
+	body := w.Body.String()
+
+	// Error response should NOT contain the internal UAA URL
+	if strings.Contains(body, "uaa.internal") {
+		t.Error("Error response exposes internal UAA URL")
+	}
+
+	// Error response should NOT contain the internal LDAP URL
+	if strings.Contains(body, "ldap.internal") {
+		t.Error("Error response exposes internal LDAP URL")
+	}
+
+	// Error response should NOT contain port numbers from internal services
+	if strings.Contains(body, ":8443") || strings.Contains(body, ":389") {
+		t.Error("Error response exposes internal service ports")
+	}
+
+	// Should NOT contain the detailed error description
+	if strings.Contains(body, "ldap://") {
+		t.Error("Error response exposes internal LDAP connection details")
+	}
+}
+
+func TestErrorResponse_NoDetailsField(t *testing.T) {
+	// Test that error responses don't include a "details" field that could leak info
+	// Mock CF server that will cause an auth error
+	cfServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v3/info" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"links":{"login":{"href":"https://uaa.test.local"}}}`))
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer cfServer.Close()
+
+	cfg := &config.Config{
+		CFAPIUrl:   cfServer.URL,
+		CFUsername: "admin",
+		CFPassword: "wrong",
+	}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("GET", "/api/dashboard", nil)
+	w := httptest.NewRecorder()
+
+	handler.Dashboard(w, req)
+
+	if w.Code == http.StatusOK {
+		t.Skip("Test only applies when request fails")
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// The "details" field should NOT be present as it could contain sensitive info
+	if details, exists := resp["details"]; exists && details != nil && details != "" {
+		t.Errorf("Error response should not include 'details' field with value: %v", details)
+	}
+}

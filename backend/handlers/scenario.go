@@ -5,6 +5,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
@@ -13,18 +14,28 @@ import (
 // CompareScenario compares current infrastructure against a proposed scenario.
 // HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
+	// Limit request body size to prevent DOS attacks (Issue #68)
+	// MaxBytesReader only triggers on read, so decode body FIRST before state check
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+
+	var input models.ScenarioInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		// Check if error is due to body size limit (type assertion is more robust than string matching)
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			h.writeError(w, "Request body too large", http.StatusBadRequest)
+			return
+		}
+		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
 	h.infraMutex.RLock()
 	state := h.infrastructureState
 	h.infraMutex.RUnlock()
 
 	if state == nil {
 		h.writeError(w, "No infrastructure data. Set via /api/v1/infrastructure/manual first.", http.StatusBadRequest)
-		return
-	}
-
-	var input models.ScenarioInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
