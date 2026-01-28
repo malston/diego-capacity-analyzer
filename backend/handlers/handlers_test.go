@@ -115,19 +115,19 @@ func setupMockCFServerWithApps() (*httptest.Server, *httptest.Server) {
 			w.Write([]byte(`{
 				"resources": [
 					{
-						"guid": "app-1",
+						"guid": "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
 						"name": "test-app-1",
 						"state": "STARTED",
 						"relationships": {
-							"space": {"data": {"guid": "space-1"}}
+							"space": {"data": {"guid": "11111111-1111-1111-1111-111111111111"}}
 						}
 					},
 					{
-						"guid": "app-2",
+						"guid": "b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2",
 						"name": "test-app-2",
 						"state": "STARTED",
 						"relationships": {
-							"space": {"data": {"guid": "space-1"}}
+							"space": {"data": {"guid": "11111111-1111-1111-1111-111111111111"}}
 						}
 					}
 				],
@@ -155,7 +155,7 @@ func setupMockCFServerWithApps() (*httptest.Server, *httptest.Server) {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
 				"resources": [
-					{"guid": "iso-seg-1", "name": "shared"}
+					{"guid": "cccccccc-cccc-cccc-cccc-cccccccccccc", "name": "shared"}
 				],
 				"pagination": {"next": null}
 			}`))
@@ -197,7 +197,7 @@ func setupMockCFServer() (*httptest.Server, *httptest.Server) {
 			w.Write([]byte(`{
 				"resources": [
 					{
-						"guid": "app-1",
+						"guid": "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
 						"name": "test-app",
 						"state": "STARTED",
 						"relationships": {
@@ -232,7 +232,7 @@ func setupMockCFServer() (*httptest.Server, *httptest.Server) {
 			w.Write([]byte(`{
 				"resources": [
 					{
-						"guid": "iso-seg-1",
+						"guid": "cccccccc-cccc-cccc-cccc-cccccccccccc",
 						"name": "production"
 					}
 				],

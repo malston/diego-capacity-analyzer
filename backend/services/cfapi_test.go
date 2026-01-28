@@ -72,22 +72,22 @@ func TestCFClient_GetApps(t *testing.T) {
 				w.Write([]byte(`{
 					"resources": [
 						{
-							"guid": "app-1",
+							"guid": "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
 							"name": "test-app-1",
 							"state": "STARTED",
 							"relationships": {
 								"space": {
-									"data": {"guid": "space-1"}
+									"data": {"guid": "11111111-1111-1111-1111-111111111111"}
 								}
 							}
 						},
 						{
-							"guid": "app-2",
+							"guid": "b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2",
 							"name": "test-app-2",
 							"state": "STARTED",
 							"relationships": {
 								"space": {
-									"data": {"guid": "space-2"}
+									"data": {"guid": "22222222-2222-2222-2222-222222222222"}
 								}
 							}
 						}
@@ -105,7 +105,7 @@ func TestCFClient_GetApps(t *testing.T) {
 			appGUID := strings.TrimPrefix(r.URL.Path, "/v3/apps/")
 			appGUID = strings.TrimSuffix(appGUID, "/processes")
 
-			if appGUID == "app-1" {
+			if appGUID == "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1" {
 				w.Write([]byte(`{
 					"resources": [
 						{
@@ -115,7 +115,7 @@ func TestCFClient_GetApps(t *testing.T) {
 						}
 					]
 				}`))
-			} else if appGUID == "app-2" {
+			} else if appGUID == "b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2" {
 				w.Write([]byte(`{
 					"resources": [
 						{
@@ -132,12 +132,12 @@ func TestCFClient_GetApps(t *testing.T) {
 			spaceGUID := strings.TrimPrefix(r.URL.Path, "/v3/spaces/")
 			spaceGUID = strings.TrimSuffix(spaceGUID, "/relationships/isolation_segment")
 
-			if spaceGUID == "space-1" {
+			if spaceGUID == "11111111-1111-1111-1111-111111111111" {
 				w.Write([]byte(`{
-					"data": {"guid": "iso-seg-1"}
+					"data": {"guid": "cccccccc-cccc-cccc-cccc-cccccccccccc"}
 				}`))
 			} else {
-				// space-2 has no isolation segment
+				// 22222222-2222-2222-2222-222222222222 has no isolation segment
 				w.Write([]byte(`{
 					"data": null
 				}`))
@@ -145,9 +145,9 @@ func TestCFClient_GetApps(t *testing.T) {
 
 		case strings.HasPrefix(r.URL.Path, "/v3/isolation_segments/"):
 			isoSegGUID := strings.TrimPrefix(r.URL.Path, "/v3/isolation_segments/")
-			if isoSegGUID == "iso-seg-1" {
+			if isoSegGUID == "cccccccc-cccc-cccc-cccc-cccccccccccc" {
 				w.Write([]byte(`{
-					"guid": "iso-seg-1",
+					"guid": "cccccccc-cccc-cccc-cccc-cccccccccccc",
 					"name": "production"
 				}`))
 			}
@@ -175,8 +175,8 @@ func TestCFClient_GetApps(t *testing.T) {
 	if apps[0].Name != "test-app-1" {
 		t.Errorf("Expected app name 'test-app-1', got '%s'", apps[0].Name)
 	}
-	if apps[0].GUID != "app-1" {
-		t.Errorf("Expected app GUID 'app-1', got '%s'", apps[0].GUID)
+	if apps[0].GUID != "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1" {
+		t.Errorf("Expected app GUID 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', got '%s'", apps[0].GUID)
 	}
 	if apps[0].Instances != 2 {
 		t.Errorf("Expected 2 instances, got %d", apps[0].Instances)
@@ -228,11 +228,11 @@ func TestCFClient_GetIsolationSegments(t *testing.T) {
 				w.Write([]byte(`{
 					"resources": [
 						{
-							"guid": "iso-seg-1",
+							"guid": "cccccccc-cccc-cccc-cccc-cccccccccccc",
 							"name": "production"
 						},
 						{
-							"guid": "iso-seg-2",
+							"guid": "dddddddd-dddd-dddd-dddd-dddddddddddd",
 							"name": "development"
 						}
 					],
@@ -263,16 +263,16 @@ func TestCFClient_GetIsolationSegments(t *testing.T) {
 	}
 
 	// Verify first segment
-	if segments[0].GUID != "iso-seg-1" {
-		t.Errorf("Expected GUID 'iso-seg-1', got '%s'", segments[0].GUID)
+	if segments[0].GUID != "cccccccc-cccc-cccc-cccc-cccccccccccc" {
+		t.Errorf("Expected GUID 'cccccccc-cccc-cccc-cccc-cccccccccccc', got '%s'", segments[0].GUID)
 	}
 	if segments[0].Name != "production" {
 		t.Errorf("Expected name 'production', got '%s'", segments[0].Name)
 	}
 
 	// Verify second segment
-	if segments[1].GUID != "iso-seg-2" {
-		t.Errorf("Expected GUID 'iso-seg-2', got '%s'", segments[1].GUID)
+	if segments[1].GUID != "dddddddd-dddd-dddd-dddd-dddddddddddd" {
+		t.Errorf("Expected GUID 'dddddddd-dddd-dddd-dddd-dddddddddddd', got '%s'", segments[1].GUID)
 	}
 	if segments[1].Name != "development" {
 		t.Errorf("Expected name 'development', got '%s'", segments[1].Name)

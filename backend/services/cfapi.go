@@ -249,6 +249,9 @@ func (c *CFClient) getAppProcesses(appGUID string) ([]struct {
 	MemoryMB  int    `json:"memory_in_mb"`
 	DiskMB    int    `json:"disk_in_mb"`
 }, error) {
+	if err := ValidateGUID(appGUID); err != nil {
+		return nil, fmt.Errorf("invalid app GUID: %w", err)
+	}
 	resp, err := c.doAuthenticatedRequest("GET", "/v3/apps/"+appGUID+"/processes")
 	if err != nil {
 		return nil, err
@@ -273,6 +276,9 @@ func (c *CFClient) getAppProcesses(appGUID string) ([]struct {
 
 // getSpaceIsolationSegment fetches the isolation segment name for a space
 func (c *CFClient) getSpaceIsolationSegment(spaceGUID string) (string, error) {
+	if err := ValidateGUID(spaceGUID); err != nil {
+		return "", fmt.Errorf("invalid space GUID: %w", err)
+	}
 	resp, err := c.doAuthenticatedRequest("GET", "/v3/spaces/"+spaceGUID+"/relationships/isolation_segment")
 	if err != nil {
 		return "", err
@@ -292,6 +298,11 @@ func (c *CFClient) getSpaceIsolationSegment(spaceGUID string) (string, error) {
 	// If no isolation segment, return empty
 	if result.Data.GUID == "" {
 		return "", nil
+	}
+
+	// Validate isolation segment GUID before URL construction
+	if err := ValidateGUID(result.Data.GUID); err != nil {
+		return "", fmt.Errorf("invalid isolation segment GUID: %w", err)
 	}
 
 	// Fetch the isolation segment name

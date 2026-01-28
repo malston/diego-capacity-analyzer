@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -34,7 +35,7 @@ func LogRequest(next http.HandlerFunc) http.HandlerFunc {
 		slog.Info("Request started",
 			"request_id", requestID,
 			"method", r.Method,
-			"path", r.URL.Path,
+			"path", sanitizePath(r.URL.Path),
 		)
 
 		// Wrap response writer to capture status
@@ -45,7 +46,7 @@ func LogRequest(next http.HandlerFunc) http.HandlerFunc {
 		slog.Info("Request completed",
 			"request_id", requestID,
 			"method", r.Method,
-			"path", r.URL.Path,
+			"path", sanitizePath(r.URL.Path),
 			"status", wrapped.statusCode,
 			"latency_ms", time.Since(start).Milliseconds(),
 		)
@@ -57,4 +58,16 @@ func generateRequestID() string {
 	b := make([]byte, 8)
 	rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// sanitizePath removes control characters from a path to prevent log injection.
+// Control characters (ASCII 0-31) and DEL (127) are stripped to prevent
+// attackers from injecting fake log entries via newlines or other sequences.
+func sanitizePath(path string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 {
+			return -1 // Remove control characters
+		}
+		return r
+	}, path)
 }
