@@ -12,10 +12,11 @@ import (
 
 type Config struct {
 	// Server
-	Port         string
-	CacheTTL     int    // seconds, default for general cache
-	DashboardTTL int    // seconds, for BOSH/CF data (default 30s)
-	AuthMode     string // disabled, optional, required (default: optional)
+	Port               string
+	CacheTTL           int      // seconds, default for general cache
+	DashboardTTL       int      // seconds, for BOSH/CF data (default 30s)
+	AuthMode           string   // disabled, optional, required (default: optional)
+	CORSAllowedOrigins []string // allowed CORS origins (empty = block all cross-origin)
 
 	// CF API
 	CFAPIUrl   string
@@ -50,10 +51,11 @@ func (c *Config) VSphereConfigured() bool {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:         getEnv("PORT", "8080"),
-		CacheTTL:     getEnvInt("CACHE_TTL", 300),
-		DashboardTTL: getEnvInt("DASHBOARD_CACHE_TTL", 30),
-		AuthMode:     getEnv("AUTH_MODE", "optional"),
+		Port:               getEnv("PORT", "8080"),
+		CacheTTL:           getEnvInt("CACHE_TTL", 300),
+		DashboardTTL:       getEnvInt("DASHBOARD_CACHE_TTL", 30),
+		AuthMode:           getEnv("AUTH_MODE", "optional"),
+		CORSAllowedOrigins: getEnvStringList("CORS_ALLOWED_ORIGINS"),
 
 		CFAPIUrl:   ensureScheme(os.Getenv("CF_API_URL")),
 		CFUsername: os.Getenv("CF_USERNAME"),
@@ -114,6 +116,22 @@ func getEnvBool(key string, defaultValue bool) bool {
 		}
 	}
 	return defaultValue
+}
+
+func getEnvStringList(key string) []string {
+	value := os.Getenv(key)
+	if value == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
 
 // ensureScheme adds https:// prefix if the URL has no scheme
