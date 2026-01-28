@@ -180,6 +180,9 @@ func (h *Handler) GetInfrastructureStatus(w http.ResponseWriter, r *http.Request
 // PlanInfrastructure calculates max deployable cells given IaaS capacity.
 // HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) PlanInfrastructure(w http.ResponseWriter, r *http.Request) {
+	// Limit request body size FIRST to prevent DOS attacks (Issue #68)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+
 	h.infraMutex.RLock()
 	state := h.infrastructureState
 	h.infraMutex.RUnlock()
@@ -188,9 +191,6 @@ func (h *Handler) PlanInfrastructure(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, "No infrastructure data. Load via /api/v1/infrastructure or /api/v1/infrastructure/manual first.", http.StatusBadRequest)
 		return
 	}
-
-	// Limit request body size to prevent DOS attacks (Issue #68)
-	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
 
 	var input models.PlanningInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
