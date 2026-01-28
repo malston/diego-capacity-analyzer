@@ -24,6 +24,7 @@ type Handler struct {
 	infrastructureState *models.InfrastructureState
 	scenarioCalc        *services.ScenarioCalculator
 	planningCalc        *services.PlanningCalculator
+	sessionService      *services.SessionService
 	infraMutex          sync.RWMutex
 }
 
@@ -94,4 +95,9 @@ func (h *Handler) writeErrorWithDetails(w http.ResponseWriter, message, details 
 		Details: details,
 		Code:    code,
 	})
+}
+
+// SetSessionService sets the session service for auth handlers
+func (h *Handler) SetSessionService(svc *services.SessionService) {
+	h.sessionService = svc
 }

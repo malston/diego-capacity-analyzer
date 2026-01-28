@@ -1,11 +1,9 @@
-/**
- * Authentication Context
- * Provides authentication state and methods to React components
- */
+// ABOUTME: Authentication context providing auth state to React components
+// ABOUTME: Uses BFF OAuth pattern with backend session management
 
-import { createContext, useContext, useState, useEffect } from 'react';
-import { cfAuth } from '../services/cfAuth';
-import { cfApi } from '../services/cfApi';
+import { createContext, useContext, useState, useEffect } from "react";
+import { cfAuth } from "../services/cfAuth";
+import { cfApi } from "../services/cfApi";
 
 const AuthContext = createContext(null);
 
@@ -15,18 +13,24 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Check authentication status on mount
+  // Check authentication status on mount via backend /api/v1/auth/me
   useEffect(() => {
-    const checkAuth = () => {
-      const authenticated = cfAuth.isAuthenticated();
-      setIsAuthenticated(authenticated);
-      
-      if (authenticated) {
-        const userInfo = cfAuth.getUserInfo();
-        setUser(userInfo);
+    const checkAuth = async () => {
+      try {
+        const authenticated = await cfAuth.isAuthenticated();
+        setIsAuthenticated(authenticated);
+
+        if (authenticated) {
+          const userInfo = await cfAuth.getUserInfo();
+          setUser(userInfo);
+        }
+      } catch (err) {
+        console.warn("Auth check failed:", err.message);
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     checkAuth();
@@ -34,20 +38,20 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Login with username and password
-   * @param {string} username 
-   * @param {string} password 
+   * @param {string} username
+   * @param {string} password
    */
   const login = async (username, password) => {
     try {
       setLoading(true);
       setError(null);
-      
+
       await cfAuth.login(username, password);
-      
-      const userInfo = cfAuth.getUserInfo();
+
+      const userInfo = await cfAuth.getUserInfo();
       setUser(userInfo);
       setIsAuthenticated(true);
-      
+
       return { success: true };
     } catch (err) {
       setError(err.message);
@@ -62,8 +66,8 @@ export const AuthProvider = ({ children }) => {
   /**
    * Logout and clear authentication
    */
-  const logout = () => {
-    cfAuth.logout();
+  const logout = async () => {
+    await cfAuth.logout();
     setIsAuthenticated(false);
     setUser(null);
     setError(null);
@@ -77,7 +81,7 @@ export const AuthProvider = ({ children }) => {
       await cfApi.getInfo();
       return { success: true };
     } catch (err) {
-      throw new Error('Could not connect to Cloud Foundry API: ' + err.message);
+      throw new Error("Could not connect to Cloud Foundry API: " + err.message);
     }
   };
 
@@ -91,11 +95,7 @@ export const AuthProvider = ({ children }) => {
     verifyConnection,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 /**
@@ -104,10 +104,10 @@ export const AuthProvider = ({ children }) => {
  */
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  
+
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error("useAuth must be used within AuthProvider");
   }
-  
+
   return context;
 };
