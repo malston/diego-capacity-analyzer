@@ -4,9 +4,11 @@
 package handlers
 
 import (
+	"crypto/tls"
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 // getSessionToken retrieves the CF access token from the session cookie.
@@ -49,7 +51,12 @@ func (h *Handler) proxyCFRequest(w http.ResponseWriter, cfPath, token string) {
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: h.cfg.CFSkipSSLValidation},
+		},
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		slog.Error("CF proxy: request failed", "url", cfURL, "error", err)
@@ -67,7 +74,9 @@ func (h *Handler) proxyCFRequest(w http.ResponseWriter, cfPath, token string) {
 
 	// Stream the response
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		slog.Error("CF proxy: failed while streaming response body", "error", err, "status", resp.StatusCode, "url", cfURL)
+	}
 }
 
 // CFProxyIsolationSegments proxies GET /v3/isolation_segments to CF API.

@@ -60,12 +60,24 @@ class CFApiService {
       cfPath = cfPath.substring(v3Index);
     }
 
-    return cfPath
-      .replace("/v3/isolation_segments", "/api/v1/cf/isolation-segments")
-      .replace("/v3/apps", "/api/v1/cf/apps")
-      .replace("/v3/processes", "/api/v1/cf/processes")
-      .replace("/v3/spaces", "/api/v1/cf/spaces")
-      .replace("/v3/info", "/api/v1/cf/info");
+    // Use startsWith to avoid unintended replacements in edge cases
+    // (e.g., paths like "/v3/apps/v3/apps-test" would be incorrectly replaced by chained .replace())
+    const mappings = [
+      ["/v3/isolation_segments", "/api/v1/cf/isolation-segments"],
+      ["/v3/apps", "/api/v1/cf/apps"],
+      ["/v3/processes", "/api/v1/cf/processes"],
+      ["/v3/spaces", "/api/v1/cf/spaces"],
+      ["/v3/info", "/api/v1/cf/info"],
+    ];
+
+    for (const [cfPrefix, proxyPrefix] of mappings) {
+      if (cfPath.startsWith(cfPrefix)) {
+        return proxyPrefix + cfPath.substring(cfPrefix.length);
+      }
+    }
+
+    // If no mapping applies, return the path unchanged
+    return cfPath;
   }
 
   /**

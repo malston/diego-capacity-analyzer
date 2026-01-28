@@ -93,8 +93,10 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	// Get session ID from cookie
 	cookie, err := r.Cookie(sessionCookieName)
 	if err == nil && cookie.Value != "" {
-		// Delete session from cache
-		h.sessionService.Delete(cookie.Value)
+		// Delete session from cache (if sessionService is configured)
+		if h.sessionService != nil {
+			h.sessionService.Delete(cookie.Value)
+		}
 	}
 
 	// Clear cookie
@@ -220,6 +222,10 @@ func (h *Handler) getUAAURL(client *http.Client) (string, error) {
 
 // getSessionFromCookie retrieves the session from the request cookie
 func (h *Handler) getSessionFromCookie(r *http.Request) *models.Session {
+	if h.sessionService == nil {
+		return nil
+	}
+
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
 		return nil

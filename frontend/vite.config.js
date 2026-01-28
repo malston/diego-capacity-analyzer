@@ -1,6 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+// Backend API URL for development proxy (configurable via environment variable)
+const API_TARGET = process.env.VITE_API_URL || "http://localhost:8080";
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -9,7 +12,7 @@ export default defineConfig({
     open: true,
     proxy: {
       "/api": {
-        target: "http://localhost:8080",
+        target: API_TARGET,
         changeOrigin: true,
       },
     },
