@@ -13,17 +13,9 @@ import (
 // CompareScenario compares current infrastructure against a proposed scenario.
 // HTTP method validation handled by Go 1.22+ router pattern matching.
 func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
-	// Limit request body size FIRST to prevent DOS attacks (Issue #68)
+	// Limit request body size to prevent DOS attacks (Issue #68)
+	// MaxBytesReader only triggers on read, so decode body FIRST before state check
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
-
-	h.infraMutex.RLock()
-	state := h.infrastructureState
-	h.infraMutex.RUnlock()
-
-	if state == nil {
-		h.writeError(w, "No infrastructure data. Set via /api/v1/infrastructure/manual first.", http.StatusBadRequest)
-		return
-	}
 
 	var input models.ScenarioInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -33,6 +25,15 @@ func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.writeError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	h.infraMutex.RLock()
+	state := h.infrastructureState
+	h.infraMutex.RUnlock()
+
+	if state == nil {
+		h.writeError(w, "No infrastructure data. Set via /api/v1/infrastructure/manual first.", http.StatusBadRequest)
 		return
 	}
 
