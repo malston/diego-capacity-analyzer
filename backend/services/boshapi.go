@@ -478,6 +478,9 @@ func (b *BOSHClient) getDeployments() ([]string, error) {
 
 // getCellsForDeployment fetches Diego cells for a specific deployment
 func (b *BOSHClient) getCellsForDeployment(deployment string) ([]models.DiegoCell, error) {
+	if err := ValidateDeploymentName(deployment); err != nil {
+		return nil, fmt.Errorf("invalid deployment name: %w", err)
+	}
 	reqURL := fmt.Sprintf("%s/deployments/%s/vms?format=full", b.environment, deployment)
 
 	req, err := http.NewRequest("GET", reqURL, nil)
