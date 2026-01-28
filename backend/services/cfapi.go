@@ -103,7 +103,7 @@ func (c *CFClient) Authenticate() error {
 	}
 
 	c.token = tokenResp.AccessToken
-	slog.Info("CF API authentication successful", "api_url", c.apiURL)
+	slog.Info("CF API authentication successful")
 
 	// Initialize Log Cache client with the same token and SSL settings
 	c.logCache = NewLogCacheClient(c.apiURL, c.token, c.skipSSLVerify)

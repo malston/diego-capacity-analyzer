@@ -408,7 +408,8 @@ func (b *BOSHClient) GetDiegoCells() ([]models.DiegoCell, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deployments: %w", err)
 	}
-	slog.Info("Found deployments to query", "count", len(deployments), "deployments", deployments)
+	slog.Info("Found deployments to query", "count", len(deployments))
+	slog.Debug("Deployment names", "deployments", deployments)
 
 	var allCells []models.DiegoCell
 	for _, deployment := range deployments {
@@ -526,12 +527,15 @@ func (b *BOSHClient) getCellsForDeployment(deployment string) ([]models.DiegoCel
 		isolationSegment = "isolated"
 	}
 
-	// Log all VM job names for debugging
-	var jobNames []string
-	for _, vm := range vms {
-		jobNames = append(jobNames, vm.JobName)
+	slog.Info("VMs found in deployment", "vm_count", len(vms))
+	// Log detailed job names at DEBUG level only
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		var jobNames []string
+		for _, vm := range vms {
+			jobNames = append(jobNames, vm.JobName)
+		}
+		slog.Debug("VM details", "deployment", deployment, "job_names", jobNames)
 	}
-	slog.Info("VMs found in deployment", "deployment", deployment, "vm_count", len(vms), "job_names", jobNames)
 
 	var cells []models.DiegoCell
 	for _, vm := range vms {
