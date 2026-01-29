@@ -28,6 +28,9 @@
         .reveal .good { color: #00cc66; }
         .reveal .warn { color: #ffcc00; }
         .reveal .bad { color: #ff6666; }
+        .reveal .blue { color: #3b82f6; }
+        .reveal .green { color: #10b981; }
+        .reveal .gray { color: #64748b; }
         .reveal .formula { font-family: 'Courier New', monospace; background: #1a1a3e; padding: 0.4em 0.8em; border-radius: 8px; display: inline-block; font-size: 0.9em; }
         .reveal .feature-box { background: #1a1a3e; border-left: 4px solid #00cc66; padding: 0.6em 0.8em; margin: 0.3em 0; text-align: left; border-radius: 0 8px 8px 0; font-size: 0.85em; }
         .reveal .feature-box p { margin: 0.2em 0; }
@@ -89,12 +92,12 @@
                 <div class="feature-box">
                     <p>Stacked bar chart per isolation segment:</p>
                     <ul>
-                        <li><span class="good">■ Used</span> — Actually consumed by apps</li>
-                        <li><span class="warn">■ Allocated Unused</span> — Reserved but idle (waste!)</li>
-                        <li>■ Available — Free for new apps</li>
+                        <li><span class="blue">■ Used</span> — Actually consumed by apps</li>
+                        <li><span class="green">■ Allocated Unused</span> — Reserved but idle (waste!)</li>
+                        <li><span class="gray">■ Available</span> — Free for new apps</li>
                     </ul>
                 </div>
-                <div class="tip">💡 Lots of yellow = apps are over-provisioned. Right-size them!</div>
+                <div class="tip">💡 Lots of green = apps are over-provisioned. Right-size them!</div>
                 <aside class="notes">The gap between allocated and used is your savings opportunity.</aside>
             </section>
 
