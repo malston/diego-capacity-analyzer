@@ -104,11 +104,22 @@ describe("calculateWhatIfMetrics", () => {
     expect(result.avgInstanceSize).toBe(1024);
   });
 
-  it("falls back to 512MB when avgInstanceSize is zero", () => {
+  it("falls back to 512MB when avgInstanceSize is zero and no instances", () => {
     const result = calculateWhatIfMetrics(32768, 1.0, 0, 0);
 
     expect(result.potentialInstances).toBe(64); // 32768 / 512 (fallback)
     expect(result.avgInstanceSize).toBe(512);
+  });
+
+  it("falls back to 512MB when instances exist but have zero requested memory", () => {
+    // Edge case: apps exist but totalAppMemoryRequested = 0 (misconfigured apps)
+    // currentInstances = 10, but avgInstanceSize = 0
+    const result = calculateWhatIfMetrics(32768, 1.0, 10, 0);
+
+    // Should fall back to 512MB, not cause division by zero
+    expect(result.avgInstanceSize).toBe(512);
+    expect(result.potentialInstances).toBe(64); // 32768 / 512
+    expect(result.additionalInstances).toBe(54); // 64 - 10
   });
 
   it("calculates additional instances correctly with custom average", () => {

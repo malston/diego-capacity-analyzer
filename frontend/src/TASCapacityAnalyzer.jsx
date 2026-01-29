@@ -24,6 +24,7 @@ import MetricCards from "./components/MetricCards";
 import WhatIfPanel from "./components/WhatIfPanel";
 import CellDetailTable from "./components/CellDetailTable";
 import { mockData } from "./data/mockData";
+import { calculateWhatIfMetrics } from "./utils/metricsCalculations";
 import "./TASCapacityAnalyzer.css";
 
 // Dev mode: enabled via ?dev=true query param or Vite dev server
@@ -162,16 +163,22 @@ Check browser console (F12) for details.`;
     );
     const unusedMemory = totalAppMemoryRequested - totalAppMemoryUsed;
 
-    // What-if calculations
+    // What-if calculations using utility function for single source of truth
     const currentInstances = filteredApps.reduce(
       (sum, a) => sum + a.instances,
       0,
     );
     // Calculate actual average instance size from apps data
-    const avgInstanceSize =
-      currentInstances > 0 ? totalAppMemoryRequested / currentInstances : 512; // Fall back to 512MB if no instances
-    const newCapacity = totalMemory * overcommitRatio;
-    const potentialInstances = Math.floor(newCapacity / avgInstanceSize);
+    const rawAvgInstanceSize =
+      currentInstances > 0 && totalAppMemoryRequested > 0
+        ? totalAppMemoryRequested / currentInstances
+        : 0; // Let utility function handle fallback
+    const whatIfMetrics = calculateWhatIfMetrics(
+      totalMemory,
+      overcommitRatio,
+      currentInstances,
+      rawAvgInstanceSize,
+    );
 
     return {
       totalCells: filteredCells.length,
@@ -179,16 +186,20 @@ Check browser console (F12) for details.`;
       totalAllocated,
       totalUsed,
       avgCpu,
-      utilizationPercent: (totalUsed / totalMemory) * 100,
-      allocationPercent: (totalAllocated / totalMemory) * 100,
+      utilizationPercent: totalMemory > 0 ? (totalUsed / totalMemory) * 100 : 0,
+      allocationPercent:
+        totalMemory > 0 ? (totalAllocated / totalMemory) * 100 : 0,
       unusedMemory,
-      unusedPercent: (unusedMemory / totalAppMemoryRequested) * 100,
+      unusedPercent:
+        totalAppMemoryRequested > 0
+          ? (unusedMemory / totalAppMemoryRequested) * 100
+          : 0,
       totalApps: filteredApps.length,
       totalInstances: currentInstances,
-      avgInstanceSize: Math.round(avgInstanceSize),
-      newCapacity,
-      potentialInstances,
-      additionalInstances: potentialInstances - currentInstances,
+      avgInstanceSize: Math.round(whatIfMetrics.avgInstanceSize),
+      newCapacity: whatIfMetrics.newCapacity,
+      potentialInstances: whatIfMetrics.potentialInstances,
+      additionalInstances: whatIfMetrics.additionalInstances,
     };
   }, [overcommitRatio, selectedSegment, data]);
 
