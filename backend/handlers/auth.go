@@ -119,9 +119,28 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Implement token refresh using refresh_token
-	// For now, just return success (token still valid but nearing expiry)
-	h.writeJSON(w, http.StatusOK, map[string]bool{"refreshed": false})
+	// Refresh the token with UAA
+	tokenResp, err := h.refreshWithCFUAA(session.RefreshToken)
+	if err != nil {
+		slog.Warn("Token refresh failed", "error", err)
+		// Delete session to force re-login (per issue #85 acceptance criteria)
+		h.sessionService.Delete(session.ID)
+		h.clearSessionCookie(w)
+		h.writeError(w, "Token refresh failed", http.StatusUnauthorized)
+		return
+	}
+
+	// Calculate new token expiry
+	expiry := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+
+	// Update session with new tokens (use session.ID, not re-reading cookie)
+	if err := h.sessionService.UpdateTokens(session.ID, tokenResp.AccessToken, tokenResp.RefreshToken, expiry); err != nil {
+		slog.Error("Failed to update session tokens", "error", err)
+		h.writeError(w, "Failed to update session", http.StatusInternalServerError)
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]bool{"refreshed": true})
 }
 
 // uaaTokenResponse represents the OAuth token response from CF UAA
@@ -131,6 +150,58 @@ type uaaTokenResponse struct {
 	TokenType    string `json:"token_type"`
 	ExpiresIn    int    `json:"expires_in"`
 	UserID       string `json:"user_id"`
+}
+
+// refreshWithCFUAA performs OAuth2 refresh_token grant with CF UAA
+func (h *Handler) refreshWithCFUAA(refreshToken string) (*uaaTokenResponse, error) {
+	if h.cfg == nil || h.cfg.CFAPIUrl == "" {
+		return nil, fmt.Errorf("CF API not configured")
+	}
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: h.cfg.CFSkipSSLValidation},
+		},
+	}
+
+	// Get UAA URL from CF API info
+	uaaURL, err := h.getUAAURL(client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get UAA URL: %w", err)
+	}
+
+	// Request new tokens using refresh_token grant
+	data := url.Values{}
+	data.Set("grant_type", "refresh_token")
+	data.Set("refresh_token", refreshToken)
+
+	req, err := http.NewRequest("POST", uaaURL+"/oauth/token", strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create refresh request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("cf", "")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("refresh request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// Limit read size for safety; don't log response body (may contain sensitive data)
+		_, _ = io.ReadAll(io.LimitReader(resp.Body, 10*1024))
+		return nil, fmt.Errorf("token refresh failed (status %d)", resp.StatusCode)
+	}
+
+	var tokenResp uaaTokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return nil, fmt.Errorf("failed to parse token response: %w", err)
+	}
+
+	return &tokenResp, nil
 }
 
 // authenticateWithCFUAA performs OAuth2 password grant with CF UAA
@@ -174,8 +245,9 @@ func (h *Handler) authenticateWithCFUAA(username, password string) (*uaaTokenRes
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("authentication failed (status %d): %s", resp.StatusCode, string(body))
+		// Limit read size for safety; don't log response body (may contain sensitive data)
+		_, _ = io.ReadAll(io.LimitReader(resp.Body, 10*1024))
+		return nil, fmt.Errorf("authentication failed (status %d)", resp.StatusCode)
 	}
 
 	var tokenResp uaaTokenResponse
