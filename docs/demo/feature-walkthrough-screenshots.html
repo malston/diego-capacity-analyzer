@@ -226,7 +226,7 @@
             <section>
                 <h2>Capacity Planning Overview</h2>
                 <img src="../images/capacity-planning.gif" alt="Capacity Planning" class="screenshot">
-                <aside class="notes">This is the scenario analysis wizard. Load data, configure cells, see if it fits.</aside>
+                <aside class="notes">This is the scenario analysis wizard. Three ways to load data: (1) vSphere Live — connects to vCenter API to query hosts, clusters, memory, CPU threads, and Diego cell VMs in real-time; (2) Upload JSON — import a saved infrastructure file or select from sample configurations; (3) Manual Entry — form-based input for custom scenarios. The demo uses sample JSON data.</aside>
             </section>
 
             <section>
@@ -238,7 +238,7 @@
                     <div class="callout-item"><span class="number-badge">3</span> <strong>Total vCPUs</strong> — 960 logical CPUs (threads) available</div>
                     <div class="callout-item"><span class="number-badge">4</span> <strong>Max Cells</strong> — 240 (cpu-limited)</div>
                 </div>
-                <aside class="notes">Shows infrastructure capacity. Note "cpu-limited" — CPU is the bottleneck here.</aside>
+                <aside class="notes">IaaS Capacity shows physical infrastructure limits. Data collected: host count per cluster, total RAM (Summary.Hardware.MemorySize), logical CPUs (Summary.Hardware.NumCpuThreads which includes hyperthreading), and Diego cell VM inventory (matched by name pattern diego_cell*, compute*). Max Cells is calculated from HA-usable memory divided by cell size.</aside>
             </section>
 
             <section>
@@ -253,7 +253,7 @@
                     </ul>
                 </div>
                 <p><small>⚠️ "Proposed exceeds by 260" — current config is over capacity!</small></p>
-                <aside class="notes">This shows what's currently deployed. Red warning = exceeds max cells.</aside>
+                <aside class="notes">Current Configuration is auto-populated from loaded data. From vSphere: counts Diego cell VMs and reads their vCPU/memory from VM config. From JSON: uses diego_cell_count, diego_cell_cpu, diego_cell_memory fields. Memory/disk totals = cell count × cell size. Red warning appears when proposed cells exceed max deployable cells.</aside>
             </section>
 
             <section>
