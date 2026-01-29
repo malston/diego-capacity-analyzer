@@ -28,6 +28,9 @@
         .reveal .good { color: #00cc66; }
         .reveal .warn { color: #ffcc00; }
         .reveal .bad { color: #ff6666; }
+        .reveal .blue { color: #3b82f6; }
+        .reveal .green { color: #10b981; }
+        .reveal .gray { color: #64748b; }
         .reveal .formula { font-family: 'Courier New', monospace; background: #1a1a3e; padding: 0.4em 0.8em; border-radius: 8px; display: inline-block; font-size: 0.9em; }
         .reveal .feature-box { background: #1a1a3e; border-left: 4px solid #00cc66; padding: 0.6em 0.8em; margin: 0.3em 0; text-align: left; border-radius: 0 8px 8px 0; font-size: 0.85em; }
         .reveal .feature-box p { margin: 0.2em 0; }
@@ -146,9 +149,9 @@
                     <div class="feature-box">
                         <p><strong>Stacked bars per cell:</strong></p>
                         <ul style="margin-left: 0; padding-left: 1em;">
-                            <li><span class="good">■ Blue</span> = Used memory</li>
-                            <li><span class="warn">■ Green</span> = Allocated unused</li>
-                            <li>■ Gray = Available</li>
+                            <li><span class="blue">■ Blue</span> = Used memory</li>
+                            <li><span class="green">■ Green</span> = Allocated unused</li>
+                            <li><span class="gray">■ Gray</span> = Available</li>
                         </ul>
                         <p style="margin-top: 0.5em;"><em>Large green bars = right-sizing opportunity!</em></p>
                     </div>
@@ -192,7 +195,7 @@
                 <h2>What-If Mode</h2>
                 <img src="../images/tas-what-if-mode.gif" alt="What-If Mode" class="screenshot">
                 <div class="tip">💡 Toggle "What-If Mode" → drag slider to model memory overcommit</div>
-                <aside class="notes">This is the "aha" moment. Show how capacity changes as you overcommit.</aside>
+                <aside class="notes">This is the "aha" moment. Show how capacity changes as you overcommit. To apply: Ops Manager → TAS tile → Advanced Features → "Diego Cell memory capacity" field (in MB). Example: 32 GB cell × 1.5x = 49152 MB. VMware has no official recommendation — use this tool to model before changing.</aside>
             </section>
 
             <section>
@@ -223,7 +226,7 @@
             <section>
                 <h2>Capacity Planning Overview</h2>
                 <img src="../images/capacity-planning.gif" alt="Capacity Planning" class="screenshot">
-                <aside class="notes">This is the scenario analysis wizard. Load data, configure cells, see if it fits.</aside>
+                <aside class="notes">This is the scenario analysis wizard. Three ways to load data: (1) vSphere Live — connects to vCenter API to query hosts, clusters, memory, CPU threads, and Diego cell VMs in real-time; (2) Upload JSON — import a saved infrastructure file or select from sample configurations; (3) Manual Entry — form-based input for custom scenarios. The demo uses sample JSON data.</aside>
             </section>
 
             <section>
@@ -232,10 +235,10 @@
                 <div class="callout">
                     <div class="callout-item"><span class="number-badge">1</span> <strong>Hosts</strong> — 15 across 2 clusters</div>
                     <div class="callout-item"><span class="number-badge">2</span> <strong>Memory</strong> — 30.7 TB (N-1: 26.6T)</div>
-                    <div class="callout-item"><span class="number-badge">3</span> <strong>vCPUs</strong> — 960 pCores</div>
+                    <div class="callout-item"><span class="number-badge">3</span> <strong>Total vCPUs</strong> — 960 logical CPUs (threads) available</div>
                     <div class="callout-item"><span class="number-badge">4</span> <strong>Max Cells</strong> — 240 (cpu-limited)</div>
                 </div>
-                <aside class="notes">Shows infrastructure capacity. Note "cpu-limited" — CPU is the bottleneck here.</aside>
+                <aside class="notes">IaaS Capacity shows physical infrastructure limits. Data collected: host count per cluster, total RAM (Summary.Hardware.MemorySize), logical CPUs (Summary.Hardware.NumCpuThreads which includes hyperthreading), and Diego cell VM inventory (matched by name pattern diego_cell*, compute*). Max Cells is calculated from HA-usable memory divided by cell size.</aside>
             </section>
 
             <section>
@@ -245,11 +248,12 @@
                     <p><strong>From loaded data:</strong></p>
                     <ul>
                         <li>500 cells (4 vCPU × 32 GB each)</li>
-                        <li>16.0 TB memory · 64.0 TB disk</li>
+                        <li>16.0 TB memory</li>
+                        <li>64.0 TB disk</li>
                     </ul>
                 </div>
                 <p><small>⚠️ "Proposed exceeds by 260" — current config is over capacity!</small></p>
-                <aside class="notes">This shows what's currently deployed. Red warning = exceeds max cells.</aside>
+                <aside class="notes">Current Configuration is auto-populated from loaded data. From vSphere: counts Diego cell VMs and reads their vCPU/memory from VM config. From JSON: uses diego_cell_count, diego_cell_cpu, diego_cell_memory fields. Memory/disk totals = cell count × cell size. Red warning appears when proposed cells exceed max deployable cells.</aside>
             </section>
 
             <section>

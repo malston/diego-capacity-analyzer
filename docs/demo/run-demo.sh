@@ -92,7 +92,6 @@ start_backend() {
     local port="${BACKEND_PORT:-8080}"
     if port_in_use "$port"; then
         log_warn "Backend port $port already in use — skipping (using existing service)"
-        BACKEND_SKIPPED=true
         return 0
     fi
 
@@ -117,7 +116,6 @@ start_frontend() {
     local port="${FRONTEND_PORT:-5173}"
     if port_in_use "$port"; then
         log_warn "Frontend port $port already in use — skipping (using existing service)"
-        FRONTEND_SKIPPED=true
         return 0
     fi
 
@@ -140,7 +138,6 @@ start_slides() {
     local port="${SLIDES_PORT:-8888}"
     if port_in_use "$port"; then
         log_warn "Slides port $port already in use — skipping (using existing service)"
-        SLIDES_SKIPPED=true
         return 0
     fi
 

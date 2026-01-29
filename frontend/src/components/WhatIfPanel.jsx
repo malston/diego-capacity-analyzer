@@ -71,7 +71,7 @@ const WhatIfPanel = ({ overcommitRatio, setOvercommitRatio, metrics }) => {
 
         <div className="space-y-3">
           <div className="flex justify-between items-center p-3 bg-slate-800/50 rounded-lg">
-            <span className="text-slate-400">New Capacity:</span>
+            <span className="text-slate-400">Capacity:</span>
             <span className="text-white font-bold">
               {(metrics.newCapacity / 1024).toFixed(1)} GB
             </span>
@@ -82,10 +82,37 @@ const WhatIfPanel = ({ overcommitRatio, setOvercommitRatio, metrics }) => {
               {metrics.totalInstances}
             </span>
           </div>
-          <div className="flex justify-between items-center p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-            <span className="text-green-400">Additional Capacity:</span>
-            <span className="text-green-400 font-bold">
-              +{metrics.additionalInstances} instances
+          <div className="flex justify-between items-center p-3 bg-slate-800/50 rounded-lg">
+            <span className="text-slate-400">Avg Instance Size:</span>
+            <span className="text-white font-bold">
+              {metrics.avgInstanceSize} MB
+            </span>
+          </div>
+          <div
+            className={`flex justify-between items-center p-3 rounded-lg ${
+              metrics.additionalInstances >= 0
+                ? "bg-green-500/10 border border-green-500/30"
+                : "bg-red-500/10 border border-red-500/30"
+            }`}
+          >
+            <span
+              className={
+                metrics.additionalInstances >= 0
+                  ? "text-green-400"
+                  : "text-red-400"
+              }
+            >
+              Additional Capacity:
+            </span>
+            <span
+              className={`font-bold ${
+                metrics.additionalInstances >= 0
+                  ? "text-green-400"
+                  : "text-red-400"
+              }`}
+            >
+              {metrics.additionalInstances >= 0 ? "+" : ""}
+              {metrics.additionalInstances} instances
             </span>
           </div>
         </div>
