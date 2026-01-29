@@ -21,6 +21,12 @@ func (h *Handler) Routes() []Route {
 		{Method: http.MethodGet, Path: "/api/v1/health", Handler: h.Health, Public: true},
 		{Method: http.MethodGet, Path: "/api/v1/dashboard", Handler: h.Dashboard},
 
+		// Authentication (public - handles own auth)
+		{Method: http.MethodPost, Path: "/api/v1/auth/login", Handler: h.Login, Public: true},
+		{Method: http.MethodGet, Path: "/api/v1/auth/me", Handler: h.Me, Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/auth/logout", Handler: h.Logout, Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/auth/refresh", Handler: h.Refresh, Public: true},
+
 		// Infrastructure
 		{Method: http.MethodGet, Path: "/api/v1/infrastructure", Handler: h.GetInfrastructure},
 		{Method: http.MethodPost, Path: "/api/v1/infrastructure/manual", Handler: h.SetManualInfrastructure},
@@ -35,6 +41,14 @@ func (h *Handler) Routes() []Route {
 		// Analysis
 		{Method: http.MethodGet, Path: "/api/v1/bottleneck", Handler: h.AnalyzeBottleneck},
 		{Method: http.MethodGet, Path: "/api/v1/recommendations", Handler: h.GetRecommendations},
+
+		// CF API Proxy (requires valid session - tokens never exposed to frontend)
+		{Method: http.MethodGet, Path: "/api/v1/cf/isolation-segments", Handler: h.CFProxyIsolationSegments},
+		{Method: http.MethodGet, Path: "/api/v1/cf/isolation-segments/{guid}", Handler: h.CFProxyIsolationSegmentByGUID},
+		{Method: http.MethodGet, Path: "/api/v1/cf/apps", Handler: h.CFProxyApps},
+		{Method: http.MethodGet, Path: "/api/v1/cf/apps/{guid}/processes", Handler: h.CFProxyAppProcesses},
+		{Method: http.MethodGet, Path: "/api/v1/cf/processes/{guid}/stats", Handler: h.CFProxyProcessStats},
+		{Method: http.MethodGet, Path: "/api/v1/cf/spaces/{guid}", Handler: h.CFProxySpaces},
 
 		// Documentation (public - no auth required)
 		{Method: http.MethodGet, Path: "/api/v1/openapi.yaml", Handler: h.OpenAPISpec, Public: true},

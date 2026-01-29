@@ -16,6 +16,7 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/backend/handlers"
 	"github.com/markalston/diego-capacity-analyzer/backend/logger"
 	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
+	"github.com/markalston/diego-capacity-analyzer/backend/services"
 )
 
 func main() {
@@ -64,21 +65,37 @@ func main() {
 		slog.Info("vSphere not configured, manual mode only")
 	}
 
-	// Configure authentication middleware
+	// Initialize cache
+	cacheTTL := time.Duration(cfg.CacheTTL) * time.Second
+	c := cache.New(cacheTTL)
+	slog.Info("Cache initialized", "ttl", cacheTTL)
+
+	// Initialize session service for BFF OAuth pattern
+	sessionService := services.NewSessionService(c)
+	slog.Info("Session service initialized")
+
+	// Configure authentication middleware with session cookie support
 	authMode, err := middleware.ValidateAuthMode(cfg.AuthMode)
 	if err != nil {
 		slog.Error("Invalid AUTH_MODE", "error", err)
 		os.Exit(1)
 	}
+	// Session validator function for auth middleware
+	sessionValidator := func(sessionID string) *middleware.UserClaims {
+		session, err := sessionService.Get(sessionID)
+		if err != nil {
+			return nil
+		}
+		return &middleware.UserClaims{
+			Username: session.Username,
+			UserID:   session.UserID,
+		}
+	}
 	authCfg := middleware.AuthConfig{
-		Mode: authMode,
+		Mode:             authMode,
+		SessionValidator: sessionValidator,
 	}
 	slog.Info("Auth mode configured", "mode", authMode)
-
-	// Initialize cache
-	cacheTTL := time.Duration(cfg.CacheTTL) * time.Second
-	c := cache.New(cacheTTL)
-	slog.Info("Cache initialized", "ttl", cacheTTL)
 
 	// Configure CORS middleware with allowed origins
 	corsMiddleware := middleware.CORSWithConfig(cfg.CORSAllowedOrigins)
@@ -90,6 +107,7 @@ func main() {
 
 	// Initialize handlers
 	h := handlers.NewHandler(cfg, c)
+	h.SetSessionService(sessionService)
 
 	// Register all routes with middleware
 	mux := http.NewServeMux()

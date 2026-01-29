@@ -18,7 +18,6 @@ import {
 import { Server, Zap, TrendingUp, AlertTriangle, Layers } from "lucide-react";
 import { useAuth } from "./contexts/AuthContext";
 import { cfApi } from "./services/cfApi";
-import { cfAuth } from "./services/cfAuth";
 import ScenarioAnalyzer from "./components/ScenarioAnalyzer";
 import Header from "./components/Header";
 import MetricCards from "./components/MetricCards";
@@ -54,19 +53,11 @@ const TASCapacityAnalyzer = () => {
 
     try {
       const apiURL = import.meta.env.VITE_API_URL || "http://localhost:8080";
-      const headers = { "Content-Type": "application/json" };
 
-      // Include auth token if authenticated
-      if (cfAuth.isAuthenticated()) {
-        try {
-          const token = await cfAuth.getToken();
-          headers["Authorization"] = `Bearer ${token}`;
-        } catch (err) {
-          console.warn("Failed to get auth token:", err.message);
-        }
-      }
-
-      const response = await fetch(`${apiURL}/api/v1/dashboard`, { headers });
+      const response = await fetch(`${apiURL}/api/v1/dashboard`, {
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
 
       if (!response.ok) {
         throw new Error(`Backend returned ${response.status}`);

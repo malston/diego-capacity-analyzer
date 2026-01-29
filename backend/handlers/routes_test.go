@@ -54,6 +54,11 @@ func TestRoutes_PublicEndpointsMarked(t *testing.T) {
 	expectedPublic := map[string]bool{
 		"/api/v1/health":       true,
 		"/api/v1/openapi.yaml": true,
+		// Auth endpoints handle their own authentication
+		"/api/v1/auth/login":   true,
+		"/api/v1/auth/me":      true,
+		"/api/v1/auth/logout":  true,
+		"/api/v1/auth/refresh": true,
 	}
 
 	for _, route := range routes {
