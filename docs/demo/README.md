@@ -5,11 +5,8 @@ Presentation and reference materials for demoing the Diego Capacity Analyzer.
 ## Quick Start
 
 ```bash
-# Run the demo (starts backend + frontend, opens browser)
+# Run the demo (starts backend + frontend, serve presentation slides on port 8888, opens browser)
 ./run-demo.sh
-
-# Also serve presentation slides on port 8888
-SLIDES=true ./run-demo.sh
 ```
 
 ## Files
@@ -31,7 +28,7 @@ The HTML slide decks use [Reveal.js](https://revealjs.com/) and need to be serve
 
 ```bash
 # Option 1: Use the demo script
-SLIDES=true ./run-demo.sh
+./run-demo.sh
 # Then open http://localhost:8888/demo/demo-slides.html
 
 # Option 2: Serve manually from project root
