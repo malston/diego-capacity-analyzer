@@ -238,7 +238,9 @@
                     <div class="callout-item"><span class="number-badge">3</span> <strong>Total vCPUs</strong> — 960 logical CPUs (threads) available</div>
                     <div class="callout-item"><span class="number-badge">4</span> <strong>Max Cells</strong> — 240 (cpu-limited)</div>
                 </div>
-                <aside class="notes">IaaS Capacity shows physical infrastructure limits. Data collected: host count per cluster, total RAM (Summary.Hardware.MemorySize), logical CPUs (Summary.Hardware.NumCpuThreads which includes hyperthreading), and Diego cell VM inventory (matched by name pattern diego_cell*, compute*). Max Cells is calculated from HA-usable memory divided by cell size.</aside>
+                <aside class="notes">IaaS Capacity shows physical infrastructure limits. Data collected: host count per cluster, total RAM (Summary.Hardware.MemorySize), logical CPUs (Summary.Hardware.NumCpuThreads which includes hyperthreading), and Diego cell VM inventory (matched by name pattern diego_cell*, compute*). Max Cells is calculated from HA-usable memory divided by cell size.
+
+**N-1 vs HA Capacity:** N-1 capacity = total minus the largest host's resources, ensuring you can survive losing any single host. vSphere HA Admission Control can reserve even more capacity for failover. Your vSphere admins control this policy -- they can configure "Percentage of cluster resources reserved" or "Dedicated failover hosts." This directly affects how much capacity TAS can actually use. Coordinate with your infrastructure team!</aside>
             </section>
 
             <section>
@@ -262,13 +264,13 @@
                 <div class="feature-box">
                     <p><strong>Resources to analyze:</strong></p>
                     <ul>
-                        <li><span class="good">✓ Memory</span> (always on)</li>
-                        <li><span class="good">✓ CPU</span></span></li>
+                        <li><span class="good">✓ Memory</span></li>
+                        <li><span class="good">✓ CPU</span></li>
                         <li><span class="good">✓ Disk</span></li>
                     </ul>
                     <p><strong>Disk per Cell:</strong> 128 GB default</p>
                 </div>
-                <aside class="notes">Select which resources matter for your scenario. Memory is always included.</aside>
+                <aside class="notes">Select which resources matter for your scenario. At least one resource must remain selected.</aside>
             </section>
 
             <section>
@@ -283,7 +285,7 @@
                     </table>
                 </div>
                 <div class="tip" style="margin-top: 0.5em;">💡 Cell presets: 4×32, 4×64, 8×64, 8×128, 16×128, 16×256</div>
-                <aside class="notes">Pick a preset or go custom. Bigger cells = fewer cells = less scheduler overhead.</aside>
+                <aside class="notes">Pick a preset or go custom. Bigger cells = fewer cells = less scheduler overhead, but bigger blast radius when a cell fails.</aside>
             </section>
 
             <section>
@@ -327,7 +329,9 @@
                     <li class="warn"><strong>Low staging capacity</strong> — < 10 free chunks</li>
                 </ul>
                 <div class="tip" style="margin-top: 0.5em;">💡 Check the Bottleneck Card to see which resource is constraining you</div>
-                <aside class="notes">The warnings tell you exactly what's wrong. Fix the bottleneck first.</aside>
+                <aside class="notes">The warnings tell you exactly what's wrong. Fix the bottleneck first.
+
+**N-1 vs HA capacity:** N-1 = total minus largest host. vSphere HA Admission Control may reserve even more. Your vSphere admins set this policy -- if you're hitting HA limits, talk to them about adjusting reserves or adding hosts.</aside>
             </section>
 
             <section>
