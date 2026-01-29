@@ -100,7 +100,7 @@ _Adjusting the Memory Overcommit Ratio slider to see capacity impact._
 | Metric                  | What It Means                                                                                                                                             |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Overcommit Ratio**    | Memory multiplier. 1.0x = no overcommit. 1.5x = sell 50% more capacity than physically exists.                                                            |
-| **New Capacity**        | Total cell memory × overcommit ratio. Example: 32 GB × 1.5x = 48 GB virtual capacity.                                                                     |
+| **Capacity**            | Total cell memory × overcommit ratio. At 1.0x this is actual capacity; at 1.5x it's 50% more virtual capacity.                                            |
 | **Current Instances**   | How many app instances are running now                                                                                                                    |
 | **Avg Instance Size**   | Average memory per instance, calculated from your actual apps (total requested memory ÷ total instances)                                                  |
 | **Additional Capacity** | How many more instances could fit with overcommit, based on your actual average instance size. Shows negative (red) if current workload exceeds capacity. |

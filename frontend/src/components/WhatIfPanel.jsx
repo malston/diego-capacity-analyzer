@@ -71,7 +71,7 @@ const WhatIfPanel = ({ overcommitRatio, setOvercommitRatio, metrics }) => {
 
         <div className="space-y-3">
           <div className="flex justify-between items-center p-3 bg-slate-800/50 rounded-lg">
-            <span className="text-slate-400">New Capacity:</span>
+            <span className="text-slate-400">Capacity:</span>
             <span className="text-white font-bold">
               {(metrics.newCapacity / 1024).toFixed(1)} GB
             </span>
