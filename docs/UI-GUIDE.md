@@ -118,6 +118,28 @@ _Adjusting the Memory Overcommit Ratio slider to see capacity impact._
 
 **Real-world example:** A Small Footprint TPCF lab might run 3.75x overcommit (61 GB advertised on a 16 GB cell) because lab apps have minimal utilization. This would cause OOM kills under production traffic.
 
+### Configuring Overcommit in TAS
+
+Memory overcommit is configured in Ops Manager under **TAS tile → Advanced Features**:
+
+| Field                          | Description                                                            |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| **Diego Cell memory capacity** | Total memory to advertise per cell (in MB). Overrides Resource Config. |
+| **Diego Cell disk capacity**   | Total disk to advertise per cell (in MB). Overrides Resource Config.   |
+
+**Example:** If your Diego Cell VMs have 32 GB RAM (32768 MB in Resource Config) but you want 1.5x overcommit, enter **49152** in the "Diego Cell memory capacity" field.
+
+**How to calculate:**
+
+```
+Overcommit Value (MB) = Cell VM Memory (MB) × Desired Ratio
+Example: 32768 MB × 1.5 = 49152 MB
+```
+
+> **Note:** VMware provides no specific recommendation for overcommit ratios due to the deployment-specific nature of workloads. Use the What-If Mode to model scenarios before making changes.
+
+For more details, see [Configure Advanced Features](https://techdocs.broadcom.com/us/en/vmware-tanzu/platform/tanzu-platform-for-cloud-foundry/6-0/tpcf/config-advanced-features.html) in the TAS documentation.
+
 ---
 
 # Scenario Analysis Tab
