@@ -88,10 +88,31 @@ const WhatIfPanel = ({ overcommitRatio, setOvercommitRatio, metrics }) => {
               {metrics.avgInstanceSize} MB
             </span>
           </div>
-          <div className="flex justify-between items-center p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-            <span className="text-green-400">Additional Capacity:</span>
-            <span className="text-green-400 font-bold">
-              +{metrics.additionalInstances} instances
+          <div
+            className={`flex justify-between items-center p-3 rounded-lg ${
+              metrics.additionalInstances >= 0
+                ? "bg-green-500/10 border border-green-500/30"
+                : "bg-red-500/10 border border-red-500/30"
+            }`}
+          >
+            <span
+              className={
+                metrics.additionalInstances >= 0
+                  ? "text-green-400"
+                  : "text-red-400"
+              }
+            >
+              Additional Capacity:
+            </span>
+            <span
+              className={`font-bold ${
+                metrics.additionalInstances >= 0
+                  ? "text-green-400"
+                  : "text-red-400"
+              }`}
+            >
+              {metrics.additionalInstances >= 0 ? "+" : ""}
+              {metrics.additionalInstances} instances
             </span>
           </div>
         </div>
