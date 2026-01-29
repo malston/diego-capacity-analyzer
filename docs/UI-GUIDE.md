@@ -97,13 +97,13 @@ Toggle via the **What-If Mode** button. Explores: "What if I enabled memory over
 
 _Adjusting the Memory Overcommit Ratio slider to see capacity impact._
 
-| Metric                  | What It Means                                                                                            |
-| ----------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Overcommit Ratio**    | Memory multiplier. 1.0x = no overcommit. 1.5x = sell 50% more capacity than physically exists.           |
-| **New Capacity**        | Virtual capacity after applying overcommit ratio                                                         |
-| **Current Instances**   | How many app instances are running now                                                                   |
-| **Avg Instance Size**   | Average memory per instance, calculated from your actual apps (total requested memory ÷ total instances) |
-| **Additional Capacity** | How many more instances could fit with overcommit, based on your actual average instance size            |
+| Metric                  | What It Means                                                                                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Overcommit Ratio**    | Memory multiplier. 1.0x = no overcommit. 1.5x = sell 50% more capacity than physically exists.                                                            |
+| **New Capacity**        | Total cell memory × overcommit ratio. Example: 32 GB × 1.5x = 48 GB virtual capacity.                                                                     |
+| **Current Instances**   | How many app instances are running now                                                                                                                    |
+| **Avg Instance Size**   | Average memory per instance, calculated from your actual apps (total requested memory ÷ total instances)                                                  |
+| **Additional Capacity** | How many more instances could fit with overcommit, based on your actual average instance size. Shows negative (red) if current workload exceeds capacity. |
 
 ### Overcommit Risk Levels
 
