@@ -604,6 +604,28 @@ func TestRefresh_InvalidRefreshToken(t *testing.T) {
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("Status = %d, want %d", resp.StatusCode, http.StatusUnauthorized)
 	}
+
+	// Session should be deleted to force re-login
+	_, err = sessionSvc.Get(sessionID)
+	if err == nil {
+		t.Error("Session should be deleted after failed refresh")
+	}
+
+	// Cookie should be cleared
+	cookies := resp.Cookies()
+	var sessionCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "DIEGO_SESSION" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatal("Expected DIEGO_SESSION cookie to be set (for clearing)")
+	}
+	if sessionCookie.MaxAge != -1 {
+		t.Errorf("Cookie MaxAge = %d, want -1 (expired)", sessionCookie.MaxAge)
+	}
 }
 
 func TestRefresh_NoSession(t *testing.T) {

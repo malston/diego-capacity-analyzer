@@ -123,6 +123,9 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	tokenResp, err := h.refreshWithCFUAA(session.RefreshToken)
 	if err != nil {
 		slog.Warn("Token refresh failed", "error", err)
+		// Delete session to force re-login (per issue #85 acceptance criteria)
+		h.sessionService.Delete(session.ID)
+		h.clearSessionCookie(w)
 		h.writeError(w, "Token refresh failed", http.StatusUnauthorized)
 		return
 	}
@@ -130,9 +133,8 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	// Calculate new token expiry
 	expiry := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 
-	// Update session with new tokens
-	cookie, _ := r.Cookie(sessionCookieName)
-	if err := h.sessionService.UpdateTokens(cookie.Value, tokenResp.AccessToken, tokenResp.RefreshToken, expiry); err != nil {
+	// Update session with new tokens (use session.ID, not re-reading cookie)
+	if err := h.sessionService.UpdateTokens(session.ID, tokenResp.AccessToken, tokenResp.RefreshToken, expiry); err != nil {
 		slog.Error("Failed to update session tokens", "error", err)
 		h.writeError(w, "Failed to update session", http.StatusInternalServerError)
 		return
@@ -189,8 +191,9 @@ func (h *Handler) refreshWithCFUAA(refreshToken string) (*uaaTokenResponse, erro
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("token refresh failed (status %d): %s", resp.StatusCode, string(body))
+		// Limit read size for safety; don't log response body (may contain sensitive data)
+		_, _ = io.ReadAll(io.LimitReader(resp.Body, 10*1024))
+		return nil, fmt.Errorf("token refresh failed (status %d)", resp.StatusCode)
 	}
 
 	var tokenResp uaaTokenResponse
@@ -242,8 +245,9 @@ func (h *Handler) authenticateWithCFUAA(username, password string) (*uaaTokenRes
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("authentication failed (status %d): %s", resp.StatusCode, string(body))
+		// Limit read size for safety; don't log response body (may contain sensitive data)
+		_, _ = io.ReadAll(io.LimitReader(resp.Body, 10*1024))
+		return nil, fmt.Errorf("authentication failed (status %d)", resp.StatusCode)
 	}
 
 	var tokenResp uaaTokenResponse
