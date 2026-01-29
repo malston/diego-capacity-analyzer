@@ -163,12 +163,15 @@ Check browser console (F12) for details.`;
     const unusedMemory = totalAppMemoryRequested - totalAppMemoryUsed;
 
     // What-if calculations
-    const newCapacity = totalMemory * overcommitRatio;
-    const potentialInstances = Math.floor(newCapacity / 512);
     const currentInstances = filteredApps.reduce(
       (sum, a) => sum + a.instances,
       0,
     );
+    // Calculate actual average instance size from apps data
+    const avgInstanceSize =
+      currentInstances > 0 ? totalAppMemoryRequested / currentInstances : 512; // Fall back to 512MB if no instances
+    const newCapacity = totalMemory * overcommitRatio;
+    const potentialInstances = Math.floor(newCapacity / avgInstanceSize);
 
     return {
       totalCells: filteredCells.length,
@@ -182,6 +185,7 @@ Check browser console (F12) for details.`;
       unusedPercent: (unusedMemory / totalAppMemoryRequested) * 100,
       totalApps: filteredApps.length,
       totalInstances: currentInstances,
+      avgInstanceSize: Math.round(avgInstanceSize),
       newCapacity,
       potentialInstances,
       additionalInstances: potentialInstances - currentInstances,
