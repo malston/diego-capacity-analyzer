@@ -358,10 +358,10 @@
                         <tr><td><strong>HA Admission</strong></td><td>vSphere setting: reserve X% of cluster</td></tr>
                     </table>
                 </div>
-                <p style="margin-top: 0.5em;"><strong>Example:</strong> 15 hosts × 2 TB each = 30 TB</p>
+                <p style="margin-top: 0.5em;"><strong>Example:</strong> 16 hosts × 2 TB each = 32 TB</p>
                 <ul style="font-size: 0.85em;">
-                    <li>HA 25% reserves 7.5 TB (≈ N-3 to N-4)</li>
-                    <li>N-1 reserves 2 TB (one host)</li>
+                    <li>HA 25% reserves 8 TB (= N-4)</li>
+                    <li>N-1 reserves 2 TB (= N-1)</li>
                     <li><span class="warn">HA wins — it's more restrictive</span></li>
                 </ul>
                 <aside class="notes">The tool compares both and shows whichever is more restrictive.</aside>

@@ -40,7 +40,7 @@ HA Utilization %    = (Cell Memory + Platform VMs) / HA Usable × 100
 N-Equivalent        = floor(HA Reserved / Memory per Host)
 ```
 
-**Example:** 25% HA on 15 hosts ≈ N-3 to N-4 tolerance
+**Example:** 25% HA on 16 hosts = N-4 tolerance (reserves 4 hosts' worth)
 
 **Which constraint wins?** Whichever reserves MORE memory is the limiting constraint.
 
