@@ -2,6 +2,7 @@
 // ABOUTME: Allows users to simulate different overcommit ratios and see capacity impact
 
 import { Zap } from "lucide-react";
+import Tooltip from "./Tooltip";
 
 const WhatIfPanel = ({ overcommitRatio, setOvercommitRatio, metrics }) => {
   // Thresholds aligned with docs/UI-GUIDE.md and VMware best practices:
@@ -40,7 +41,13 @@ const WhatIfPanel = ({ overcommitRatio, setOvercommitRatio, metrics }) => {
             htmlFor="overcommit-slider"
             className="block text-sm text-slate-400 mb-3"
           >
-            Memory Overcommit Ratio:{" "}
+            <Tooltip
+              text="Diego-level overcommit (not vSphere). Configured in Ops Manager → TAS → Advanced Features → 'Diego Cell memory capacity'. Tells Diego to advertise more memory than the cell has. Risk: OOM kills if apps spike simultaneously."
+              position="bottom"
+              showIcon
+            >
+              <span>Memory Overcommit Ratio:</span>
+            </Tooltip>{" "}
             <span className={`font-bold ${getRatioColor(overcommitRatio)}`}>
               {overcommitRatio.toFixed(1)}x
             </span>
@@ -71,19 +78,38 @@ const WhatIfPanel = ({ overcommitRatio, setOvercommitRatio, metrics }) => {
 
         <div className="space-y-3">
           <div className="flex justify-between items-center p-3 bg-slate-800/50 rounded-lg">
-            <span className="text-slate-400">Capacity:</span>
+            <Tooltip
+              text="Total cell memory × overcommit ratio. At 1.0x this is actual capacity; at 1.5x it's 50% more virtual capacity that Diego will advertise."
+              position="left"
+            >
+              <span className="text-slate-400 cursor-help">Capacity:</span>
+            </Tooltip>
             <span className="text-white font-bold">
               {(metrics.newCapacity / 1024).toFixed(1)} GB
             </span>
           </div>
           <div className="flex justify-between items-center p-3 bg-slate-800/50 rounded-lg">
-            <span className="text-slate-400">Current Instances:</span>
+            <Tooltip
+              text="Total app instances currently running across all Diego cells."
+              position="left"
+            >
+              <span className="text-slate-400 cursor-help">
+                Current Instances:
+              </span>
+            </Tooltip>
             <span className="text-white font-bold">
               {metrics.totalInstances}
             </span>
           </div>
           <div className="flex justify-between items-center p-3 bg-slate-800/50 rounded-lg">
-            <span className="text-slate-400">Avg Instance Size:</span>
+            <Tooltip
+              text="Average memory per instance, calculated from your actual apps (total requested memory ÷ total instances). Used to estimate additional capacity."
+              position="left"
+            >
+              <span className="text-slate-400 cursor-help">
+                Avg Instance Size:
+              </span>
+            </Tooltip>
             <span className="text-white font-bold">
               {metrics.avgInstanceSize} MB
             </span>
@@ -95,15 +121,20 @@ const WhatIfPanel = ({ overcommitRatio, setOvercommitRatio, metrics }) => {
                 : "bg-red-500/10 border border-red-500/30"
             }`}
           >
-            <span
-              className={
-                metrics.additionalInstances >= 0
-                  ? "text-green-400"
-                  : "text-red-400"
-              }
+            <Tooltip
+              text="How many more instances could fit with this overcommit ratio, based on your average instance size. Negative (red) means current workload exceeds the modeled capacity."
+              position="left"
             >
-              Additional Capacity:
-            </span>
+              <span
+                className={`cursor-help ${
+                  metrics.additionalInstances >= 0
+                    ? "text-green-400"
+                    : "text-red-400"
+                }`}
+              >
+                Additional Capacity:
+              </span>
+            </Tooltip>
             <span
               className={`font-bold ${
                 metrics.additionalInstances >= 0

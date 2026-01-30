@@ -1,8 +1,9 @@
 // ABOUTME: Step 1 of scenario wizard - Diego cell configuration
 // ABOUTME: Handles VM size preset selection and cell count input
 
-import { Sparkles, ArrowRight } from 'lucide-react';
-import { VM_SIZE_PRESETS } from '../../../config/vmPresets';
+import { Sparkles, ArrowRight } from "lucide-react";
+import { VM_SIZE_PRESETS } from "../../../config/vmPresets";
+import Tooltip from "../../Tooltip";
 
 const CellConfigStep = ({
   selectedPreset,
@@ -27,7 +28,13 @@ const CellConfigStep = ({
           htmlFor="vm-size"
           className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2"
         >
-          VM Size
+          <Tooltip
+            text="Preset VM configurations for Diego cells. Larger VMs support more app instances but reduce fault tolerance (more impact per cell failure)."
+            position="right"
+            showIcon
+          >
+            <span>VM Size</span>
+          </Tooltip>
         </label>
         <select
           id="vm-size"
@@ -96,14 +103,22 @@ const CellConfigStep = ({
           className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-gray-200 font-mono focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
         />
         {equivalentCellSuggestion && (
-          <button
-            type="button"
-            onClick={() => setCellCount(equivalentCellSuggestion.equivalentCells)}
-            className="mt-2 text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
+          <Tooltip
+            text="Calculates how many cells of the new size match your current total capacity. Useful when resizing cells without changing overall capacity."
+            position="right"
           >
-            <Sparkles size={12} />
-            For equivalent capacity ({equivalentCellSuggestion.currentTotalGB}GB): use {equivalentCellSuggestion.equivalentCells} cells
-          </button>
+            <button
+              type="button"
+              onClick={() =>
+                setCellCount(equivalentCellSuggestion.equivalentCells)
+              }
+              className="mt-2 text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
+            >
+              <Sparkles size={12} />
+              For equivalent capacity ({equivalentCellSuggestion.currentTotalGB}
+              GB): use {equivalentCellSuggestion.equivalentCells} cells
+            </button>
+          </Tooltip>
         )}
       </div>
 

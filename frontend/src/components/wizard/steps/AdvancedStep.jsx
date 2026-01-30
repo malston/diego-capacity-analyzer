@@ -1,9 +1,10 @@
 // ABOUTME: Step 3 of scenario wizard - advanced configuration options
 // ABOUTME: Handles memory overhead, hypothetical app, host config, and TPS curve
 
-import { ArrowRight, Plus, X, CheckCircle2 } from 'lucide-react';
-import { DEFAULT_TPS_CURVE } from '../../../config/resourceConfig';
-import HostConfigSection from './HostConfigSection';
+import { ArrowRight, Plus, X, CheckCircle2 } from "lucide-react";
+import { DEFAULT_TPS_CURVE } from "../../../config/resourceConfig";
+import HostConfigSection from "./HostConfigSection";
+import Tooltip from "../../Tooltip";
 
 const AdvancedStep = ({
   overheadPct,
@@ -31,13 +32,18 @@ const AdvancedStep = ({
 }) => {
   const updateTPSPoint = (index, field, value) => {
     setTPSCurve((prev) =>
-      prev.map((pt, i) => (i === index ? { ...pt, [field]: parseInt(value) || 0 } : pt))
+      prev.map((pt, i) =>
+        i === index ? { ...pt, [field]: parseInt(value) || 0 } : pt,
+      ),
     );
   };
 
   const addTPSPoint = () => {
     const lastPt = tpsCurve[tpsCurve.length - 1] || { cells: 0, tps: 0 };
-    setTPSCurve([...tpsCurve, { cells: lastPt.cells + 50, tps: Math.max(50, lastPt.tps - 100) }]);
+    setTPSCurve([
+      ...tpsCurve,
+      { cells: lastPt.cells + 50, tps: Math.max(50, lastPt.tps - 100) },
+    ]);
   };
 
   const removeTPSPoint = (index) => {
@@ -71,7 +77,13 @@ const AdvancedStep = ({
           htmlFor="overhead-slider"
           className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2"
         >
-          Memory Overhead: {overheadPct}%
+          <Tooltip
+            text="Reserved memory for Diego agent, Garden runtime, and OS processes (default 7%). Applications cannot use this capacity -- it's system-level overhead."
+            position="right"
+            showIcon
+          >
+            <span>Memory Overhead: {overheadPct}%</span>
+          </Tooltip>
         </label>
         <input
           id="overhead-slider"
@@ -92,9 +104,18 @@ const AdvancedStep = ({
 
       {/* Hypothetical App Section */}
       <div className="bg-slate-700/30 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-gray-300 mb-2">Hypothetical App</h4>
+        <h4 className="text-sm font-medium text-gray-300 mb-2">
+          <Tooltip
+            text="Simulate deploying a new app to see capacity impact before actually deploying. Useful for capacity planning: 'Can my foundation handle this workload?'"
+            position="right"
+            showIcon
+          >
+            <span>Hypothetical App</span>
+          </Tooltip>
+        </h4>
         <p className="text-xs text-gray-400 mb-3">
-          Model a new workload to see if it fits (e.g., a 50-instance app with 2GB each).
+          Model a new workload to see if it fits (e.g., a 50-instance app with
+          2GB each).
         </p>
         <div className="flex items-center gap-2 mb-3">
           <input
@@ -112,19 +133,27 @@ const AdvancedStep = ({
         {useAdditionalApp && (
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label htmlFor="app-name" className="block text-xs text-gray-400 mb-1">
+              <label
+                htmlFor="app-name"
+                className="block text-xs text-gray-400 mb-1"
+              >
                 App Name
               </label>
               <input
                 id="app-name"
                 type="text"
                 value={additionalApp.name}
-                onChange={(e) => setAdditionalApp({ ...additionalApp, name: e.target.value })}
+                onChange={(e) =>
+                  setAdditionalApp({ ...additionalApp, name: e.target.value })
+                }
                 className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-cyan-500 outline-none"
               />
             </div>
             <div>
-              <label htmlFor="app-instances" className="block text-xs text-gray-400 mb-1">
+              <label
+                htmlFor="app-instances"
+                className="block text-xs text-gray-400 mb-1"
+              >
                 Instances
               </label>
               <input
@@ -132,14 +161,20 @@ const AdvancedStep = ({
                 type="number"
                 value={additionalApp.instances}
                 onChange={(e) =>
-                  setAdditionalApp({ ...additionalApp, instances: Number(e.target.value) })
+                  setAdditionalApp({
+                    ...additionalApp,
+                    instances: Number(e.target.value),
+                  })
                 }
                 min={1}
                 className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-gray-200 text-sm font-mono focus:border-cyan-500 outline-none"
               />
             </div>
             <div>
-              <label htmlFor="app-memory" className="block text-xs text-gray-400 mb-1">
+              <label
+                htmlFor="app-memory"
+                className="block text-xs text-gray-400 mb-1"
+              >
                 Memory/Instance (GB)
               </label>
               <input
@@ -147,14 +182,20 @@ const AdvancedStep = ({
                 type="number"
                 value={additionalApp.memoryGB}
                 onChange={(e) =>
-                  setAdditionalApp({ ...additionalApp, memoryGB: Number(e.target.value) })
+                  setAdditionalApp({
+                    ...additionalApp,
+                    memoryGB: Number(e.target.value),
+                  })
                 }
                 min={1}
                 className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-gray-200 text-sm font-mono focus:border-cyan-500 outline-none"
               />
             </div>
             <div>
-              <label htmlFor="app-disk" className="block text-xs text-gray-400 mb-1">
+              <label
+                htmlFor="app-disk"
+                className="block text-xs text-gray-400 mb-1"
+              >
                 Disk/Instance (GB)
               </label>
               <input
@@ -162,7 +203,10 @@ const AdvancedStep = ({
                 type="number"
                 value={additionalApp.diskGB}
                 onChange={(e) =>
-                  setAdditionalApp({ ...additionalApp, diskGB: Number(e.target.value) })
+                  setAdditionalApp({
+                    ...additionalApp,
+                    diskGB: Number(e.target.value),
+                  })
                 }
                 min={1}
                 className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-gray-200 text-sm font-mono focus:border-cyan-500 outline-none"
@@ -175,22 +219,30 @@ const AdvancedStep = ({
       {/* TPS Performance Section */}
       <div className="bg-slate-700/30 rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-medium text-gray-300">TPS Performance Model</h4>
+          <h4 className="text-sm font-medium text-gray-300">
+            <Tooltip
+              text="Estimates Diego scheduler throughput (Tasks Per Second) based on cell count. More cells = more coordination overhead = lower TPS. Values are modeled from internal benchmarks."
+              position="right"
+              showIcon
+            >
+              <span>TPS Performance Model</span>
+            </Tooltip>
+          </h4>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">
-              {enableTPS ? 'Enabled' : 'Disabled'}
+              {enableTPS ? "Enabled" : "Disabled"}
             </span>
             <button
               type="button"
               onClick={() => setEnableTPS(!enableTPS)}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                enableTPS ? 'bg-cyan-600' : 'bg-slate-600'
+                enableTPS ? "bg-cyan-600" : "bg-slate-600"
               }`}
               aria-label="Toggle TPS model"
             >
               <span
                 className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                  enableTPS ? 'translate-x-5' : 'translate-x-1'
+                  enableTPS ? "translate-x-5" : "translate-x-1"
                 }`}
               />
             </button>
@@ -198,19 +250,22 @@ const AdvancedStep = ({
         </div>
         <p className="text-xs text-gray-400 mb-3">
           {enableTPS
-            ? 'Customize to match your observed scheduler performance.'
-            : 'TPS modeling is experimental and may not be accurate for all environments.'}
+            ? "Customize to match your observed scheduler performance."
+            : "TPS modeling is experimental and may not be accurate for all environments."}
         </p>
 
         {enableTPS && (
           <>
             <div className="space-y-2 mb-3">
               {tpsCurve.map((pt, i) => (
-                <div key={`tps-${pt.cells}-${i}`} className="flex items-center gap-2">
+                <div
+                  key={`tps-${pt.cells}-${i}`}
+                  className="flex items-center gap-2"
+                >
                   <input
                     type="number"
                     value={pt.cells}
-                    onChange={(e) => updateTPSPoint(i, 'cells', e.target.value)}
+                    onChange={(e) => updateTPSPoint(i, "cells", e.target.value)}
                     aria-label={`TPS point ${i + 1} cells`}
                     className="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-gray-200 text-sm font-mono focus:border-cyan-500 outline-none"
                   />
@@ -218,7 +273,7 @@ const AdvancedStep = ({
                   <input
                     type="number"
                     value={pt.tps}
-                    onChange={(e) => updateTPSPoint(i, 'tps', e.target.value)}
+                    onChange={(e) => updateTPSPoint(i, "tps", e.target.value)}
                     aria-label={`TPS point ${i + 1} tps`}
                     className="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-gray-200 text-sm font-mono focus:border-cyan-500 outline-none"
                   />
