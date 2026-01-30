@@ -47,11 +47,11 @@ func TestTLS_BOSHCACertMalformed(t *testing.T) {
 	// With skipSSLValidation=false and malformed cert, should fail
 	_, err := services.NewBOSHClient("https://bosh.example.com", "test-client", "test-secret", malformedCert, "cf-test", false)
 	if err == nil {
-		t.Error("NewBOSHClient should fail with malformed CA cert when skipSSLValidation=false")
+		t.Fatal("NewBOSHClient should fail with malformed CA cert when skipSSLValidation=false")
 	}
 
 	// Error message should indicate the CA cert issue
-	if err != nil && !strings.Contains(err.Error(), "BOSH_CA_CERT") {
+	if !strings.Contains(err.Error(), "BOSH_CA_CERT") {
 		t.Errorf("Error should mention BOSH_CA_CERT, got: %v", err)
 	}
 }
