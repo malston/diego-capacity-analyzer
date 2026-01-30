@@ -21,6 +21,18 @@ const (
 	PeakTPS = 1964
 )
 
+// resolveChunkSizeMB returns the effective chunk size in MB.
+// Priority: input override → state average → default 4096MB
+func resolveChunkSizeMB(inputChunkMB, stateAvgMB int) int {
+	if inputChunkMB > 0 {
+		return inputChunkMB
+	}
+	if stateAvgMB > 0 {
+		return stateAvgMB
+	}
+	return 4096 // Default 4GB
+}
+
 // CPURiskLevel returns risk classification based on vCPU:pCPU ratio.
 // Thresholds based on VMware general guidance (workload-dependent):
 // - Conservative (<=4:1): Safe for production workloads

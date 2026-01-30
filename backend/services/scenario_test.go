@@ -1923,6 +1923,29 @@ func TestGenerateWarnings_SelectedResources_EmptyDefaultsToAll(t *testing.T) {
 	}
 }
 
+func TestResolveChunkSizeMB(t *testing.T) {
+	tests := []struct {
+		name    string
+		inputMB int
+		stateMB int
+		wantMB  int
+	}{
+		{"input override wins", 2048, 3072, 2048},
+		{"state average used when input is 0", 0, 3072, 3072},
+		{"default when both are 0", 0, 0, 4096},
+		{"input override even when state available", 1024, 2048, 1024},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveChunkSizeMB(tt.inputMB, tt.stateMB)
+			if got != tt.wantMB {
+				t.Errorf("resolveChunkSizeMB(%d, %d) = %d, want %d", tt.inputMB, tt.stateMB, got, tt.wantMB)
+			}
+		})
+	}
+}
+
 func TestCompare_HAInsufficientWarning_FilteredWhenMemoryNotSelected(t *testing.T) {
 	// Test that HA Admission Control insufficient warning is filtered when memory is not selected
 	// This warning is added in CompareScenarios, not GenerateWarnings
