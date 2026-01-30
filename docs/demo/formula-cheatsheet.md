@@ -77,14 +77,21 @@ Memory Utilization % = Total App Memory / Total App Capacity × 100
 ### Free Chunks (Staging Capacity)
 
 ```
-Free Chunks = (App Capacity - App Memory Used) / 4 GB
+Chunk Size = AvgInstanceMemoryMB (auto) or ChunkSizeMB (override) or 4096 MB (default)
+Free Chunks = (App Capacity - App Memory Used) * 1024 / Chunk Size MB
 ```
 
-**4 GB** = typical staging memory for `cf push`
+**Chunk size** = typical app instance size, auto-detected from your workload
+
+| Workload Type | Typical Avg Instance | Chunk Size |
+| ------------- | -------------------- | ---------- |
+| Go/Python     | 512-1024 MB          | ~1 GB      |
+| Node.js       | 1-2 GB               | ~1.5 GB    |
+| Java          | 2-4 GB               | ~4 GB      |
 
 | Chunks | Status      |
 | ------ | ----------- |
-| ≥ 20   | Healthy     |
+| >= 20  | Healthy     |
 | 10-19  | Limited     |
 | < 10   | Constrained |
 
@@ -275,12 +282,12 @@ TPS is **modeled**, not measured live. Default curve:
 
 ## Constants
 
-| Constant        | Value | Description                       |
-| --------------- | ----- | --------------------------------- |
-| Memory Overhead | 7%    | Garden/system processes           |
-| Disk Overhead   | 0.01% | Negligible                        |
-| Chunk Size      | 4 GB  | Staging memory unit               |
-| Peak TPS        | 1,964 | Default peak scheduler throughput |
+| Constant        | Value     | Description                                      |
+| --------------- | --------- | ------------------------------------------------ |
+| Memory Overhead | 7%        | Garden/system processes                          |
+| Disk Overhead   | 0.01%     | Negligible                                       |
+| Chunk Size      | Auto/4 GB | Avg instance memory (auto-detect or 4GB default) |
+| Peak TPS        | 1,964     | Default peak scheduler throughput                |
 
 ---
 
