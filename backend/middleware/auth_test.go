@@ -83,11 +83,9 @@ func TestAuth_ValidToken_ExtractsClaims(t *testing.T) {
 	}
 
 	jwksClient := &services.JWKSClient{}
-	jwksClient.Mu.Lock()
-	jwksClient.Keys = map[string]*rsa.PublicKey{
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
 		"test-key-id": &privateKey.PublicKey,
-	}
-	jwksClient.Mu.Unlock()
+	})
 
 	cfg := AuthConfig{Mode: AuthModeRequired, JWKSClient: jwksClient}
 	var extractedClaims *UserClaims
@@ -126,11 +124,9 @@ func TestAuth_ExpiredToken_Returns401(t *testing.T) {
 	}
 
 	jwksClient := &services.JWKSClient{}
-	jwksClient.Mu.Lock()
-	jwksClient.Keys = map[string]*rsa.PublicKey{
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
 		"test-key-id": &privateKey.PublicKey,
-	}
-	jwksClient.Mu.Unlock()
+	})
 
 	cfg := AuthConfig{Mode: AuthModeRequired, JWKSClient: jwksClient}
 	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
@@ -158,11 +154,9 @@ func TestAuth_MalformedToken_Returns401(t *testing.T) {
 	}
 
 	jwksClient := &services.JWKSClient{}
-	jwksClient.Mu.Lock()
-	jwksClient.Keys = map[string]*rsa.PublicKey{
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
 		"test-key-id": &privateKey.PublicKey,
-	}
-	jwksClient.Mu.Unlock()
+	})
 
 	cfg := AuthConfig{Mode: AuthModeRequired, JWKSClient: jwksClient}
 	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
@@ -203,11 +197,9 @@ func TestAuth_OptionalMode_ValidToken_ExtractsClaims(t *testing.T) {
 	}
 
 	jwksClient := &services.JWKSClient{}
-	jwksClient.Mu.Lock()
-	jwksClient.Keys = map[string]*rsa.PublicKey{
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
 		"test-key-id": &privateKey.PublicKey,
-	}
-	jwksClient.Mu.Unlock()
+	})
 
 	cfg := AuthConfig{Mode: AuthModeOptional, JWKSClient: jwksClient}
 	var extractedClaims *UserClaims
@@ -242,11 +234,9 @@ func TestAuth_OptionalMode_InvalidToken_Returns401(t *testing.T) {
 	}
 
 	jwksClient := &services.JWKSClient{}
-	jwksClient.Mu.Lock()
-	jwksClient.Keys = map[string]*rsa.PublicKey{
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
 		"test-key-id": &privateKey.PublicKey,
-	}
-	jwksClient.Mu.Unlock()
+	})
 
 	cfg := AuthConfig{Mode: AuthModeOptional, JWKSClient: jwksClient}
 	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
@@ -338,11 +328,9 @@ func TestAuth_TokenWithEmptyIdentity_Returns401(t *testing.T) {
 	}
 
 	jwksClient := &services.JWKSClient{}
-	jwksClient.Mu.Lock()
-	jwksClient.Keys = map[string]*rsa.PublicKey{
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
 		"test-key-id": &privateKey.PublicKey,
-	}
-	jwksClient.Mu.Unlock()
+	})
 
 	cfg := AuthConfig{Mode: AuthModeRequired, JWKSClient: jwksClient}
 	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
@@ -372,11 +360,9 @@ func TestAuth_TokenWithEmptyUsernameButValidUserID_IsAccepted(t *testing.T) {
 	}
 
 	jwksClient := &services.JWKSClient{}
-	jwksClient.Mu.Lock()
-	jwksClient.Keys = map[string]*rsa.PublicKey{
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
 		"test-key-id": &privateKey.PublicKey,
-	}
-	jwksClient.Mu.Unlock()
+	})
 
 	cfg := AuthConfig{Mode: AuthModeRequired, JWKSClient: jwksClient}
 	var extractedClaims *UserClaims
@@ -478,11 +464,9 @@ func TestAuthWithSession_BearerTakesPrecedence(t *testing.T) {
 	}
 
 	jwksClient := &services.JWKSClient{}
-	jwksClient.Mu.Lock()
-	jwksClient.Keys = map[string]*rsa.PublicKey{
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
 		"test-key-id": &privateKey.PublicKey,
-	}
-	jwksClient.Mu.Unlock()
+	})
 
 	sessionValidator := func(sessionID string) *UserClaims {
 		return &UserClaims{Username: "session-user", UserID: "session-id"}
@@ -653,11 +637,9 @@ func TestAuth_BearerWithJWKS(t *testing.T) {
 
 	// Create a JWKSClient with the test public key
 	jwksClient := &services.JWKSClient{}
-	jwksClient.Mu.Lock()
-	jwksClient.Keys = map[string]*rsa.PublicKey{
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
 		"test-key-id": &privateKey.PublicKey,
-	}
-	jwksClient.Mu.Unlock()
+	})
 
 	cfg := AuthConfig{
 		Mode:       AuthModeRequired,
@@ -732,11 +714,9 @@ func TestAuth_BearerWithJWKS_ExpiredToken_Returns401(t *testing.T) {
 
 	// Create a JWKSClient with the test public key
 	jwksClient := &services.JWKSClient{}
-	jwksClient.Mu.Lock()
-	jwksClient.Keys = map[string]*rsa.PublicKey{
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
 		"test-key-id": &privateKey.PublicKey,
-	}
-	jwksClient.Mu.Unlock()
+	})
 
 	cfg := AuthConfig{
 		Mode:       AuthModeRequired,
@@ -773,11 +753,9 @@ func TestAuth_BearerWithJWKS_InvalidSignature_Returns401(t *testing.T) {
 
 	// Create a JWKSClient with key 2's public key
 	jwksClient := &services.JWKSClient{}
-	jwksClient.Mu.Lock()
-	jwksClient.Keys = map[string]*rsa.PublicKey{
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
 		"test-key-id": &privateKey2.PublicKey, // Different key!
-	}
-	jwksClient.Mu.Unlock()
+	})
 
 	cfg := AuthConfig{
 		Mode:       AuthModeRequired,

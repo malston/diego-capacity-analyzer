@@ -102,8 +102,10 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 				// Use JWKS client for cryptographic signature verification
 				jwtClaims, err := cfg.JWKSClient.VerifyAndParse(token)
 				if err != nil {
+					// Log detailed error for debugging, but return generic message to client
+					// to avoid leaking internal details (key IDs, algorithm info, etc.)
 					slog.Debug("Auth rejected: invalid token", "path", r.URL.Path, "error", err.Error())
-					http.Error(w, "Invalid token: "+err.Error(), http.StatusUnauthorized)
+					http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
 					return
 				}
 

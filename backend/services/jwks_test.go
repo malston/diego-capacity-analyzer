@@ -1006,9 +1006,7 @@ func TestJWKSClient_ConcurrentRefresh_ThunderingHerd(t *testing.T) {
 	}
 
 	// Clear keys to force refresh
-	client.Mu.Lock()
-	client.Keys = make(map[string]*rsa.PublicKey)
-	client.Mu.Unlock()
+	client.ClearKeysForTesting()
 
 	// Reset max concurrent counter
 	maxConcurrent = 0

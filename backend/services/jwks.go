@@ -202,8 +202,8 @@ func verifyJWT(token string, keys map[string]*rsa.PublicKey) (*JWTClaims, error)
 		return nil, fmt.Errorf("token not valid yet (nbf: %d, now: %d)", claims.Nbf, now)
 	}
 
-	// Check expiration
-	if claims.Exp > 0 && now >= claims.Exp {
+	// Check expiration (RFC 7519: token is valid AT the exp second, expires after)
+	if claims.Exp > 0 && now > claims.Exp {
 		return nil, fmt.Errorf("token expired (exp: %d, now: %d)", claims.Exp, now)
 	}
 
@@ -236,8 +236,8 @@ func verifyJWT(token string, keys map[string]*rsa.PublicKey) (*JWTClaims, error)
 type JWKSClient struct {
 	uaaURL     string
 	httpClient *http.Client
-	Keys       map[string]*rsa.PublicKey
-	Mu         sync.RWMutex
+	keys       map[string]*rsa.PublicKey
+	mu         sync.RWMutex
 	sfGroup    singleflight.Group
 }
 
@@ -254,7 +254,7 @@ func NewJWKSClient(uaaURL string, httpClient *http.Client) (*JWKSClient, error) 
 	client := &JWKSClient{
 		uaaURL:     uaaURL,
 		httpClient: httpClient,
-		Keys:       make(map[string]*rsa.PublicKey),
+		keys:       make(map[string]*rsa.PublicKey),
 	}
 
 	// Fetch initial keys
@@ -270,9 +270,9 @@ func NewJWKSClient(uaaURL string, httpClient *http.Client) (*JWKSClient, error) 
 // Returns nil if the key is still not found after refresh.
 func (c *JWKSClient) GetKey(kid string) *rsa.PublicKey {
 	// First check with read lock
-	c.Mu.RLock()
-	key, ok := c.Keys[kid]
-	c.Mu.RUnlock()
+	c.mu.RLock()
+	key, ok := c.keys[kid]
+	c.mu.RUnlock()
 
 	if ok {
 		return key
@@ -284,9 +284,9 @@ func (c *JWKSClient) GetKey(kid string) *rsa.PublicKey {
 	})
 
 	// Check again after refresh
-	c.Mu.RLock()
-	key = c.Keys[kid]
-	c.Mu.RUnlock()
+	c.mu.RLock()
+	key = c.keys[kid]
+	c.mu.RUnlock()
 
 	return key
 }
@@ -315,24 +315,37 @@ func (c *JWKSClient) refresh() error {
 		return fmt.Errorf("failed to parse JWKS: %w", err)
 	}
 
-	c.Mu.Lock()
-	c.Keys = keys
-	c.Mu.Unlock()
+	c.mu.Lock()
+	c.keys = keys
+	c.mu.Unlock()
 
 	return nil
+}
+
+// ClearKeysForTesting clears all cached keys. This is only for testing purposes
+// to force a refresh on the next verification attempt.
+func (c *JWKSClient) ClearKeysForTesting() {
+	c.mu.Lock()
+	c.keys = make(map[string]*rsa.PublicKey)
+	c.mu.Unlock()
+}
+
+// SetKeysForTesting sets the cached keys directly. This is only for testing purposes
+// to avoid requiring a mock HTTP server for every test.
+func (c *JWKSClient) SetKeysForTesting(keys map[string]*rsa.PublicKey) {
+	c.mu.Lock()
+	c.keys = keys
+	c.mu.Unlock()
 }
 
 // VerifyAndParse verifies a JWT signature and extracts claims.
 // If the key ID is unknown, it refreshes the keys and retries once.
 func (c *JWKSClient) VerifyAndParse(token string) (*JWTClaims, error) {
-	c.Mu.RLock()
-	keys := make(map[string]*rsa.PublicKey, len(c.Keys))
-	for k, v := range c.Keys {
-		keys[k] = v
-	}
-	c.Mu.RUnlock()
+	// Verify with read lock held to avoid map copy overhead
+	c.mu.RLock()
+	claims, err := verifyJWT(token, c.keys)
+	c.mu.RUnlock()
 
-	claims, err := verifyJWT(token, keys)
 	if err != nil {
 		// Check if the error is about unknown key ID
 		if strings.Contains(err.Error(), "unknown key ID") {
@@ -341,15 +354,12 @@ func (c *JWKSClient) VerifyAndParse(token string) (*JWTClaims, error) {
 				return nil, c.refresh()
 			})
 
-			// Get fresh keys and retry
-			c.Mu.RLock()
-			keys = make(map[string]*rsa.PublicKey, len(c.Keys))
-			for k, v := range c.Keys {
-				keys[k] = v
-			}
-			c.Mu.RUnlock()
+			// Retry with fresh keys (read lock held during verification)
+			c.mu.RLock()
+			claims, err = verifyJWT(token, c.keys)
+			c.mu.RUnlock()
 
-			return verifyJWT(token, keys)
+			return claims, err
 		}
 		return nil, err
 	}
