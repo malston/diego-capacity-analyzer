@@ -83,6 +83,8 @@ Free Chunks = (App Capacity - App Memory Used) * 1024 / Chunk Size MB
 
 **Chunk size** = largest app memory limit in deployment, auto-detected from CF API
 
+**Why MAX instead of AVERAGE?** Staging requires contiguous memory to compile an app with its buildpack. If your largest app needs 4GB, Diego needs a 4GB chunk available to stage it--regardless of whether most of your apps are only 256MB. Using average would underestimate staging needs and cause large apps to fail deployment when no sufficiently large chunk is available.
+
 | Workload Type | Max Instance Memory | Chunk Size |
 | ------------- | ------------------- | ---------- |
 | Go/Python     | 1-2 GB              | ~1-2 GB    |

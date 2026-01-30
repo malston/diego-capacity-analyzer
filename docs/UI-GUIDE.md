@@ -568,7 +568,7 @@ Where:
 - **Usable Capacity** = Total cluster memory - Reserved capacity (HA% or N-1, whichever reserves more)
 - **App Capacity** = `cells × (cell_memory_gb - 7% overhead)`
 - **Free Chunks** = `(App Capacity - App Memory) / Chunk Size`
-- **Chunk Size** = Auto-detected from `Max Instance Memory` (largest app memory limit, min 1GB, defaults to 4GB if unavailable)
+- **Chunk Size** = Auto-detected from `Max Instance Memory` (largest app memory limit, min 1GB, defaults to 4GB if unavailable). We use MAX because staging requires contiguous memory--if your largest app needs 4GB, you need 4GB chunks available even if most apps are small.
 
 #### TPS Performance
 
