@@ -6,7 +6,6 @@ package e2e
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/config"
@@ -208,18 +207,6 @@ func TestCORSIntegration_EmptyOriginsBlocksAll(t *testing.T) {
 // TestCORSAllowedOrigins_EnvParsing verifies the CORS_ALLOWED_ORIGINS environment
 // variable is correctly parsed into a string slice.
 func TestCORSAllowedOrigins_EnvParsing(t *testing.T) {
-	// Save original env and restore after test
-	originalCF := os.Getenv("CF_API_URL")
-	originalUser := os.Getenv("CF_USERNAME")
-	originalPass := os.Getenv("CF_PASSWORD")
-	originalCORS := os.Getenv("CORS_ALLOWED_ORIGINS")
-	defer func() {
-		os.Setenv("CF_API_URL", originalCF)
-		os.Setenv("CF_USERNAME", originalUser)
-		os.Setenv("CF_PASSWORD", originalPass)
-		os.Setenv("CORS_ALLOWED_ORIGINS", originalCORS)
-	}()
-
 	tests := []struct {
 		name     string
 		envValue string
@@ -249,11 +236,9 @@ func TestCORSAllowedOrigins_EnvParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set required env vars
-			os.Setenv("CF_API_URL", "https://api.example.com")
-			os.Setenv("CF_USERNAME", "admin")
-			os.Setenv("CF_PASSWORD", "secret")
-			os.Setenv("CORS_ALLOWED_ORIGINS", tt.envValue)
+			t.Cleanup(withTestCFEnvAndExtra(t, map[string]string{
+				"CORS_ALLOWED_ORIGINS": tt.envValue,
+			}))
 
 			cfg, err := config.Load()
 			if err != nil {

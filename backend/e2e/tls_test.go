@@ -4,7 +4,6 @@
 package e2e
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -75,18 +74,6 @@ func TestTLS_BOSHCACertMalformedWithSkipFallback(t *testing.T) {
 // TestTLS_CFSkipSSLValidation_EnvParsing verifies CF_SKIP_SSL_VALIDATION
 // environment variable is correctly parsed.
 func TestTLS_CFSkipSSLValidation_EnvParsing(t *testing.T) {
-	// Save and restore env
-	originalCF := os.Getenv("CF_API_URL")
-	originalUser := os.Getenv("CF_USERNAME")
-	originalPass := os.Getenv("CF_PASSWORD")
-	originalSkip := os.Getenv("CF_SKIP_SSL_VALIDATION")
-	defer func() {
-		os.Setenv("CF_API_URL", originalCF)
-		os.Setenv("CF_USERNAME", originalUser)
-		os.Setenv("CF_PASSWORD", originalPass)
-		os.Setenv("CF_SKIP_SSL_VALIDATION", originalSkip)
-	}()
-
 	tests := []struct {
 		name     string
 		envValue string
@@ -121,10 +108,9 @@ func TestTLS_CFSkipSSLValidation_EnvParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("CF_API_URL", "https://api.example.com")
-			os.Setenv("CF_USERNAME", "admin")
-			os.Setenv("CF_PASSWORD", "secret")
-			os.Setenv("CF_SKIP_SSL_VALIDATION", tt.envValue)
+			t.Cleanup(withTestCFEnvAndExtra(t, map[string]string{
+				"CF_SKIP_SSL_VALIDATION": tt.envValue,
+			}))
 
 			cfg, err := config.Load()
 			if err != nil {
@@ -141,18 +127,6 @@ func TestTLS_CFSkipSSLValidation_EnvParsing(t *testing.T) {
 // TestTLS_BOSHSkipSSLValidation_EnvParsing verifies BOSH_SKIP_SSL_VALIDATION
 // environment variable is correctly parsed.
 func TestTLS_BOSHSkipSSLValidation_EnvParsing(t *testing.T) {
-	// Save and restore env
-	originalCF := os.Getenv("CF_API_URL")
-	originalUser := os.Getenv("CF_USERNAME")
-	originalPass := os.Getenv("CF_PASSWORD")
-	originalSkip := os.Getenv("BOSH_SKIP_SSL_VALIDATION")
-	defer func() {
-		os.Setenv("CF_API_URL", originalCF)
-		os.Setenv("CF_USERNAME", originalUser)
-		os.Setenv("CF_PASSWORD", originalPass)
-		os.Setenv("BOSH_SKIP_SSL_VALIDATION", originalSkip)
-	}()
-
 	tests := []struct {
 		name     string
 		envValue string
@@ -177,10 +151,9 @@ func TestTLS_BOSHSkipSSLValidation_EnvParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("CF_API_URL", "https://api.example.com")
-			os.Setenv("CF_USERNAME", "admin")
-			os.Setenv("CF_PASSWORD", "secret")
-			os.Setenv("BOSH_SKIP_SSL_VALIDATION", tt.envValue)
+			t.Cleanup(withTestCFEnvAndExtra(t, map[string]string{
+				"BOSH_SKIP_SSL_VALIDATION": tt.envValue,
+			}))
 
 			cfg, err := config.Load()
 			if err != nil {
@@ -197,18 +170,6 @@ func TestTLS_BOSHSkipSSLValidation_EnvParsing(t *testing.T) {
 // TestTLS_BOSHCACert_EnvParsing verifies BOSH_CA_CERT environment variable
 // is correctly loaded into config.
 func TestTLS_BOSHCACert_EnvParsing(t *testing.T) {
-	// Save and restore env
-	originalCF := os.Getenv("CF_API_URL")
-	originalUser := os.Getenv("CF_USERNAME")
-	originalPass := os.Getenv("CF_PASSWORD")
-	originalCACert := os.Getenv("BOSH_CA_CERT")
-	defer func() {
-		os.Setenv("CF_API_URL", originalCF)
-		os.Setenv("CF_USERNAME", originalUser)
-		os.Setenv("CF_PASSWORD", originalPass)
-		os.Setenv("BOSH_CA_CERT", originalCACert)
-	}()
-
 	// Sample PEM-formatted cert (not a real cert, just testing parsing)
 	sampleCert := `-----BEGIN CERTIFICATE-----
 MIIBkTCB+wIJAKHBfpj2S5JNMA0GCSqGSIb3DQEBCwUAMBExDzANBgNVBAMMBnRl
@@ -216,10 +177,9 @@ c3RjYTAeFw0yNDAxMDEwMDAwMDBaFw0yNTAxMDEwMDAwMDBaMBExDzANBgNVBAMM
 BnRlc3RjYTBcMA0GCSqGSIb3DQEBAQUAA0sAMEgCQQC7o96HFLqGzOHHY+QLqJZT
 -----END CERTIFICATE-----`
 
-	os.Setenv("CF_API_URL", "https://api.example.com")
-	os.Setenv("CF_USERNAME", "admin")
-	os.Setenv("CF_PASSWORD", "secret")
-	os.Setenv("BOSH_CA_CERT", sampleCert)
+	t.Cleanup(withTestCFEnvAndExtra(t, map[string]string{
+		"BOSH_CA_CERT": sampleCert,
+	}))
 
 	cfg, err := config.Load()
 	if err != nil {
