@@ -20,12 +20,13 @@ type ClusterInput struct {
 
 // ManualInput represents user-provided infrastructure data
 type ManualInput struct {
-	Name              string         `json:"name"`
-	Clusters          []ClusterInput `json:"clusters"`
-	PlatformVMsGB     int            `json:"platform_vms_gb"`
-	TotalAppMemoryGB  int            `json:"total_app_memory_gb"`
-	TotalAppDiskGB    int            `json:"total_app_disk_gb"`
-	TotalAppInstances int            `json:"total_app_instances"`
+	Name                string         `json:"name"`
+	Clusters            []ClusterInput `json:"clusters"`
+	PlatformVMsGB       int            `json:"platform_vms_gb"`
+	TotalAppMemoryGB    int            `json:"total_app_memory_gb"`
+	TotalAppDiskGB      int            `json:"total_app_disk_gb"`
+	TotalAppInstances   int            `json:"total_app_instances"`
+	MaxInstanceMemoryMB int            `json:"max_instance_memory_mb"`
 }
 
 // ClusterState represents computed cluster metrics
@@ -132,15 +133,16 @@ func CalculateHAHostFailures(hostCount, memoryPerHost, haPercentage, requiredMem
 // ToInfrastructureState converts manual input to computed state
 func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 	state := InfrastructureState{
-		Source:            "manual",
-		Name:              mi.Name,
-		Clusters:          make([]ClusterState, len(mi.Clusters)),
-		PlatformVMsGB:     mi.PlatformVMsGB,
-		TotalAppMemoryGB:  mi.TotalAppMemoryGB,
-		TotalAppDiskGB:    mi.TotalAppDiskGB,
-		TotalAppInstances: mi.TotalAppInstances,
-		Timestamp:         time.Now(),
-		Cached:            false,
+		Source:              "manual",
+		Name:                mi.Name,
+		Clusters:            make([]ClusterState, len(mi.Clusters)),
+		PlatformVMsGB:       mi.PlatformVMsGB,
+		TotalAppMemoryGB:    mi.TotalAppMemoryGB,
+		TotalAppDiskGB:      mi.TotalAppDiskGB,
+		TotalAppInstances:   mi.TotalAppInstances,
+		MaxInstanceMemoryMB: mi.MaxInstanceMemoryMB,
+		Timestamp:           time.Now(),
+		Cached:              false,
 	}
 
 	for i, c := range mi.Clusters {
