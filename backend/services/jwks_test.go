@@ -14,10 +14,14 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"hash"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -773,5 +777,409 @@ func TestVerifyJWT_MissingIdentityClaims(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "identity") {
 		t.Errorf("expected error to mention 'identity', got: %v", err)
+	}
+}
+
+// -----------------------------------------------------------------------------
+// JWKSClient Tests
+// -----------------------------------------------------------------------------
+
+// createMockUAAServer creates a mock UAA server that returns JWKS responses
+func createMockUAAServer(t *testing.T, publicKey *rsa.PublicKey, keyID string) *httptest.Server {
+	t.Helper()
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/token_keys" {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Convert public key to JWK format
+		nBytes := publicKey.N.Bytes()
+		nB64 := base64.RawURLEncoding.EncodeToString(nBytes)
+
+		eBytes := make([]byte, 4)
+		eBytes[0] = byte(publicKey.E >> 24)
+		eBytes[1] = byte(publicKey.E >> 16)
+		eBytes[2] = byte(publicKey.E >> 8)
+		eBytes[3] = byte(publicKey.E)
+		// Trim leading zeros
+		for len(eBytes) > 1 && eBytes[0] == 0 {
+			eBytes = eBytes[1:]
+		}
+		eB64 := base64.RawURLEncoding.EncodeToString(eBytes)
+
+		jwks := map[string]interface{}{
+			"keys": []map[string]interface{}{
+				{
+					"kty": "RSA",
+					"kid": keyID,
+					"n":   nB64,
+					"e":   eB64,
+					"alg": "RS256",
+					"use": "sig",
+				},
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(jwks); err != nil {
+			t.Errorf("failed to encode JWKS: %v", err)
+		}
+	}))
+}
+
+func TestJWKSClient_FetchKeys(t *testing.T) {
+	publicKey := loadTestPublicKey(t)
+	server := createMockUAAServer(t, publicKey, "test-key-1")
+	defer server.Close()
+
+	client, err := NewJWKSClient(server.URL, nil)
+	if err != nil {
+		t.Fatalf("NewJWKSClient returned error: %v", err)
+	}
+
+	// Should have fetched the key during initialization
+	key := client.GetKey("test-key-1")
+	if key == nil {
+		t.Fatal("expected key to be present after initialization")
+	}
+
+	// Verify it's the correct key by checking the modulus
+	if key.N.Cmp(publicKey.N) != 0 {
+		t.Error("fetched key does not match expected public key")
+	}
+
+	// Unknown key should return nil
+	if client.GetKey("unknown-key") != nil {
+		t.Error("expected nil for unknown key")
+	}
+}
+
+func TestJWKSClient_RefreshOnUnknownKey(t *testing.T) {
+	publicKey := loadTestPublicKey(t)
+	keyID := "test-key-1"
+	newKeyID := "test-key-2"
+
+	// Track how many times the server is called
+	callCount := 0
+	currentKeyID := keyID
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/token_keys" {
+			http.NotFound(w, r)
+			return
+		}
+
+		callCount++
+
+		// Convert public key to JWK format
+		nBytes := publicKey.N.Bytes()
+		nB64 := base64.RawURLEncoding.EncodeToString(nBytes)
+
+		eBytes := make([]byte, 4)
+		eBytes[0] = byte(publicKey.E >> 24)
+		eBytes[1] = byte(publicKey.E >> 16)
+		eBytes[2] = byte(publicKey.E >> 8)
+		eBytes[3] = byte(publicKey.E)
+		for len(eBytes) > 1 && eBytes[0] == 0 {
+			eBytes = eBytes[1:]
+		}
+		eB64 := base64.RawURLEncoding.EncodeToString(eBytes)
+
+		jwks := map[string]interface{}{
+			"keys": []map[string]interface{}{
+				{
+					"kty": "RSA",
+					"kid": currentKeyID,
+					"n":   nB64,
+					"e":   eB64,
+					"alg": "RS256",
+					"use": "sig",
+				},
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(jwks); err != nil {
+			t.Errorf("failed to encode JWKS: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client, err := NewJWKSClient(server.URL, nil)
+	if err != nil {
+		t.Fatalf("NewJWKSClient returned error: %v", err)
+	}
+
+	// Initial fetch happened
+	if callCount != 1 {
+		t.Fatalf("expected 1 call during init, got %d", callCount)
+	}
+
+	// Known key should not trigger refresh
+	key := client.GetKey("test-key-1")
+	if key == nil {
+		t.Fatal("expected key to be present")
+	}
+	if callCount != 1 {
+		t.Fatalf("expected no additional calls for known key, got %d", callCount)
+	}
+
+	// Now change the key on the server
+	currentKeyID = newKeyID
+
+	// Request new key - should trigger refresh
+	key = client.GetKey("test-key-2")
+	if key == nil {
+		t.Fatal("expected key after refresh")
+	}
+	if callCount != 2 {
+		t.Fatalf("expected 2 calls after refresh, got %d", callCount)
+	}
+}
+
+func TestJWKSClient_ConcurrentRefresh_ThunderingHerd(t *testing.T) {
+	publicKey := loadTestPublicKey(t)
+
+	// Track concurrent requests
+	var concurrentCount int32
+	var maxConcurrent int32
+	var mu sync.Mutex
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/token_keys" {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Track concurrent requests
+		current := atomic.AddInt32(&concurrentCount, 1)
+		mu.Lock()
+		if current > maxConcurrent {
+			maxConcurrent = current
+		}
+		mu.Unlock()
+
+		// Simulate slow response to increase chance of concurrent requests
+		time.Sleep(50 * time.Millisecond)
+
+		atomic.AddInt32(&concurrentCount, -1)
+
+		// Convert public key to JWK format
+		nBytes := publicKey.N.Bytes()
+		nB64 := base64.RawURLEncoding.EncodeToString(nBytes)
+
+		eBytes := make([]byte, 4)
+		eBytes[0] = byte(publicKey.E >> 24)
+		eBytes[1] = byte(publicKey.E >> 16)
+		eBytes[2] = byte(publicKey.E >> 8)
+		eBytes[3] = byte(publicKey.E)
+		for len(eBytes) > 1 && eBytes[0] == 0 {
+			eBytes = eBytes[1:]
+		}
+		eB64 := base64.RawURLEncoding.EncodeToString(eBytes)
+
+		jwks := map[string]interface{}{
+			"keys": []map[string]interface{}{
+				{
+					"kty": "RSA",
+					"kid": "test-key-1",
+					"n":   nB64,
+					"e":   eB64,
+					"alg": "RS256",
+					"use": "sig",
+				},
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(jwks); err != nil {
+			t.Errorf("failed to encode JWKS: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client, err := NewJWKSClient(server.URL, nil)
+	if err != nil {
+		t.Fatalf("NewJWKSClient returned error: %v", err)
+	}
+
+	// Clear keys to force refresh
+	client.Mu.Lock()
+	client.Keys = make(map[string]*rsa.PublicKey)
+	client.Mu.Unlock()
+
+	// Reset max concurrent counter
+	maxConcurrent = 0
+
+	// Launch many concurrent requests for unknown key
+	var wg sync.WaitGroup
+	numGoroutines := 50
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = client.GetKey("test-key-1")
+		}()
+	}
+
+	wg.Wait()
+
+	// With singleflight, only 1 request should be in flight at a time
+	// (maxConcurrent should be 1)
+	if maxConcurrent > 1 {
+		t.Errorf("thundering herd detected: max concurrent requests = %d, expected 1", maxConcurrent)
+	}
+}
+
+func TestJWKSClient_VerifyAndParse(t *testing.T) {
+	privateKey := loadTestPrivateKey(t)
+	publicKey := loadTestPublicKey(t)
+	server := createMockUAAServer(t, publicKey, "test-key-1")
+	defer server.Close()
+
+	client, err := NewJWKSClient(server.URL, nil)
+	if err != nil {
+		t.Fatalf("NewJWKSClient returned error: %v", err)
+	}
+
+	claims := jwtPayload{
+		Sub:      "user-123",
+		UserName: "testuser",
+		UserID:   "user-123",
+		Exp:      time.Now().Add(1 * time.Hour).Unix(),
+		Iat:      time.Now().Unix(),
+	}
+
+	token := createTestJWT(t, privateKey, "test-key-1", "RS256", claims)
+
+	result, err := client.VerifyAndParse(token)
+	if err != nil {
+		t.Fatalf("VerifyAndParse returned error: %v", err)
+	}
+
+	if result.Username != "testuser" {
+		t.Errorf("expected username 'testuser', got %q", result.Username)
+	}
+
+	if result.UserID != "user-123" {
+		t.Errorf("expected userID 'user-123', got %q", result.UserID)
+	}
+}
+
+func TestJWKSClient_VerifyAndParse_RefreshOnUnknownKey(t *testing.T) {
+	privateKey := loadTestPrivateKey(t)
+	publicKey := loadTestPublicKey(t)
+
+	callCount := 0
+	currentKeyID := "old-key" // Start with old-key
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/token_keys" {
+			http.NotFound(w, r)
+			return
+		}
+
+		callCount++
+
+		// Convert public key to JWK format
+		nBytes := publicKey.N.Bytes()
+		nB64 := base64.RawURLEncoding.EncodeToString(nBytes)
+
+		eBytes := make([]byte, 4)
+		eBytes[0] = byte(publicKey.E >> 24)
+		eBytes[1] = byte(publicKey.E >> 16)
+		eBytes[2] = byte(publicKey.E >> 8)
+		eBytes[3] = byte(publicKey.E)
+		for len(eBytes) > 1 && eBytes[0] == 0 {
+			eBytes = eBytes[1:]
+		}
+		eB64 := base64.RawURLEncoding.EncodeToString(eBytes)
+
+		jwks := map[string]interface{}{
+			"keys": []map[string]interface{}{
+				{
+					"kty": "RSA",
+					"kid": currentKeyID,
+					"n":   nB64,
+					"e":   eB64,
+					"alg": "RS256",
+					"use": "sig",
+				},
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(jwks); err != nil {
+			t.Errorf("failed to encode JWKS: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client, err := NewJWKSClient(server.URL, nil)
+	if err != nil {
+		t.Fatalf("NewJWKSClient returned error: %v", err)
+	}
+
+	// Initial fetch (got old-key)
+	if callCount != 1 {
+		t.Fatalf("expected 1 call during init, got %d", callCount)
+	}
+
+	// Change the key on the server
+	currentKeyID = "new-key"
+
+	claims := jwtPayload{
+		Sub:      "user-123",
+		UserName: "testuser",
+		UserID:   "user-123",
+		Exp:      time.Now().Add(1 * time.Hour).Unix(),
+		Iat:      time.Now().Unix(),
+	}
+
+	// Create token with new-key (unknown to client)
+	token := createTestJWT(t, privateKey, "new-key", "RS256", claims)
+
+	result, err := client.VerifyAndParse(token)
+	if err != nil {
+		t.Fatalf("VerifyAndParse returned error: %v", err)
+	}
+
+	// Should have refreshed to get new-key
+	if callCount != 2 {
+		t.Errorf("expected 2 calls after VerifyAndParse with unknown key, got %d", callCount)
+	}
+
+	if result.Username != "testuser" {
+		t.Errorf("expected username 'testuser', got %q", result.Username)
+	}
+}
+
+func TestNewJWKSClient_InitialFetchFails(t *testing.T) {
+	// Server that returns error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	_, err := NewJWKSClient(server.URL, nil)
+	if err == nil {
+		t.Fatal("expected error when initial fetch fails")
+	}
+}
+
+func TestNewJWKSClient_InvalidJSON(t *testing.T) {
+	// Server that returns invalid JSON
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	_, err := NewJWKSClient(server.URL, nil)
+	if err == nil {
+		t.Fatal("expected error when JWKS response is invalid JSON")
 	}
 }

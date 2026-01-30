@@ -12,9 +12,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash"
+	"io"
 	"math/big"
+	"net/http"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/singleflight"
 )
 
 // jwksResponse represents the JSON structure returned by the UAA JWKS endpoint
@@ -224,4 +229,130 @@ func verifyJWT(token string, keys map[string]*rsa.PublicKey) (*JWTClaims, error)
 		Username: username,
 		UserID:   userID,
 	}, nil
+}
+
+// JWKSClient fetches and caches JWKS keys from a UAA server.
+// Uses singleflight to prevent thundering herd when refreshing keys.
+type JWKSClient struct {
+	uaaURL     string
+	httpClient *http.Client
+	Keys       map[string]*rsa.PublicKey
+	Mu         sync.RWMutex
+	sfGroup    singleflight.Group
+}
+
+// NewJWKSClient creates a new JWKS client and fetches initial keys.
+// If httpClient is nil, a default client with 30s timeout is used.
+// Returns an error if the initial key fetch fails.
+func NewJWKSClient(uaaURL string, httpClient *http.Client) (*JWKSClient, error) {
+	if httpClient == nil {
+		httpClient = &http.Client{
+			Timeout: 30 * time.Second,
+		}
+	}
+
+	client := &JWKSClient{
+		uaaURL:     uaaURL,
+		httpClient: httpClient,
+		Keys:       make(map[string]*rsa.PublicKey),
+	}
+
+	// Fetch initial keys
+	if err := client.refresh(); err != nil {
+		return nil, fmt.Errorf("failed to fetch initial JWKS: %w", err)
+	}
+
+	return client, nil
+}
+
+// GetKey returns the RSA public key for the given key ID.
+// If the key is not found, it triggers a refresh and tries again.
+// Returns nil if the key is still not found after refresh.
+func (c *JWKSClient) GetKey(kid string) *rsa.PublicKey {
+	// First check with read lock
+	c.Mu.RLock()
+	key, ok := c.Keys[kid]
+	c.Mu.RUnlock()
+
+	if ok {
+		return key
+	}
+
+	// Key not found, try refreshing (with singleflight to prevent thundering herd)
+	_, _, _ = c.sfGroup.Do("refresh", func() (interface{}, error) {
+		return nil, c.refresh()
+	})
+
+	// Check again after refresh
+	c.Mu.RLock()
+	key = c.Keys[kid]
+	c.Mu.RUnlock()
+
+	return key
+}
+
+// refresh fetches the JWKS from the UAA server and updates the keys map.
+func (c *JWKSClient) refresh() error {
+	url := c.uaaURL + "/token_keys"
+
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to fetch JWKS from %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("JWKS fetch returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read JWKS response: %w", err)
+	}
+
+	keys, err := parseJWKS(body)
+	if err != nil {
+		return fmt.Errorf("failed to parse JWKS: %w", err)
+	}
+
+	c.Mu.Lock()
+	c.Keys = keys
+	c.Mu.Unlock()
+
+	return nil
+}
+
+// VerifyAndParse verifies a JWT signature and extracts claims.
+// If the key ID is unknown, it refreshes the keys and retries once.
+func (c *JWKSClient) VerifyAndParse(token string) (*JWTClaims, error) {
+	c.Mu.RLock()
+	keys := make(map[string]*rsa.PublicKey, len(c.Keys))
+	for k, v := range c.Keys {
+		keys[k] = v
+	}
+	c.Mu.RUnlock()
+
+	claims, err := verifyJWT(token, keys)
+	if err != nil {
+		// Check if the error is about unknown key ID
+		if strings.Contains(err.Error(), "unknown key ID") {
+			// Refresh keys using singleflight
+			_, _, _ = c.sfGroup.Do("refresh", func() (interface{}, error) {
+				return nil, c.refresh()
+			})
+
+			// Get fresh keys and retry
+			c.Mu.RLock()
+			keys = make(map[string]*rsa.PublicKey, len(c.Keys))
+			for k, v := range c.Keys {
+				keys[k] = v
+			}
+			c.Mu.RUnlock()
+
+			return verifyJWT(token, keys)
+		}
+		return nil, err
+	}
+
+	return claims, nil
 }
