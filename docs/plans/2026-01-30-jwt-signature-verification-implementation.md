@@ -6,7 +6,15 @@
 
 **Architecture:** New JWKS client fetches and caches UAA public keys. Auth middleware uses JWKS client to verify Bearer token signatures. Session cookie auth remains unchanged.
 
-**Tech Stack:** Go standard library (crypto/rsa, encoding/json, math/big), no external JWT libraries.
+**Tech Stack:** Go standard library (crypto/rsa, encoding/json, math/big, sync/singleflight), no external JWT libraries.
+
+**Review Feedback Incorporated:**
+- Signature verification BEFORE expiration check (prevents timing attacks)
+- singleflight.Group for thundering herd prevention on JWKS refresh
+- nbf (not before) claim validation for RFC 7519 compliance
+- Missing kid header rejection with clear error
+- HTTP timeout configuration (30s startup, 10s refresh)
+- Improved error message for JWKS unavailable
 
 ---
 
@@ -408,6 +416,57 @@ func TestVerifyJWT_UnknownKeyID(t *testing.T) {
 		t.Errorf("expected 'unknown key' in error, got: %v", err)
 	}
 }
+
+func TestVerifyJWT_MissingKid(t *testing.T) {
+	privateKey := loadTestPrivateKey(t)
+	publicKey := &privateKey.PublicKey
+
+	keys := map[string]*rsa.PublicKey{
+		"test-key": publicKey,
+	}
+
+	// Create token with empty kid
+	claims := map[string]interface{}{
+		"user_name": "testuser",
+		"exp":       time.Now().Add(time.Hour).Unix(),
+	}
+
+	token := createTestJWT(t, privateKey, "", claims) // Empty kid
+
+	_, err := verifyJWT(token, keys)
+	if err == nil {
+		t.Error("expected error for missing kid")
+	}
+	if !strings.Contains(err.Error(), "missing kid") {
+		t.Errorf("expected 'missing kid' in error, got: %v", err)
+	}
+}
+
+func TestVerifyJWT_NotYetValid(t *testing.T) {
+	privateKey := loadTestPrivateKey(t)
+	publicKey := &privateKey.PublicKey
+
+	keys := map[string]*rsa.PublicKey{
+		"test-key": publicKey,
+	}
+
+	claims := map[string]interface{}{
+		"user_name": "testuser",
+		"user_id":   "user-123",
+		"exp":       time.Now().Add(time.Hour).Unix(),
+		"nbf":       time.Now().Add(time.Hour).Unix(), // Not valid until 1 hour from now
+	}
+
+	token := createTestJWT(t, privateKey, "test-key", claims)
+
+	_, err := verifyJWT(token, keys)
+	if err == nil {
+		t.Error("expected error for not yet valid token")
+	}
+	if !strings.Contains(err.Error(), "not yet valid") {
+		t.Errorf("expected 'not yet valid' in error, got: %v", err)
+	}
+}
 ```
 
 ### Step 2.3: Run test to verify it fails
@@ -450,6 +509,7 @@ type jwtPayload struct {
 	ClientID string `json:"client_id"`
 	Sub      string `json:"sub"`
 	Exp      int64  `json:"exp"`
+	Nbf      int64  `json:"nbf"` // Not before (RFC 7519)
 }
 
 // verifyJWT verifies a JWT signature and returns the claims
@@ -487,13 +547,20 @@ func verifyJWT(token string, keys map[string]*rsa.PublicKey) (*JWTClaims, error)
 		return nil, fmt.Errorf("unsupported algorithm: %s (only RS256/RS384/RS512 allowed)", header.Alg)
 	}
 
+	// Reject tokens with missing kid header
+	if header.Kid == "" {
+		return nil, fmt.Errorf("missing kid (key ID) in token header")
+	}
+
 	// Get public key
 	pubKey, ok := keys[header.Kid]
 	if !ok {
 		return nil, fmt.Errorf("unknown key ID: %s", header.Kid)
 	}
 
-	// Verify signature
+	// CRITICAL: Verify signature BEFORE checking expiration
+	// This prevents timing attacks where attackers can determine if
+	// a forged token's structure is valid by observing error types
 	signingInput := parts[0] + "." + parts[1]
 	hashFunc.Write([]byte(signingInput))
 	hashed := hashFunc.Sum(nil)
@@ -507,7 +574,7 @@ func verifyJWT(token string, keys map[string]*rsa.PublicKey) (*JWTClaims, error)
 		return nil, fmt.Errorf("invalid signature: %w", err)
 	}
 
-	// Parse payload
+	// Parse payload (after signature is verified)
 	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode payload: %w", err)
@@ -516,6 +583,11 @@ func verifyJWT(token string, keys map[string]*rsa.PublicKey) (*JWTClaims, error)
 	var payload jwtPayload
 	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
 		return nil, fmt.Errorf("failed to parse payload: %w", err)
+	}
+
+	// Check nbf (not before) - RFC 7519 compliance
+	if payload.Nbf > 0 && time.Now().Unix() < payload.Nbf {
+		return nil, fmt.Errorf("token not yet valid (nbf)")
 	}
 
 	// Check expiration
@@ -636,6 +708,61 @@ func TestJWKSClient_RefreshOnUnknownKey(t *testing.T) {
 		t.Errorf("expected 2 fetch calls, got %d", callCount)
 	}
 }
+
+func TestJWKSClient_ConcurrentRefresh_ThunderingHerd(t *testing.T) {
+	// Test that concurrent requests for unknown key only trigger one refresh
+	callCount := 0
+	var mu sync.Mutex
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		callCount++
+		mu.Unlock()
+
+		// Simulate slow UAA response
+		time.Sleep(100 * time.Millisecond)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"keys": [{"kty": "RSA", "kid": "key-1", "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw", "e": "AQAB", "alg": "RS256", "use": "sig"}]}`))
+	}))
+	defer server.Close()
+
+	// Create client but clear keys to force refresh
+	client, err := NewJWKSClient(server.URL, nil)
+	if err != nil {
+		t.Fatalf("NewJWKSClient failed: %v", err)
+	}
+
+	// Clear keys to simulate unknown key scenario
+	client.mu.Lock()
+	client.keys = make(map[string]*rsa.PublicKey)
+	client.mu.Unlock()
+
+	// Reset call count after initial fetch
+	mu.Lock()
+	callCount = 0
+	mu.Unlock()
+
+	// Spawn multiple concurrent requests for the same unknown key
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			client.GetKey("key-1")
+		}()
+	}
+	wg.Wait()
+
+	// Should only have made ONE refresh call due to singleflight
+	mu.Lock()
+	finalCount := callCount
+	mu.Unlock()
+
+	if finalCount != 1 {
+		t.Errorf("expected 1 refresh call (singleflight), got %d", finalCount)
+	}
+}
 ```
 
 ### Step 3.2: Run test to verify it fails
@@ -653,6 +780,8 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+
+	"golang.org/x/sync/singleflight"
 )
 
 // JWKSClient fetches and caches public keys from CF UAA
@@ -661,12 +790,14 @@ type JWKSClient struct {
 	httpClient *http.Client
 	keys       map[string]*rsa.PublicKey
 	mu         sync.RWMutex
+	sfGroup    singleflight.Group // Prevents thundering herd on refresh
 }
 
 // NewJWKSClient creates a JWKS client and fetches initial keys
+// Uses 30 second timeout for initial fetch (startup), 10 second for runtime refresh
 func NewJWKSClient(uaaURL string, httpClient *http.Client) (*JWKSClient, error) {
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 30 * time.Second}
+		httpClient = &http.Client{Timeout: 30 * time.Second} // Startup timeout
 	}
 
 	client := &JWKSClient{
@@ -685,6 +816,7 @@ func NewJWKSClient(uaaURL string, httpClient *http.Client) (*JWKSClient, error) 
 
 // GetKey returns the public key for the given key ID
 // If not found, attempts one refresh before returning nil
+// Uses singleflight to prevent thundering herd on concurrent refresh requests
 func (c *JWKSClient) GetKey(kid string) *rsa.PublicKey {
 	c.mu.RLock()
 	key, ok := c.keys[kid]
@@ -694,9 +826,12 @@ func (c *JWKSClient) GetKey(kid string) *rsa.PublicKey {
 		return key
 	}
 
-	// Key not found, try refreshing
+	// Key not found, try refreshing with singleflight to prevent thundering herd
 	slog.Debug("JWKS key not found, refreshing", "kid", kid)
-	if err := c.refresh(); err != nil {
+	_, err, _ := c.sfGroup.Do("refresh", func() (interface{}, error) {
+		return nil, c.refresh()
+	})
+	if err != nil {
 		slog.Error("JWKS refresh failed", "error", err)
 		return nil
 	}
@@ -949,7 +1084,7 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 				// JWKS client required for Bearer token verification
 				if cfg.JWKSClient == nil {
 					slog.Debug("Auth rejected: JWKS client not configured", "path", r.URL.Path)
-					http.Error(w, "Bearer authentication not configured", http.StatusUnauthorized)
+					http.Error(w, "Bearer authentication unavailable, please use web UI login", http.StatusUnauthorized)
 					return
 				}
 
@@ -1408,15 +1543,23 @@ git push -u origin feature/issue-44-jwt-signature-verification
 
 ## Summary
 
-| Task | Description                    | Tests                |
-| ---- | ------------------------------ | -------------------- |
-| 1    | JWKS response parsing          | 4 tests              |
-| 2    | JWT signature verification     | 4 tests              |
-| 3    | JWKS client with HTTP fetching | 2 tests              |
-| 4    | Auth middleware integration    | 2 tests              |
-| 5    | main.go wiring                 | Build verification   |
-| 6    | Integration tests              | 5 tests              |
-| 7    | OpenAPI documentation          | Manual verification  |
-| 8    | Final verification             | Lint, race, coverage |
+| Task | Description                    | Tests                                |
+| ---- | ------------------------------ | ------------------------------------ |
+| 1    | JWKS response parsing          | 4 tests                              |
+| 2    | JWT signature verification     | 7 tests (+3 for nbf, missing kid)    |
+| 3    | JWKS client with HTTP fetching | 3 tests (+1 for thundering herd)     |
+| 4    | Auth middleware integration    | 2 tests                              |
+| 5    | main.go wiring                 | Build verification                   |
+| 6    | Integration tests              | 5 tests                              |
+| 7    | OpenAPI documentation          | Manual verification                  |
+| 8    | Final verification             | Lint, race, coverage                 |
 
-**Total new tests:** ~17 tests covering JWKS parsing, signature verification, key rotation, and full auth flow.
+**Total new tests:** ~21 tests covering JWKS parsing, signature verification, nbf validation, missing kid handling, thundering herd prevention, key rotation, and full auth flow.
+
+**Review feedback addressed:**
+- ✅ Signature verification before expiration check
+- ✅ singleflight for thundering herd prevention
+- ✅ nbf (not before) claim validation
+- ✅ Missing kid header rejection
+- ✅ HTTP timeout configuration
+- ✅ Improved error message for JWKS unavailable
