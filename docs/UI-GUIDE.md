@@ -568,7 +568,7 @@ Where:
 - **Usable Capacity** = Total cluster memory - Reserved capacity (HA% or N-1, whichever reserves more)
 - **App Capacity** = `cells × (cell_memory_gb - 7% overhead)`
 - **Free Chunks** = `(App Capacity - App Memory) / Chunk Size`
-- **Chunk Size** = Auto-detected from `Avg Instance Memory` (defaults to 4GB if unavailable)
+- **Chunk Size** = Auto-detected from `Max Instance Memory` (largest app memory limit, min 1GB, defaults to 4GB if unavailable)
 
 #### TPS Performance
 
@@ -692,8 +692,8 @@ The metric scorecards in the results section use color-coded status badges to in
 
 | Scorecard          | Warning Threshold | Critical Threshold | Notes                                                  |
 | ------------------ | ----------------- | ------------------ | ------------------------------------------------------ |
-| **Cell Count**     | --                 | --                  | Informational only; no status thresholds               |
-| **App Capacity**   | --                 | --                  | Informational only; no status thresholds               |
+| **Cell Count**     | --                | --                 | Informational only; no status thresholds               |
+| **App Capacity**   | --                | --                 | Informational only; no status thresholds               |
 | **Fault Impact**   | ≥25 apps/cell     | ≥50 apps/cell      | Lower is better; high values mean larger blast radius  |
 | **Instances/Cell** | ≥30               | ≥50                | Lower is better; high density increases failure impact |
 

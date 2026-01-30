@@ -80,6 +80,7 @@ type InfrastructureState struct {
 	TotalAppDiskGB               int            `json:"total_app_disk_gb"`
 	TotalAppInstances            int            `json:"total_app_instances"`
 	AvgInstanceMemoryMB          int            `json:"avg_instance_memory_mb"`
+	MaxInstanceMemoryMB          int            `json:"max_instance_memory_mb"`
 	Timestamp                    time.Time      `json:"timestamp"`
 	Cached                       bool           `json:"cached"`
 }

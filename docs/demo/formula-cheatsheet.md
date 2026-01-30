@@ -77,17 +77,19 @@ Memory Utilization % = Total App Memory / Total App Capacity × 100
 ### Free Chunks (Staging Capacity)
 
 ```
-Chunk Size = AvgInstanceMemoryMB (auto) or ChunkSizeMB (override) or 4096 MB (default)
+Chunk Size = ChunkSizeMB (override) or MaxInstanceMemoryMB (auto, min 1GB) or 4096 MB (default)
 Free Chunks = (App Capacity - App Memory Used) * 1024 / Chunk Size MB
 ```
 
-**Chunk size** = typical app instance size, auto-detected from your workload
+**Chunk size** = largest app memory limit in deployment, auto-detected from CF API
 
-| Workload Type | Typical Avg Instance | Chunk Size |
-| ------------- | -------------------- | ---------- |
-| Go/Python     | 512-1024 MB          | ~1 GB      |
-| Node.js       | 1-2 GB               | ~1.5 GB    |
-| Java          | 2-4 GB               | ~4 GB      |
+| Workload Type | Max Instance Memory | Chunk Size |
+| ------------- | ------------------- | ---------- |
+| Go/Python     | 1-2 GB              | ~1-2 GB    |
+| Node.js       | 1-2 GB              | ~1-2 GB    |
+| Java          | 2-4 GB              | ~2-4 GB    |
+
+> Note: Auto-detected chunk size has a minimum floor of 1GB to ensure sufficient staging capacity.
 
 | Chunks | Status      |
 | ------ | ----------- |
@@ -282,12 +284,12 @@ TPS is **modeled**, not measured live. Default curve:
 
 ## Constants
 
-| Constant        | Value     | Description                                      |
-| --------------- | --------- | ------------------------------------------------ |
-| Memory Overhead | 7%        | Garden/system processes                          |
-| Disk Overhead   | 0.01%     | Negligible                                       |
-| Chunk Size      | Auto/4 GB | Avg instance memory (auto-detect or 4GB default) |
-| Peak TPS        | 1,964     | Default peak scheduler throughput                |
+| Constant        | Value     | Description                                                |
+| --------------- | --------- | ---------------------------------------------------------- |
+| Memory Overhead | 7%        | Garden/system processes                                    |
+| Disk Overhead   | 0.01%     | Negligible                                                 |
+| Chunk Size      | Auto/4 GB | Max instance memory (auto-detect, min 1GB, or 4GB default) |
+| Peak TPS        | 1,964     | Default peak scheduler throughput                          |
 
 ---
 

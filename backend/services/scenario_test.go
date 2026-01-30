@@ -1931,9 +1931,15 @@ func TestResolveChunkSizeMB(t *testing.T) {
 		wantMB  int
 	}{
 		{"input override wins", 2048, 3072, 2048},
-		{"state average used when input is 0", 0, 3072, 3072},
+		{"state max used when input is 0", 0, 3072, 3072},
 		{"default when both are 0", 0, 0, 4096},
 		{"input override even when state available", 1024, 2048, 1024},
+		// NEW: minimum floor enforcement - tiny values should be clamped to 1024MB
+		{"state max below minimum floor", 0, 100, 1024},  // 100MB -> 1024MB minimum
+		{"state max at minimum floor", 0, 1024, 1024},    // 1024MB -> 1024MB (at floor)
+		{"state max above minimum floor", 0, 2048, 2048}, // 2048MB -> 2048MB (above floor)
+		// Input override is NOT clamped - user explicitly requested this value
+		{"input override below floor is respected", 512, 0, 512},
 	}
 
 	for _, tt := range tests {
@@ -1953,7 +1959,8 @@ func TestFreeChunksWithConfigurableSize(t *testing.T) {
 		PlatformVMsGB:       1000,
 		TotalAppMemoryGB:    2000,
 		TotalAppInstances:   1000,
-		AvgInstanceMemoryMB: 2048, // 2GB average
+		MaxInstanceMemoryMB: 2048, // 2GB max app size (used for chunk size)
+		AvgInstanceMemoryMB: 500,  // 500MB average (NOT used for chunk size)
 		Clusters: []models.ClusterState{
 			{DiegoCellCount: 100, DiegoCellMemoryGB: 32, DiegoCellCPU: 4},
 		},
@@ -1961,7 +1968,7 @@ func TestFreeChunksWithConfigurableSize(t *testing.T) {
 
 	calc := NewScenarioCalculator()
 
-	// Test 1: Auto-detect from state (2GB chunks)
+	// Test 1: Auto-detect from state MaxInstanceMemoryMB (2GB chunks)
 	input1 := models.ScenarioInput{
 		ProposedCellMemoryGB: 32,
 		ProposedCellCPU:      4,
@@ -1995,6 +2002,43 @@ func TestFreeChunksWithConfigurableSize(t *testing.T) {
 	}
 	if result2.ChunkSizeMB != 1024 {
 		t.Errorf("Expected ChunkSizeMB 1024, got %d", result2.ChunkSizeMB)
+	}
+}
+
+// TestChunkSizeMinimumFloor verifies that tiny MaxInstanceMemoryMB values
+// (like 100MB average instance size) don't result in tiny chunk sizes.
+// This is the bug from PR #89 - AvgInstanceMemoryMB was being used as chunk size.
+func TestChunkSizeMinimumFloor(t *testing.T) {
+	// Simulate a real-world scenario: 500 app instances using 50GB total
+	// Average = 50*1024/500 = 102MB (typical for small containerized apps)
+	// But chunk size for staging should never be this small!
+	state := models.InfrastructureState{
+		TotalN1MemoryGB:     26624,
+		TotalCellCount:      100,
+		PlatformVMsGB:       1000,
+		TotalAppMemoryGB:    50,
+		TotalAppInstances:   500,
+		MaxInstanceMemoryMB: 0,   // No max available (legacy data)
+		AvgInstanceMemoryMB: 102, // Calculated: 50*1024/500 = 102MB
+		Clusters: []models.ClusterState{
+			{DiegoCellCount: 100, DiegoCellMemoryGB: 32, DiegoCellCPU: 4},
+		},
+	}
+
+	calc := NewScenarioCalculator()
+
+	input := models.ScenarioInput{
+		ProposedCellMemoryGB: 32,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    100,
+		ChunkSizeMB:          0, // Use auto-detect
+	}
+	result := calc.CalculateProposed(state, input)
+
+	// With no MaxInstanceMemoryMB and tiny AvgInstanceMemoryMB,
+	// should fall back to default 4096MB, NOT use the 102MB average!
+	if result.ChunkSizeMB != 4096 {
+		t.Errorf("Expected ChunkSizeMB 4096 (default) when MaxInstanceMemoryMB is 0, got %d", result.ChunkSizeMB)
 	}
 }
 

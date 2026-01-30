@@ -21,15 +21,25 @@ const (
 	PeakTPS = 1964
 )
 
+// MinChunkSizeMB is the minimum chunk size for staging capacity calculations.
+// Staging needs space for buildpack compilation, so chunks smaller than 1GB are impractical.
+const MinChunkSizeMB = 1024
+
 // resolveChunkSizeMB returns the effective chunk size in MB.
-// Priority: input override → state average → default 4096MB
+// Priority: input override → state max instance memory → default 4096MB
+// For auto-detected values (not explicit override), enforces minimum of 1024MB (1GB).
 // Note: Negative values are treated as unset (0). Always returns a positive value.
-func resolveChunkSizeMB(inputChunkMB, stateAvgMB int) int {
+func resolveChunkSizeMB(inputChunkMB, stateMaxMB int) int {
+	// User explicitly requested this chunk size - respect it
 	if inputChunkMB > 0 {
 		return inputChunkMB
 	}
-	if stateAvgMB > 0 {
-		return stateAvgMB
+	// Auto-detect from state's max instance memory, with minimum floor
+	if stateMaxMB > 0 {
+		if stateMaxMB < MinChunkSizeMB {
+			return MinChunkSizeMB
+		}
+		return stateMaxMB
 	}
 	return 4096 // Default 4GB
 }
@@ -248,7 +258,7 @@ func (c *ScenarioCalculator) CalculateCurrent(state models.InfrastructureState, 
 		0, // physicalCoresPerHost - not available in current state
 		0, // targetVCPURatio - not available in current state
 		0, // platformVMsCPU - not available in current state
-		resolveChunkSizeMB(0, state.AvgInstanceMemoryMB),
+		resolveChunkSizeMB(0, state.MaxInstanceMemoryMB),
 	)
 }
 
@@ -287,7 +297,7 @@ func (c *ScenarioCalculator) CalculateProposed(state models.InfrastructureState,
 		input.PhysicalCoresPerHost,
 		float64(input.TargetVCPURatio),
 		input.PlatformVMsCPU,
-		resolveChunkSizeMB(input.ChunkSizeMB, state.AvgInstanceMemoryMB),
+		resolveChunkSizeMB(input.ChunkSizeMB, state.MaxInstanceMemoryMB),
 	)
 }
 

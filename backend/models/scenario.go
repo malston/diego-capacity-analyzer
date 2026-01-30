@@ -28,7 +28,7 @@ type ScenarioInput struct {
 	// PlatformVMsCPU is total vCPUs allocated to non-Diego platform VMs (BOSH, Diego Brain, Router, etc.)
 	PlatformVMsCPU int `json:"platform_vms_cpu"`
 	// ChunkSizeMB is an optional override for staging chunk size.
-	// If 0, uses AvgInstanceMemoryMB from state; if that's 0, defaults to 4096 MB.
+	// If 0, uses MaxInstanceMemoryMB from state (min 1GB); if that's 0, defaults to 4096 MB.
 	ChunkSizeMB int `json:"chunk_size_mb"`
 }
 

@@ -282,16 +282,26 @@ func (h *Handler) enrichWithCFAppData(ctx context.Context, state *models.Infrast
 	}
 
 	var totalMemoryMB, totalDiskMB, totalInstances int
+	var maxMemPerInstanceMB int
 	for _, app := range apps {
 		totalMemoryMB += app.RequestedMB
 		totalDiskMB += app.RequestedDiskMB
 		totalInstances += app.Instances
+
+		// Track max per-instance memory for chunk size calculation
+		if app.Instances > 0 {
+			perInstanceMB := app.RequestedMB / app.Instances
+			if perInstanceMB > maxMemPerInstanceMB {
+				maxMemPerInstanceMB = perInstanceMB
+			}
+		}
 	}
 
 	// Round to nearest GB instead of truncating (add 512MB before dividing)
 	state.TotalAppMemoryGB = (totalMemoryMB + 512) / 1024
 	state.TotalAppDiskGB = (totalDiskMB + 512) / 1024
 	state.TotalAppInstances = totalInstances
+	state.MaxInstanceMemoryMB = maxMemPerInstanceMB
 
 	return nil
 }
