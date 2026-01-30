@@ -342,8 +342,14 @@ const ScenarioResults = ({
           </div>
           <div className="mt-4 text-center text-xs text-gray-500">
             {proposed.chunk_size_mb
-              ? `${(proposed.chunk_size_mb / 1024).toFixed(1)}GB chunks for staging`
-              : "4GB chunks for staging"}
+              ? (() => {
+                  const chunkSizeGb = proposed.chunk_size_mb / 1024;
+                  const formatted = Number.isInteger(chunkSizeGb)
+                    ? chunkSizeGb.toFixed(0)
+                    : chunkSizeGb.toFixed(1);
+                  return `${formatted}GB chunks for staging`;
+                })()
+              : "4GB chunks for concurrent staging"}
           </div>
         </div>
 

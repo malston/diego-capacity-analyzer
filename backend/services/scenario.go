@@ -23,6 +23,7 @@ const (
 
 // resolveChunkSizeMB returns the effective chunk size in MB.
 // Priority: input override → state average → default 4096MB
+// Note: Negative values are treated as unset (0). Always returns a positive value.
 func resolveChunkSizeMB(inputChunkMB, stateAvgMB int) int {
 	if inputChunkMB > 0 {
 		return inputChunkMB
@@ -335,7 +336,10 @@ func (c *ScenarioCalculator) calculateFull(
 	// Free chunks: (capacity - used) / chunkSize
 	// Convert GB to MB for precision
 	freeMemoryMB := (appCapacityGB - totalAppMemoryGB) * 1024
-	freeChunks := freeMemoryMB / chunkSizeMB
+	freeChunks := 0
+	if chunkSizeMB > 0 {
+		freeChunks = freeMemoryMB / chunkSizeMB
+	}
 	if freeChunks < 0 {
 		freeChunks = 0
 	}
