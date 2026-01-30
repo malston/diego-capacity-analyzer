@@ -215,6 +215,11 @@ func verifyJWT(token string, keys map[string]*rsa.PublicKey) (*JWTClaims, error)
 		userID = claims.Sub
 	}
 
+	// Reject tokens without identity information
+	if username == "" && userID == "" {
+		return nil, fmt.Errorf("token missing required identity claims (user_name/client_id or user_id/sub)")
+	}
+
 	return &JWTClaims{
 		Username: username,
 		UserID:   userID,

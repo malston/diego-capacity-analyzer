@@ -573,7 +573,6 @@ func TestVerifyJWT_ExpiredToken(t *testing.T) {
 }
 
 func TestVerifyJWT_InvalidSignature(t *testing.T) {
-	privateKey := loadTestPrivateKey(t)
 	publicKey := loadTestPublicKey(t)
 
 	// Generate a different key pair for creating a token with wrong signature
@@ -605,9 +604,6 @@ func TestVerifyJWT_InvalidSignature(t *testing.T) {
 	if !strings.Contains(err.Error(), "signature") {
 		t.Errorf("expected error to mention 'signature', got: %v", err)
 	}
-
-	// Ensure we don't accidentally use the unused variable
-	_ = privateKey
 }
 
 func TestVerifyJWT_UnknownKeyID(t *testing.T) {
@@ -750,5 +746,32 @@ func TestVerifyJWT_MalformedToken(t *testing.T) {
 				t.Error("expected error for malformed token, got nil")
 			}
 		})
+	}
+}
+
+func TestVerifyJWT_MissingIdentityClaims(t *testing.T) {
+	privateKey := loadTestPrivateKey(t)
+	publicKey := loadTestPublicKey(t)
+
+	keys := map[string]*rsa.PublicKey{
+		"test-key-1": publicKey,
+	}
+
+	// Token with no identity claims (no user_name, user_id, client_id, or sub)
+	claims := jwtPayload{
+		Exp: time.Now().Add(1 * time.Hour).Unix(),
+		Iat: time.Now().Unix(),
+		Iss: "https://uaa.example.com",
+	}
+
+	token := createTestJWT(t, privateKey, "test-key-1", "RS256", claims)
+
+	_, err := verifyJWT(token, keys)
+	if err == nil {
+		t.Fatal("expected error for token missing identity claims, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "identity") {
+		t.Errorf("expected error to mention 'identity', got: %v", err)
 	}
 }
