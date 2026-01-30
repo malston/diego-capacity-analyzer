@@ -5,10 +5,19 @@ package middleware
 
 import (
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/markalston/diego-capacity-analyzer/backend/services"
 )
 
 func TestAuth_RequiredMode_NoHeader_Returns401(t *testing.T) {
@@ -67,15 +76,28 @@ func TestAuth_DisabledMode_NoHeader_PassesThrough(t *testing.T) {
 }
 
 func TestAuth_ValidToken_ExtractsClaims(t *testing.T) {
-	cfg := AuthConfig{Mode: AuthModeRequired}
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	jwksClient := &services.JWKSClient{}
+	jwksClient.Mu.Lock()
+	jwksClient.Keys = map[string]*rsa.PublicKey{
+		"test-key-id": &privateKey.PublicKey,
+	}
+	jwksClient.Mu.Unlock()
+
+	cfg := AuthConfig{Mode: AuthModeRequired, JWKSClient: jwksClient}
 	var extractedClaims *UserClaims
 	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
 		extractedClaims = GetUserClaims(r)
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Create a valid JWT token (not expired)
-	token := createTestToken(t, "test-user", "test-user-id", time.Now().Add(time.Hour))
+	// Create a properly signed JWT token (not expired)
+	token := createSignedTestToken(t, privateKey, "test-key-id", "test-user", "test-user-id", time.Now().Add(time.Hour))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -97,13 +119,26 @@ func TestAuth_ValidToken_ExtractsClaims(t *testing.T) {
 }
 
 func TestAuth_ExpiredToken_Returns401(t *testing.T) {
-	cfg := AuthConfig{Mode: AuthModeRequired}
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	jwksClient := &services.JWKSClient{}
+	jwksClient.Mu.Lock()
+	jwksClient.Keys = map[string]*rsa.PublicKey{
+		"test-key-id": &privateKey.PublicKey,
+	}
+	jwksClient.Mu.Unlock()
+
+	cfg := AuthConfig{Mode: AuthModeRequired, JWKSClient: jwksClient}
 	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("Handler should not be called with expired token")
 	})
 
-	// Create an expired JWT token
-	token := createTestToken(t, "test-user", "test-user-id", time.Now().Add(-time.Hour))
+	// Create an expired but properly signed JWT token
+	token := createSignedTestToken(t, privateKey, "test-key-id", "test-user", "test-user-id", time.Now().Add(-time.Hour))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -116,7 +151,20 @@ func TestAuth_ExpiredToken_Returns401(t *testing.T) {
 }
 
 func TestAuth_MalformedToken_Returns401(t *testing.T) {
-	cfg := AuthConfig{Mode: AuthModeRequired}
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	jwksClient := &services.JWKSClient{}
+	jwksClient.Mu.Lock()
+	jwksClient.Keys = map[string]*rsa.PublicKey{
+		"test-key-id": &privateKey.PublicKey,
+	}
+	jwksClient.Mu.Unlock()
+
+	cfg := AuthConfig{Mode: AuthModeRequired, JWKSClient: jwksClient}
 	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("Handler should not be called with malformed token")
 	})
@@ -148,14 +196,27 @@ func TestAuth_InvalidBearerFormat_Returns401(t *testing.T) {
 }
 
 func TestAuth_OptionalMode_ValidToken_ExtractsClaims(t *testing.T) {
-	cfg := AuthConfig{Mode: AuthModeOptional}
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	jwksClient := &services.JWKSClient{}
+	jwksClient.Mu.Lock()
+	jwksClient.Keys = map[string]*rsa.PublicKey{
+		"test-key-id": &privateKey.PublicKey,
+	}
+	jwksClient.Mu.Unlock()
+
+	cfg := AuthConfig{Mode: AuthModeOptional, JWKSClient: jwksClient}
 	var extractedClaims *UserClaims
 	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
 		extractedClaims = GetUserClaims(r)
 		w.WriteHeader(http.StatusOK)
 	})
 
-	token := createTestToken(t, "optional-user", "optional-id", time.Now().Add(time.Hour))
+	token := createSignedTestToken(t, privateKey, "test-key-id", "optional-user", "optional-id", time.Now().Add(time.Hour))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -174,7 +235,20 @@ func TestAuth_OptionalMode_ValidToken_ExtractsClaims(t *testing.T) {
 }
 
 func TestAuth_OptionalMode_InvalidToken_Returns401(t *testing.T) {
-	cfg := AuthConfig{Mode: AuthModeOptional}
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	jwksClient := &services.JWKSClient{}
+	jwksClient.Mu.Lock()
+	jwksClient.Keys = map[string]*rsa.PublicKey{
+		"test-key-id": &privateKey.PublicKey,
+	}
+	jwksClient.Mu.Unlock()
+
+	cfg := AuthConfig{Mode: AuthModeOptional, JWKSClient: jwksClient}
 	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("Handler should not be called with invalid token even in optional mode")
 	})
@@ -256,14 +330,29 @@ func TestValidateAuthMode_EmptyMode(t *testing.T) {
 	}
 }
 
-func TestAuth_TokenWithEmptyUsername_Returns401(t *testing.T) {
-	cfg := AuthConfig{Mode: AuthModeRequired}
+func TestAuth_TokenWithEmptyIdentity_Returns401(t *testing.T) {
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	jwksClient := &services.JWKSClient{}
+	jwksClient.Mu.Lock()
+	jwksClient.Keys = map[string]*rsa.PublicKey{
+		"test-key-id": &privateKey.PublicKey,
+	}
+	jwksClient.Mu.Unlock()
+
+	cfg := AuthConfig{Mode: AuthModeRequired, JWKSClient: jwksClient}
 	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
-		t.Error("Handler should not be called with empty username")
+		t.Error("Handler should not be called with empty identity")
 	})
 
-	// Create token with empty username
-	token := createTestToken(t, "", "user-id", time.Now().Add(time.Hour))
+	// Create token with empty username AND empty user_id (no identity)
+	// JWKS verification allows empty username if user_id is present (client credentials tokens)
+	// but rejects tokens missing BOTH user_name/client_id AND user_id/sub
+	token := createSignedTestTokenWithNoIdentity(t, privateKey, "test-key-id", time.Now().Add(time.Hour))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -272,6 +361,47 @@ func TestAuth_TokenWithEmptyUsername_Returns401(t *testing.T) {
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("Status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestAuth_TokenWithEmptyUsernameButValidUserID_IsAccepted(t *testing.T) {
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	jwksClient := &services.JWKSClient{}
+	jwksClient.Mu.Lock()
+	jwksClient.Keys = map[string]*rsa.PublicKey{
+		"test-key-id": &privateKey.PublicKey,
+	}
+	jwksClient.Mu.Unlock()
+
+	cfg := AuthConfig{Mode: AuthModeRequired, JWKSClient: jwksClient}
+	var extractedClaims *UserClaims
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		extractedClaims = GetUserClaims(r)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Create token with empty username but valid user_id (like a client credentials token)
+	token := createSignedTestToken(t, privateKey, "test-key-id", "", "user-id", time.Now().Add(time.Hour))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	// Should be accepted because user_id is present
+	if rec.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if extractedClaims == nil {
+		t.Fatal("Expected claims to be extracted")
+	}
+	if extractedClaims.UserID != "user-id" {
+		t.Errorf("UserID = %q, want %q", extractedClaims.UserID, "user-id")
 	}
 }
 
@@ -341,6 +471,19 @@ func TestAuthWithSession_InvalidCookie_Returns401(t *testing.T) {
 }
 
 func TestAuthWithSession_BearerTakesPrecedence(t *testing.T) {
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	jwksClient := &services.JWKSClient{}
+	jwksClient.Mu.Lock()
+	jwksClient.Keys = map[string]*rsa.PublicKey{
+		"test-key-id": &privateKey.PublicKey,
+	}
+	jwksClient.Mu.Unlock()
+
 	sessionValidator := func(sessionID string) *UserClaims {
 		return &UserClaims{Username: "session-user", UserID: "session-id"}
 	}
@@ -348,6 +491,7 @@ func TestAuthWithSession_BearerTakesPrecedence(t *testing.T) {
 	cfg := AuthConfig{
 		Mode:             AuthModeRequired,
 		SessionValidator: sessionValidator,
+		JWKSClient:       jwksClient,
 	}
 
 	var extractedClaims *UserClaims
@@ -356,8 +500,8 @@ func TestAuthWithSession_BearerTakesPrecedence(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Valid JWT token
-	token := createTestToken(t, "bearer-user", "bearer-id", time.Now().Add(time.Hour))
+	// Valid JWT token (properly signed)
+	token := createSignedTestToken(t, privateKey, "test-key-id", "bearer-user", "bearer-id", time.Now().Add(time.Hour))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -496,4 +640,280 @@ func base64URLEncode(data []byte) string {
 		}
 	}
 	return string(result)
+}
+
+// Tests for JWKS-based JWT verification
+
+func TestAuth_BearerWithJWKS(t *testing.T) {
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	// Create a JWKSClient with the test public key
+	jwksClient := &services.JWKSClient{}
+	jwksClient.Mu.Lock()
+	jwksClient.Keys = map[string]*rsa.PublicKey{
+		"test-key-id": &privateKey.PublicKey,
+	}
+	jwksClient.Mu.Unlock()
+
+	cfg := AuthConfig{
+		Mode:       AuthModeRequired,
+		JWKSClient: jwksClient,
+	}
+
+	var extractedClaims *UserClaims
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		extractedClaims = GetUserClaims(r)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Create a properly signed JWT
+	token := createSignedTestToken(t, privateKey, "test-key-id", "jwks-user", "jwks-user-id", time.Now().Add(time.Hour))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d. Body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if extractedClaims == nil {
+		t.Fatal("Expected claims to be extracted")
+	}
+	if extractedClaims.Username != "jwks-user" {
+		t.Errorf("Username = %q, want %q", extractedClaims.Username, "jwks-user")
+	}
+	if extractedClaims.UserID != "jwks-user-id" {
+		t.Errorf("UserID = %q, want %q", extractedClaims.UserID, "jwks-user-id")
+	}
+}
+
+func TestAuth_BearerWithoutJWKSClient(t *testing.T) {
+	// JWKSClient is nil - Bearer auth should be unavailable
+	cfg := AuthConfig{
+		Mode:       AuthModeRequired,
+		JWKSClient: nil,
+	}
+
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("Handler should not be called when JWKSClient is nil")
+	})
+
+	// Use any token - it doesn't matter since JWKSClient is nil
+	token := createTestToken(t, "test-user", "test-id", time.Now().Add(time.Hour))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+
+	// Check for specific error message
+	body := strings.TrimSpace(rec.Body.String())
+	expectedMsg := "Bearer authentication unavailable, please use web UI login"
+	if body != expectedMsg {
+		t.Errorf("Body = %q, want %q", body, expectedMsg)
+	}
+}
+
+func TestAuth_BearerWithJWKS_ExpiredToken_Returns401(t *testing.T) {
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+
+	// Create a JWKSClient with the test public key
+	jwksClient := &services.JWKSClient{}
+	jwksClient.Mu.Lock()
+	jwksClient.Keys = map[string]*rsa.PublicKey{
+		"test-key-id": &privateKey.PublicKey,
+	}
+	jwksClient.Mu.Unlock()
+
+	cfg := AuthConfig{
+		Mode:       AuthModeRequired,
+		JWKSClient: jwksClient,
+	}
+
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("Handler should not be called with expired token")
+	})
+
+	// Create an expired but properly signed JWT
+	token := createSignedTestToken(t, privateKey, "test-key-id", "test-user", "test-id", time.Now().Add(-time.Hour))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestAuth_BearerWithJWKS_InvalidSignature_Returns401(t *testing.T) {
+	// Generate two different key pairs
+	privateKey1, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key 1: %v", err)
+	}
+	privateKey2, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key 2: %v", err)
+	}
+
+	// Create a JWKSClient with key 2's public key
+	jwksClient := &services.JWKSClient{}
+	jwksClient.Mu.Lock()
+	jwksClient.Keys = map[string]*rsa.PublicKey{
+		"test-key-id": &privateKey2.PublicKey, // Different key!
+	}
+	jwksClient.Mu.Unlock()
+
+	cfg := AuthConfig{
+		Mode:       AuthModeRequired,
+		JWKSClient: jwksClient,
+	}
+
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("Handler should not be called with invalid signature")
+	})
+
+	// Sign with key 1 (but JWKSClient has key 2)
+	token := createSignedTestToken(t, privateKey1, "test-key-id", "test-user", "test-id", time.Now().Add(time.Hour))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestAuth_SessionCookieStillWorksWithoutJWKSClient(t *testing.T) {
+	// Verify backward compatibility: session cookies still work when JWKSClient is nil
+	sessionValidator := func(sessionID string) *UserClaims {
+		if sessionID == "valid-session-123" {
+			return &UserClaims{Username: "session-user", UserID: "session-user-id"}
+		}
+		return nil
+	}
+
+	cfg := AuthConfig{
+		Mode:             AuthModeRequired,
+		SessionValidator: sessionValidator,
+		JWKSClient:       nil, // No JWKS client
+	}
+
+	var extractedClaims *UserClaims
+	handler := Auth(cfg)(func(w http.ResponseWriter, r *http.Request) {
+		extractedClaims = GetUserClaims(r)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "valid-session-123"})
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if extractedClaims == nil {
+		t.Fatal("Expected claims from session cookie")
+	}
+	if extractedClaims.Username != "session-user" {
+		t.Errorf("Username = %q, want %q", extractedClaims.Username, "session-user")
+	}
+}
+
+// createSignedTestToken creates a properly RS256-signed JWT token for testing
+func createSignedTestToken(t *testing.T, privateKey *rsa.PrivateKey, kid, username, userID string, exp time.Time) string {
+	t.Helper()
+
+	// Create header
+	header := map[string]string{
+		"alg": "RS256",
+		"typ": "JWT",
+		"kid": kid,
+	}
+	headerJSON, err := json.Marshal(header)
+	if err != nil {
+		t.Fatalf("Failed to marshal header: %v", err)
+	}
+	headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+
+	// Create payload
+	payload := map[string]interface{}{
+		"user_name": username,
+		"user_id":   userID,
+		"exp":       exp.Unix(),
+		"iat":       time.Now().Unix(),
+	}
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("Failed to marshal payload: %v", err)
+	}
+	payloadB64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
+
+	// Create signature
+	signingInput := headerB64 + "." + payloadB64
+	hash := sha256.Sum256([]byte(signingInput))
+	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, crypto.SHA256, hash[:])
+	if err != nil {
+		t.Fatalf("Failed to sign token: %v", err)
+	}
+	signatureB64 := base64.RawURLEncoding.EncodeToString(signature)
+
+	return headerB64 + "." + payloadB64 + "." + signatureB64
+}
+
+// createSignedTestTokenWithNoIdentity creates a properly signed JWT without identity claims
+func createSignedTestTokenWithNoIdentity(t *testing.T, privateKey *rsa.PrivateKey, kid string, exp time.Time) string {
+	t.Helper()
+
+	// Create header
+	header := map[string]string{
+		"alg": "RS256",
+		"typ": "JWT",
+		"kid": kid,
+	}
+	headerJSON, err := json.Marshal(header)
+	if err != nil {
+		t.Fatalf("Failed to marshal header: %v", err)
+	}
+	headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+
+	// Create payload without user_name, user_id, client_id, or sub
+	payload := map[string]interface{}{
+		"exp": exp.Unix(),
+		"iat": time.Now().Unix(),
+	}
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("Failed to marshal payload: %v", err)
+	}
+	payloadB64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
+
+	// Create signature
+	signingInput := headerB64 + "." + payloadB64
+	hash := sha256.Sum256([]byte(signingInput))
+	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, crypto.SHA256, hash[:])
+	if err != nil {
+		t.Fatalf("Failed to sign token: %v", err)
+	}
+	signatureB64 := base64.RawURLEncoding.EncodeToString(signature)
+
+	return headerB64 + "." + payloadB64 + "." + signatureB64
 }

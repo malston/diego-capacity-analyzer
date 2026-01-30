@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/markalston/diego-capacity-analyzer/backend/services"
 )
 
 // AuthMode defines how authentication is enforced
@@ -33,6 +35,7 @@ type SessionValidatorFunc func(sessionID string) *UserClaims
 type AuthConfig struct {
 	Mode             AuthMode
 	SessionValidator SessionValidatorFunc // Optional: validates session cookies
+	JWKSClient       *services.JWKSClient // Optional: validates Bearer token signatures
 }
 
 // ValidateAuthMode validates an auth mode string and returns the corresponding AuthMode.
@@ -91,11 +94,26 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 				}
 
 				token := strings.TrimPrefix(authHeader, "Bearer ")
-				claims, err := parseJWT(token)
+
+				// If JWKSClient is not configured, Bearer auth is unavailable
+				if cfg.JWKSClient == nil {
+					slog.Debug("Auth rejected: JWKSClient not configured", "path", r.URL.Path)
+					http.Error(w, "Bearer authentication unavailable, please use web UI login", http.StatusUnauthorized)
+					return
+				}
+
+				// Use JWKS client for cryptographic signature verification
+				jwtClaims, err := cfg.JWKSClient.VerifyAndParse(token)
 				if err != nil {
 					slog.Debug("Auth rejected: invalid token", "path", r.URL.Path, "error", err.Error())
 					http.Error(w, "Invalid token: "+err.Error(), http.StatusUnauthorized)
 					return
+				}
+
+				// Convert services.JWTClaims to middleware.UserClaims
+				claims := &UserClaims{
+					Username: jwtClaims.Username,
+					UserID:   jwtClaims.UserID,
 				}
 
 				slog.Debug("Auth: valid bearer token", "path", r.URL.Path, "user", claims.Username)
