@@ -6,13 +6,7 @@ import (
 )
 
 func TestLoadConfig_RequiredFields(t *testing.T) {
-	// Clear environment
-	os.Clearenv()
-
-	// Set required fields
-	os.Setenv("CF_API_URL", "https://api.sys.test.com")
-	os.Setenv("CF_USERNAME", "admin")
-	os.Setenv("CF_PASSWORD", "secret")
+	t.Cleanup(withCleanCFEnv(t))
 
 	cfg, err := Load()
 	if err != nil {
@@ -34,10 +28,7 @@ func TestLoadConfig_MissingRequired(t *testing.T) {
 }
 
 func TestLoadConfig_Defaults(t *testing.T) {
-	os.Clearenv()
-	os.Setenv("CF_API_URL", "https://api.sys.test.com")
-	os.Setenv("CF_USERNAME", "admin")
-	os.Setenv("CF_PASSWORD", "secret")
+	t.Cleanup(withCleanCFEnv(t))
 
 	cfg, err := Load()
 	if err != nil {
@@ -77,10 +68,7 @@ func TestEnsureScheme(t *testing.T) {
 }
 
 func TestLoadConfig_AuthModeDefault(t *testing.T) {
-	os.Clearenv()
-	os.Setenv("CF_API_URL", "https://api.sys.test.com")
-	os.Setenv("CF_USERNAME", "admin")
-	os.Setenv("CF_PASSWORD", "secret")
+	t.Cleanup(withCleanCFEnv(t))
 
 	cfg, err := Load()
 	if err != nil {
@@ -94,11 +82,9 @@ func TestLoadConfig_AuthModeDefault(t *testing.T) {
 }
 
 func TestLoadConfig_AuthModeFromEnv(t *testing.T) {
-	os.Clearenv()
-	os.Setenv("CF_API_URL", "https://api.sys.test.com")
-	os.Setenv("CF_USERNAME", "admin")
-	os.Setenv("CF_PASSWORD", "secret")
-	os.Setenv("AUTH_MODE", "required")
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"AUTH_MODE": "required",
+	}))
 
 	cfg, err := Load()
 	if err != nil {
@@ -111,11 +97,10 @@ func TestLoadConfig_AuthModeFromEnv(t *testing.T) {
 }
 
 func TestLoadConfig_URLSchemePrefixing(t *testing.T) {
-	os.Clearenv()
-	os.Setenv("CF_API_URL", "api.sys.test.com")
-	os.Setenv("CF_USERNAME", "admin")
-	os.Setenv("CF_PASSWORD", "secret")
-	os.Setenv("BOSH_ENVIRONMENT", "10.0.0.6:25555")
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"CF_API_URL":       "api.sys.test.com", // Override to test scheme prefixing
+		"BOSH_ENVIRONMENT": "10.0.0.6:25555",
+	}))
 
 	cfg, err := Load()
 	if err != nil {
