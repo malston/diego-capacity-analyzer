@@ -67,14 +67,14 @@ _Goal: Set up the pain they recognize_
 
 ### Setup
 
-- Pre-load `large-foundation.json` (250 cells, 2 clusters)
+- Pre-load `large-foundation.json` (500 cells, 2 clusters)
 - Browser in dark mode
 
 ### Demo Flow
 
 **Step 1: Orient (30 sec)**
 
-> "This is a production-scale foundation—250 Diego cells across two clusters. The data came from a JSON export, but in real deployments this pulls live from BOSH, CF, and vSphere."
+> "This is a production-scale foundation—500 Diego cells across two clusters. The data came from a JSON export, but in real deployments this pulls live from BOSH, CF, and vSphere."
 
 **Step 2: Metric Cards (30 sec)**
 

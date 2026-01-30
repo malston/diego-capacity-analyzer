@@ -52,15 +52,17 @@ python3 -m http.server 8888
 
 ## Sample Data
 
-The app includes 9 pre-built sample scenarios in `frontend/public/samples/`:
+The app includes pre-built sample scenarios in `frontend/public/samples/`:
 
-| Scenario                 | Description                                    |
-| ------------------------ | ---------------------------------------------- |
-| `small-dev.json`         | 3 hosts, 6 cells — small dev environment       |
-| `medium-production.json` | 8 hosts, 50 cells — typical production         |
-| `large-enterprise.json`  | 15 hosts, 200 cells — enterprise scale         |
-| `overcommitted.json`     | Shows what happens with high overcommit        |
-| `constrained.json`       | Near capacity limits                           |
-| ...                      | See `frontend/public/samples/` for all options |
+| Scenario                        | Scale                           | HA   | Use Case                        |
+| ------------------------------- | ------------------------------- | ---- | ------------------------------- |
+| `small-foundation.json`         | 4 hosts, 10 cells               | None | Dev/test environment            |
+| `medium-foundation.json`        | 8 hosts, 50 cells               | N-2  | Staging environment             |
+| `large-foundation.json`         | 16 hosts, 500 cells, 2 clusters | N-2  | Production                      |
+| `multi-cluster-enterprise.json` | 36 hosts, 1000 cells, 3 AZs     | N-3  | Enterprise production           |
+| `cpu-constrained.json`          | 4 hosts, 128 cells              | N-1  | CPU bottleneck (8:1 vCPU ratio) |
+| `memory-constrained.json`       | 4 hosts, 40 cells               | N-1  | Memory bottleneck               |
+| `diego-benchmark-50k.json`      | 20 hosts, 250 cells             | None | CF benchmark: 62.5K instances   |
+| `diego-benchmark-250k.json`     | 36 hosts, 1000 cells, 3 AZs     | N-3  | CF benchmark: 250K instances    |
 
 Load these via the dashboard's "Load Sample" dropdown — no credentials needed.

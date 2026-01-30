@@ -14,7 +14,7 @@
     },
     {
       "name": "compute-cluster-02",
-      "host_count": 7,
+      "host_count": 8,
       "memory_gb_per_host": 2048,
       "cpu_cores_per_host": 64,
       "ha_admission_control_percentage": 25,

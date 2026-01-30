@@ -36,7 +36,7 @@ open http://localhost:5173           # Browser in dark mode
 
 | Action                  | Say                                                                    |
 | ----------------------- | ---------------------------------------------------------------------- |
-| Point at sample data    | "250 cells, 2 clusters. JSON file, but could be live BOSH/CF/vSphere." |
+| Point at sample data    | "500 cells, 2 clusters. JSON file, but could be live BOSH/CF/vSphere." |
 | Metric cards            | "73% memory utilization at a glance."                                  |
 | Capacity chart          | "Green = used. Yellow = allocated not used. Gray = free."              |
 | Recommendations         | "Auto-detected: this app could free 8GB if right-sized."               |
@@ -134,6 +134,6 @@ open http://localhost:5173           # Browser in dark mode
 
 | File                            | Scale                 | Best for                     |
 | ------------------------------- | --------------------- | ---------------------------- |
-| `large-foundation.json`         | 250 cells, 2 clusters | Dashboard demo               |
+| `large-foundation.json`         | 500 cells, 2 clusters | Dashboard demo               |
 | `multi-cluster-enterprise.json` | 1000 cells, 3 AZs     | Scenario wizard              |
-| `cpu-constrained.json`          | CPU bottleneck        | Showing constraint detection |
+| `cpu-constrained.json`          | 128 cells, 8:1 vCPU   | Showing constraint detection |
