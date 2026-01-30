@@ -4,6 +4,9 @@
 package main
 
 import (
+	"crypto/tls"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -74,6 +77,33 @@ func main() {
 	sessionService := services.NewSessionService(c)
 	slog.Info("Session service initialized")
 
+	// Initialize JWKS client for JWT signature verification (optional, graceful degradation)
+	var jwksClient *services.JWKSClient
+	uaaURL, err := discoverUAAURL(cfg)
+	if err != nil {
+		slog.Warn("Failed to discover UAA URL, Bearer token authentication unavailable", "error", err)
+	} else {
+		// Create HTTP client with same TLS settings as CF API
+		httpClient := &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: cfg.CFSkipSSLValidation, //nolint:gosec // Operator-controlled setting
+				},
+			},
+		}
+
+		jwksClient, err = services.NewJWKSClient(uaaURL, httpClient)
+		if err != nil {
+			slog.Warn("Failed to initialize JWKS client, Bearer token authentication unavailable",
+				"error", err,
+				"uaa_url", uaaURL,
+			)
+		} else {
+			slog.Info("JWKS client initialized", "uaa_url", uaaURL)
+		}
+	}
+
 	// Configure authentication middleware with session cookie support
 	authMode, err := middleware.ValidateAuthMode(cfg.AuthMode)
 	if err != nil {
@@ -94,6 +124,7 @@ func main() {
 	authCfg := middleware.AuthConfig{
 		Mode:             authMode,
 		SessionValidator: sessionValidator,
+		JWKSClient:       jwksClient,
 	}
 	slog.Info("Auth mode configured", "mode", authMode)
 
@@ -153,4 +184,75 @@ func main() {
 		slog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+// discoverUAAURL discovers the UAA URL from the CF API /v3/info endpoint.
+// Falls back to replacing "api." with "login." in the CF API URL if discovery fails.
+func discoverUAAURL(cfg *config.Config) (string, error) {
+	// Create HTTP client with same TLS settings as CF API
+	httpClient := &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: cfg.CFSkipSSLValidation, //nolint:gosec // Operator-controlled setting
+			},
+		},
+	}
+
+	// Fetch CF API info endpoint
+	infoURL := strings.TrimSuffix(cfg.CFAPIUrl, "/") + "/v3/info"
+	resp, err := httpClient.Get(infoURL)
+	if err != nil {
+		slog.Debug("Failed to fetch CF API info, using fallback URL derivation", "error", err)
+		return deriveUAAFromCFAPI(cfg.CFAPIUrl), nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Debug("CF API info returned non-200, using fallback URL derivation", "status", resp.StatusCode)
+		return deriveUAAFromCFAPI(cfg.CFAPIUrl), nil
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		slog.Debug("Failed to read CF API info response, using fallback URL derivation", "error", err)
+		return deriveUAAFromCFAPI(cfg.CFAPIUrl), nil
+	}
+
+	// Parse the info response to extract UAA URL
+	var info struct {
+		Links struct {
+			Login struct {
+				Href string `json:"href"`
+			} `json:"login"`
+			UAA struct {
+				Href string `json:"href"`
+			} `json:"uaa"`
+		} `json:"links"`
+	}
+
+	if err := json.Unmarshal(body, &info); err != nil {
+		slog.Debug("Failed to parse CF API info response, using fallback URL derivation", "error", err)
+		return deriveUAAFromCFAPI(cfg.CFAPIUrl), nil
+	}
+
+	// Try login.href first (preferred for JWKS), then uaa.href
+	if info.Links.Login.Href != "" {
+		slog.Debug("Discovered UAA URL from CF API links.login", "url", info.Links.Login.Href)
+		return info.Links.Login.Href, nil
+	}
+
+	if info.Links.UAA.Href != "" {
+		slog.Debug("Discovered UAA URL from CF API links.uaa", "url", info.Links.UAA.Href)
+		return info.Links.UAA.Href, nil
+	}
+
+	slog.Debug("CF API info missing login/uaa links, using fallback URL derivation")
+	return deriveUAAFromCFAPI(cfg.CFAPIUrl), nil
+}
+
+// deriveUAAFromCFAPI derives the UAA URL by replacing "api." with "login." in the CF API URL.
+// Example: https://api.sys.example.com -> https://login.sys.example.com
+func deriveUAAFromCFAPI(cfAPIURL string) string {
+	return strings.Replace(cfAPIURL, "api.", "login.", 1)
 }
