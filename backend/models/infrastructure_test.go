@@ -125,3 +125,58 @@ func TestAvgInstanceMemoryMB_ZeroInstances(t *testing.T) {
 		t.Errorf("Expected AvgInstanceMemoryMB 0 for zero instances, got %d", state.AvgInstanceMemoryMB)
 	}
 }
+
+func TestMaxInstanceMemoryMB_FromManualInput(t *testing.T) {
+	// Test that MaxInstanceMemoryMB is properly copied from ManualInput to InfrastructureState
+	mi := ManualInput{
+		Name:                "test",
+		Clusters:            []ClusterInput{{Name: "c1", HostCount: 4, MemoryGBPerHost: 512, CPUCoresPerHost: 32, DiegoCellCount: 10, DiegoCellMemoryGB: 32, DiegoCellCPU: 4}},
+		PlatformVMsGB:       200,
+		TotalAppMemoryGB:    150,
+		TotalAppInstances:   50,
+		MaxInstanceMemoryMB: 2048, // Explicitly set max instance memory
+	}
+	state := mi.ToInfrastructureState()
+
+	if state.MaxInstanceMemoryMB != 2048 {
+		t.Errorf("Expected MaxInstanceMemoryMB 2048, got %d", state.MaxInstanceMemoryMB)
+	}
+}
+
+func TestMaxInstanceMemoryMB_JSONParsing(t *testing.T) {
+	// Test that MaxInstanceMemoryMB is properly parsed from JSON (simulating sample file)
+	input := `{
+		"name": "Sample Foundation",
+		"clusters": [
+			{
+				"name": "cluster-01",
+				"host_count": 8,
+				"memory_gb_per_host": 1024,
+				"cpu_cores_per_host": 64,
+				"diego_cell_count": 50,
+				"diego_cell_memory_gb": 64,
+				"diego_cell_cpu": 8
+			}
+		],
+		"platform_vms_gb": 800,
+		"total_app_memory_gb": 2000,
+		"total_app_disk_gb": 2500,
+		"total_app_instances": 500,
+		"max_instance_memory_mb": 4096
+	}`
+
+	var mi ManualInput
+	err := json.Unmarshal([]byte(input), &mi)
+	if err != nil {
+		t.Fatalf("Failed to parse ManualInput: %v", err)
+	}
+
+	if mi.MaxInstanceMemoryMB != 4096 {
+		t.Errorf("Expected MaxInstanceMemoryMB 4096 from JSON, got %d", mi.MaxInstanceMemoryMB)
+	}
+
+	state := mi.ToInfrastructureState()
+	if state.MaxInstanceMemoryMB != 4096 {
+		t.Errorf("Expected state.MaxInstanceMemoryMB 4096, got %d", state.MaxInstanceMemoryMB)
+	}
+}

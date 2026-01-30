@@ -1833,3 +1833,111 @@ func TestErrorResponse_NoDetailsField(t *testing.T) {
 		t.Errorf("Error response should not include 'details' field with value: %v", details)
 	}
 }
+
+// TestEnrichWithCFAppData_MaxInstanceMemory verifies that MaxInstanceMemoryMB
+// is calculated correctly, including handling apps with zero instances.
+func TestEnrichWithCFAppData_MaxInstanceMemory(t *testing.T) {
+	// Create a UAA server for token generation
+	uaaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/token" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"access_token":"test-token","token_type":"bearer"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer uaaServer.Close()
+
+	var cfServerURL string
+	cfServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch {
+		case r.URL.Path == "/v3/info":
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"links":{"self":{"href":"` + cfServerURL + `"},"login":{"href":"` + uaaServer.URL + `"}}}`))
+
+		case r.URL.Path == "/v3/apps":
+			w.WriteHeader(http.StatusOK)
+			// Return 3 apps:
+			// - app-1: 2 instances (normal)
+			// - app-2: 0 instances (stopped/scaled-down - should be ignored for max calc)
+			// - app-3: 1 instance with large memory (should be the max)
+			w.Write([]byte(`{
+				"resources": [
+					{"guid": "11111111-1111-1111-1111-111111111111", "name": "small-app", "state": "STARTED", "relationships": {"space": {"data": {"guid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}}}},
+					{"guid": "22222222-2222-2222-2222-222222222222", "name": "stopped-app", "state": "STOPPED", "relationships": {"space": {"data": {"guid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}}}},
+					{"guid": "33333333-3333-3333-3333-333333333333", "name": "big-app", "state": "STARTED", "relationships": {"space": {"data": {"guid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}}}}
+				],
+				"pagination": {"next": null}
+			}`))
+
+		case strings.HasSuffix(r.URL.Path, "/processes"):
+			appGUID := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v3/apps/"), "/processes")
+			switch appGUID {
+			case "11111111-1111-1111-1111-111111111111":
+				// 2 instances × 512MB = 1024MB total, per-instance = 512MB
+				w.Write([]byte(`{"resources": [{"type": "web", "instances": 2, "memory_in_mb": 512, "disk_in_mb": 1024}]}`))
+			case "22222222-2222-2222-2222-222222222222":
+				// 0 instances - should be ignored for max calculation
+				w.Write([]byte(`{"resources": [{"type": "web", "instances": 0, "memory_in_mb": 4096, "disk_in_mb": 8192}]}`))
+			case "33333333-3333-3333-3333-333333333333":
+				// 1 instance × 2048MB = 2048MB total, per-instance = 2048MB (this should be the max)
+				w.Write([]byte(`{"resources": [{"type": "web", "instances": 1, "memory_in_mb": 2048, "disk_in_mb": 4096}]}`))
+			default:
+				w.Write([]byte(`{"resources": []}`))
+			}
+
+		case strings.HasSuffix(r.URL.Path, "/relationships/isolation_segment"):
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"data": null}`))
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	cfServerURL = cfServer.URL
+	defer cfServer.Close()
+
+	cfg := &config.Config{
+		CFAPIUrl:   cfServer.URL,
+		CFUsername: "admin",
+		CFPassword: "secret",
+	}
+	c := cache.New(5 * time.Minute)
+	handler := NewHandler(cfg, c)
+
+	state := &models.InfrastructureState{
+		Source: "vsphere",
+		Name:   "Test Datacenter",
+	}
+
+	ctx := context.Background()
+	err := handler.enrichWithCFAppData(ctx, state)
+	if err != nil {
+		t.Fatalf("enrichWithCFAppData failed: %v", err)
+	}
+
+	// Verify MaxInstanceMemoryMB is calculated correctly
+	// app-1: 1024MB total / 2 instances = 512MB per instance
+	// app-2: 0 instances - SHOULD BE IGNORED (no division by zero)
+	// app-3: 2048MB total / 1 instance = 2048MB per instance (THIS IS THE MAX)
+	expectedMaxInstanceMemoryMB := 2048
+	if state.MaxInstanceMemoryMB != expectedMaxInstanceMemoryMB {
+		t.Errorf("Expected MaxInstanceMemoryMB=%d, got %d", expectedMaxInstanceMemoryMB, state.MaxInstanceMemoryMB)
+	}
+
+	// Also verify total calculations include all apps
+	// Total memory: 1024 + 0 + 2048 = 3072MB → rounded: (3072 + 512) / 1024 = 3GB
+	expectedMemoryGB := 3
+	if state.TotalAppMemoryGB != expectedMemoryGB {
+		t.Errorf("Expected TotalAppMemoryGB=%d, got %d", expectedMemoryGB, state.TotalAppMemoryGB)
+	}
+
+	// Total instances: 2 + 0 + 1 = 3
+	expectedInstances := 3
+	if state.TotalAppInstances != expectedInstances {
+		t.Errorf("Expected TotalAppInstances=%d, got %d", expectedInstances, state.TotalAppInstances)
+	}
+}

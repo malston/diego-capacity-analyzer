@@ -26,6 +26,10 @@ const AdvancedStep = ({
   setMemoryPerHost,
   haAdmissionPct,
   setHaAdmissionPct,
+  // Chunk size props
+  chunkSizeMB,
+  setChunkSizeMB,
+  autoDetectedChunkSizeMB,
   onContinue,
   onSkip,
   isLastStep = false,
@@ -100,6 +104,53 @@ const AdvancedStep = ({
           <span>Default: 7%</span>
           <span>20%</span>
         </div>
+      </div>
+
+      {/* Staging Chunk Size Override */}
+      <div>
+        <label
+          htmlFor="chunk-size-input"
+          className="block text-xs uppercase tracking-wider font-medium text-gray-400 mb-2"
+        >
+          <Tooltip
+            text="Contiguous memory needed to stage (compile) apps. Auto-detected from max app memory limit in your environment. Override if you anticipate deploying larger apps than currently exist."
+            position="right"
+            showIcon
+          >
+            <span>Staging Chunk Size (MB)</span>
+          </Tooltip>
+        </label>
+        <div className="flex items-center gap-3">
+          <input
+            id="chunk-size-input"
+            type="number"
+            value={chunkSizeMB || ""}
+            onChange={(e) => {
+              const value = e.target.value;
+              setChunkSizeMB(value === "" ? null : Number(value));
+            }}
+            placeholder={
+              autoDetectedChunkSizeMB > 0
+                ? `${autoDetectedChunkSizeMB} (auto-detected)`
+                : "4096 (default)"
+            }
+            min={256}
+            max={16384}
+            step={256}
+            className="w-48 bg-slate-700 border border-slate-600 rounded px-3 py-2 text-gray-200 text-sm font-mono focus:border-cyan-500 outline-none placeholder-gray-500"
+          />
+          <span className="text-xs text-gray-500">
+            {chunkSizeMB
+              ? `${(chunkSizeMB / 1024).toFixed(1)} GB`
+              : autoDetectedChunkSizeMB > 0
+                ? `${(autoDetectedChunkSizeMB / 1024).toFixed(1)} GB (auto)`
+                : "4 GB (default)"}
+          </span>
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          Based on max app memory limit. Increase for large Java apps or if
+          staging fails with memory errors.
+        </p>
       </div>
 
       {/* Hypothetical App Section */}

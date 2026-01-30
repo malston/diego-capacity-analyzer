@@ -392,7 +392,7 @@
                     <tr><td class="warn">10-19</td><td>Limited</td><td>May queue during busy periods</td></tr>
                     <tr><td class="bad">< 10</td><td>Constrained</td><td>Deployment bottleneck</td></tr>
                 </table>
-                <p><small>Chunk size auto-detected from avg app instance memory (defaults to 4GB)</small></p>
+                <p><small>Chunk size auto-detected from max app memory limit (min 1GB, defaults to 4GB)</small></p>
                 <aside class="notes">Low chunks = long deploy queues. Chunk size varies by workload type.</aside>
             </section>
 

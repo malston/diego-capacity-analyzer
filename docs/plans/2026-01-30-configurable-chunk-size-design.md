@@ -1,7 +1,9 @@
 # Configurable Chunk Size for Free Staging Capacity
 
 **Date:** 2026-01-30
-**Status:** Approved
+**Status:** Approved (with post-implementation fix)
+
+> **Bug Fix (2026-01-30):** The original design incorrectly used `AvgInstanceMemoryMB` (average per-instance memory, typically 100-500MB) as chunk size. This was fixed to use `MaxInstanceMemoryMB` (largest app memory limit) with a 1GB minimum floor. See "Resolution Order" section for corrected behavior.
 
 ## Problem
 
@@ -18,10 +20,11 @@ Make chunk size configurable with auto-detection from live CF data and manual ov
 ### InfrastructureState (derived from live data)
 
 ```go
-AvgInstanceMemoryMB int  // TotalAppMemoryGB * 1024 / TotalAppInstances
+MaxInstanceMemoryMB int  // Largest per-instance memory limit across all apps
+AvgInstanceMemoryMB int  // TotalAppMemoryGB * 1024 / TotalAppInstances (for reference only)
 ```
 
-Calculated automatically when CF API data is available.
+`MaxInstanceMemoryMB` is calculated from live CF API data by finding the largest per-instance memory allocation.
 
 ### ScenarioInput (user override)
 
@@ -37,9 +40,11 @@ ChunkSizeMB int  // The chunk size used in calculation (for UI display)
 
 ### Resolution Order
 
-1. `ScenarioInput.ChunkSizeMB` if provided (> 0)
-2. `InfrastructureState.AvgInstanceMemoryMB` if available (> 0)
-3. Fall back to 4096 MB (current default)
+1. `ScenarioInput.ChunkSizeMB` if provided (> 0) - user override, used as-is
+2. `InfrastructureState.MaxInstanceMemoryMB` if available (> 0), with minimum floor of 1024 MB
+3. Fall back to 4096 MB (default)
+
+> **Note:** The original design used `AvgInstanceMemoryMB` which is typically 100-500MB for CF deployments and far too small for staging. The corrected implementation uses `MaxInstanceMemoryMB` (the largest app's memory limit) which better represents staging requirements.
 
 ---
 
@@ -48,14 +53,19 @@ ChunkSizeMB int  // The chunk size used in calculation (for UI display)
 ### New helper function in scenario.go
 
 ```go
+const MinChunkSizeMB = 1024  // 1GB minimum for staging
+
 // resolveChunkSizeMB returns the effective chunk size in MB.
-// Priority: input override -> state average -> default 4096MB
-func resolveChunkSizeMB(inputChunkMB, stateAvgMB int) int {
+// Priority: input override -> state max instance memory (min 1GB) -> default 4096MB
+func resolveChunkSizeMB(inputChunkMB, stateMaxMB int) int {
     if inputChunkMB > 0 {
-        return inputChunkMB
+        return inputChunkMB  // User override, respect exactly
     }
-    if stateAvgMB > 0 {
-        return stateAvgMB
+    if stateMaxMB > 0 {
+        if stateMaxMB < MinChunkSizeMB {
+            return MinChunkSizeMB  // Enforce minimum floor
+        }
+        return stateMaxMB
     }
     return 4096 // Default 4GB
 }
@@ -111,14 +121,14 @@ No changes to response structure beyond the new `chunk_size_mb` field in results
 
 ## Sample Data Updates
 
-Add `avgInstanceMemoryMB` to sample infrastructure files:
+Add `maxInstanceMemoryMB` to sample infrastructure files (represents the largest app's memory limit):
 
-| Sample                  | Avg Instance | Rationale             |
-| ----------------------- | ------------ | --------------------- |
-| small-foundation.json   | 1024         | Small apps, Go/Python |
-| medium-foundation.json  | 2048         | Mixed workloads       |
-| large-foundation.json   | 4096         | Java-heavy enterprise |
-| memory-constrained.json | 2048         | Typical mix           |
+| Sample                  | Max Instance | Rationale                  |
+| ----------------------- | ------------ | -------------------------- |
+| small-foundation.json   | 1024         | Small apps, Go/Python      |
+| medium-foundation.json  | 2048         | Mixed workloads, some Java |
+| large-foundation.json   | 4096         | Java-heavy enterprise      |
+| memory-constrained.json | 2048         | Typical mix with some Java |
 
 ---
 
