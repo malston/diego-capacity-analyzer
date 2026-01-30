@@ -247,6 +247,7 @@ func (c *ScenarioCalculator) CalculateCurrent(state models.InfrastructureState, 
 		0, // physicalCoresPerHost - not available in current state
 		0, // targetVCPURatio - not available in current state
 		0, // platformVMsCPU - not available in current state
+		resolveChunkSizeMB(0, state.AvgInstanceMemoryMB),
 	)
 }
 
@@ -285,6 +286,7 @@ func (c *ScenarioCalculator) CalculateProposed(state models.InfrastructureState,
 		input.PhysicalCoresPerHost,
 		float64(input.TargetVCPURatio),
 		input.PlatformVMsCPU,
+		resolveChunkSizeMB(input.ChunkSizeMB, state.AvgInstanceMemoryMB),
 	)
 }
 
@@ -305,6 +307,7 @@ func (c *ScenarioCalculator) calculateFull(
 	physicalCoresPerHost int, // for CPU ratio calculation
 	targetVCPURatio float64, // for max cells by CPU calculation (0 = default 4:1)
 	platformVMsCPU int, // for max cells by CPU calculation
+	chunkSizeMB int, // chunk size for free chunks calculation
 ) models.ScenarioResult {
 	// Memory overhead as percentage
 	memoryOverhead := int(float64(cellMemoryGB) * (overheadPct / 100))
@@ -330,7 +333,9 @@ func (c *ScenarioCalculator) calculateFull(
 	}
 
 	// Free chunks: (capacity - used) / chunkSize
-	freeChunks := (appCapacityGB - totalAppMemoryGB) / ChunkSizeGB
+	// Convert GB to MB for precision
+	freeMemoryMB := (appCapacityGB - totalAppMemoryGB) * 1024
+	freeChunks := freeMemoryMB / chunkSizeMB
 	if freeChunks < 0 {
 		freeChunks = 0
 	}
@@ -393,6 +398,7 @@ func (c *ScenarioCalculator) calculateFull(
 		UtilizationPct:     utilizationPct,
 		DiskUtilizationPct: diskUtilizationPct,
 		FreeChunks:         freeChunks,
+		ChunkSizeMB:        chunkSizeMB,
 		N1UtilizationPct:   n1UtilizationPct,
 		FaultImpact:        faultImpact,
 		InstancesPerCell:   instancesPerCell,

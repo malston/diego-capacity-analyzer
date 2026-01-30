@@ -1946,6 +1946,58 @@ func TestResolveChunkSizeMB(t *testing.T) {
 	}
 }
 
+func TestFreeChunksWithConfigurableSize(t *testing.T) {
+	state := models.InfrastructureState{
+		TotalN1MemoryGB:     26624,
+		TotalCellCount:      100,
+		PlatformVMsGB:       1000,
+		TotalAppMemoryGB:    2000,
+		TotalAppInstances:   1000,
+		AvgInstanceMemoryMB: 2048, // 2GB average
+		Clusters: []models.ClusterState{
+			{DiegoCellCount: 100, DiegoCellMemoryGB: 32, DiegoCellCPU: 4},
+		},
+	}
+
+	calc := NewScenarioCalculator()
+
+	// Test 1: Auto-detect from state (2GB chunks)
+	input1 := models.ScenarioInput{
+		ProposedCellMemoryGB: 32,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    100,
+		ChunkSizeMB:          0, // Use auto-detect
+	}
+	result1 := calc.CalculateProposed(state, input1)
+
+	// App capacity: 100 cells × (32 - 2 overhead) = 3000 GB
+	// Free memory: 3000 - 2000 = 1000 GB = 1024000 MB
+	// Free chunks at 2048 MB: 1024000 / 2048 = 500
+	if result1.FreeChunks != 500 {
+		t.Errorf("Expected FreeChunks 500 with auto-detect 2GB, got %d", result1.FreeChunks)
+	}
+	if result1.ChunkSizeMB != 2048 {
+		t.Errorf("Expected ChunkSizeMB 2048, got %d", result1.ChunkSizeMB)
+	}
+
+	// Test 2: Manual override (1GB chunks)
+	input2 := models.ScenarioInput{
+		ProposedCellMemoryGB: 32,
+		ProposedCellCPU:      4,
+		ProposedCellCount:    100,
+		ChunkSizeMB:          1024, // Override to 1GB
+	}
+	result2 := calc.CalculateProposed(state, input2)
+
+	// Free chunks at 1024 MB: 1024000 / 1024 = 1000
+	if result2.FreeChunks != 1000 {
+		t.Errorf("Expected FreeChunks 1000 with 1GB override, got %d", result2.FreeChunks)
+	}
+	if result2.ChunkSizeMB != 1024 {
+		t.Errorf("Expected ChunkSizeMB 1024, got %d", result2.ChunkSizeMB)
+	}
+}
+
 func TestCompare_HAInsufficientWarning_FilteredWhenMemoryNotSelected(t *testing.T) {
 	// Test that HA Admission Control insufficient warning is filtered when memory is not selected
 	// This warning is added in CompareScenarios, not GenerateWarnings
