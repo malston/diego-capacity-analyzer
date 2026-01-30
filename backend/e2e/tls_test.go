@@ -170,7 +170,7 @@ func TestTLS_BOSHSkipSSLValidation_EnvParsing(t *testing.T) {
 // TestTLS_BOSHCACert_EnvParsing verifies BOSH_CA_CERT environment variable
 // is correctly loaded into config.
 func TestTLS_BOSHCACert_EnvParsing(t *testing.T) {
-	// Sample PEM-formatted cert (not a real cert, just testing parsing)
+	// Multi-line string to verify env var is loaded without truncation
 	sampleCert := `-----BEGIN CERTIFICATE-----
 MIIBkTCB+wIJAKHBfpj2S5JNMA0GCSqGSIb3DQEBCwUAMBExDzANBgNVBAMMBnRl
 c3RjYTAeFw0yNDAxMDEwMDAwMDBaFw0yNTAxMDEwMDAwMDBaMBExDzANBgNVBAMM
