@@ -1,4 +1,4 @@
-# Diego Capacity Analyzer — R&D Demo Plan
+# Diego Capacity Analyzer -- R&D Demo Plan
 
 **Date:** January 2025
 **Duration:** ~25 minutes + Q&A
@@ -63,7 +63,7 @@ _Goal: Set up the pain they recognize_
 
 ---
 
-## Section 2: Live Demo — Dashboard (5 min)
+## Section 2: Live Demo -- Dashboard (5 min)
 
 ### Setup
 
@@ -74,7 +74,7 @@ _Goal: Set up the pain they recognize_
 
 **Step 1: Orient (30 sec)**
 
-> "This is a production-scale foundation—500 Diego cells across two clusters. The data came from a JSON export, but in real deployments this pulls live from BOSH, CF, and vSphere."
+> "This is a production-scale foundation--500 Diego cells across two clusters. The data came from a JSON export, but in real deployments this pulls live from BOSH, CF, and vSphere."
 
 **Step 2: Metric Cards (30 sec)**
 
@@ -84,14 +84,14 @@ _Goal: Set up the pain they recognize_
 **Step 3: Cell Capacity Chart (1 min)**
 
 - Highlight stacked bar chart (Used / Allocated / Available)
-  > "The green is what's actually consumed. Yellow is allocated but not used—that's your overcommit opportunity. Gray is truly free."
+  > "The green is what's actually consumed. Yellow is allocated but not used--that's your overcommit opportunity. Gray is truly free."
 
 **Step 4: Right-Sizing Recommendations (1 min)**
 
 - Scroll to recommendations section
   > "The system automatically identifies apps that are over-provisioned. This one app alone could free up 8GB if right-sized."
 
-**Step 5: What-If Mode (2 min)** — _The "aha" moment_
+**Step 5: What-If Mode (2 min)** -- _The "aha" moment_
 
 - Toggle What-If Mode ON
 - Drag Memory Overcommit slider from 1.0x to 1.3x
@@ -101,11 +101,11 @@ _Goal: Set up the pain they recognize_
 
 ### Transition
 
-> "But what if I want to go deeper—model new cell sizes, different host counts, or see exactly what's constraining me? That's where the Scenario Analyzer comes in."
+> "But what if I want to go deeper--model new cell sizes, different host counts, or see exactly what's constraining me? That's where the Scenario Analyzer comes in."
 
 ---
 
-## Section 3: Live Demo — Scenario Wizard (8 min)
+## Section 3: Live Demo -- Scenario Wizard (8 min)
 
 ### Setup
 
@@ -141,15 +141,15 @@ _Goal: Set up the pain they recognize_
 - Show host count, HA settings, Admission Control %
   > "Here's where N-1 tolerance matters. If I lose one host, can my workloads still run? The system calculates this automatically."
 
-**Step 6: Results (3 min)** — _The payoff_
+**Step 6: Results (3 min)** -- _The payoff_
 
-| Component             | Talking Point                                                                                                           |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| "Will It Fit?" banner | "Green checkmark—yes, 128GB cells will fit. If it didn't, this would be red with the specific constraint."              |
-| Capacity Gauges       | "Memory at 68%, CPU at 45%, Disk at 32%. Memory is my tightest resource."                                               |
-| Bottleneck Card       | "Here's the insight: I'm constrained by N-1 HA, not raw memory. If I add one more host, I unlock significant headroom." |
-| Staging Capacity      | "22 free 4GB chunks—that's how many app instances I can stage concurrently during a push."                              |
-| Recommendations       | "Prioritized suggestions: add hosts first (high impact), then consider scale-out over scale-up."                        |
+| Component             | Talking Point                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| "Will It Fit?" banner | "Green checkmark--yes, 128GB cells will fit. If it didn't, this would be red with the specific constraint."               |
+| Capacity Gauges       | "Memory at 68%, CPU at 45%, Disk at 32%. Memory is my tightest resource."                                                |
+| Bottleneck Card       | "Here's the insight: I'm constrained by N-1 HA, not raw memory. If I add one more host, I unlock significant headroom."  |
+| Staging Capacity      | "22 free chunks--that's how many app instances I can stage concurrently. Chunk size is auto-detected from your workload." |
+| Recommendations       | "Prioritized suggestions: add hosts first (high impact), then consider scale-out over scale-up."                         |
 
 ### Transition
 
@@ -188,13 +188,13 @@ vSphere/vCenter ┘         ▼
 
 ---
 
-## Section 5: Live Demo — Technical Depth (4 min)
+## Section 5: Live Demo -- Technical Depth (4 min)
 
 ### Part A: Swagger UI (2.5 min)
 
 - Open `/docs` route
 
-  > "The entire backend is documented with OpenAPI. This isn't just generated stubs—it's the live spec powering the app."
+  > "The entire backend is documented with OpenAPI. This isn't just generated stubs--it's the live spec powering the app."
 
 - Expand `POST /api/v1/scenario/compare`
 - Show request/response schemas
@@ -202,7 +202,7 @@ vSphere/vCenter ┘         ▼
   > "Full type definitions, example payloads, error responses."
 
 - Execute a live call (health endpoint)
-  > "This isn't mocked—it's hitting the actual backend."
+  > "This isn't mocked--it's hitting the actual backend."
 
 ### Part B: CLI/TUI (1.5 min)
 
@@ -215,7 +215,7 @@ vSphere/vCenter ┘         ▼
   > "Same capabilities, terminal interface. For platform engineers who live in the CLI."
 
 - Demo keyboard shortcuts: `w` for wizard, `r` for refresh
-  > "Keyboard-driven—no mouse needed. Designed for SSH sessions."
+  > "Keyboard-driven--no mouse needed. Designed for SSH sessions."
 
 ### Transition
 
@@ -240,7 +240,7 @@ vSphere/vCenter ┘         ▼
 
 - Areas for feedback
 - How to reach you
-  > "I'd love feedback—what would make this useful for your workflow?"
+  > "I'd love feedback--what would make this useful for your workflow?"
 
 ### Verbal Close
 
@@ -252,7 +252,7 @@ vSphere/vCenter ┘         ▼
 
 1. **Solves a real pain:** Replaces manual spreadsheet work with real-time answers
 2. **Multi-resource intelligence:** Memory, CPU, disk, AND N-1 HA in one view
-3. **Actionable output:** Not just data—prioritized recommendations
+3. **Actionable output:** Not just data--prioritized recommendations
 4. **Production-ready:** Full API docs, CLI, test coverage, error handling
 5. **Low barrier to try:** Sample data mode, no credentials required
 

@@ -1,4 +1,4 @@
-# Diego Capacity Analyzer — Slide Deck Outline
+# Diego Capacity Analyzer -- Slide Deck Outline
 
 Use this markdown as a starting point for your slides. Import into your preferred tool (Google Slides, Keynote, PowerPoint, reveal.js, etc.).
 
@@ -21,7 +21,7 @@ Use this markdown as a starting point for your slides. Import into your preferre
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Speaker notes:** Brief intro—who you are, what you'll cover in 25 minutes.
+**Speaker notes:** Brief intro--who you are, what you'll cover in 25 minutes.
 
 ---
 
@@ -131,7 +131,7 @@ Use this markdown as a starting point for your slides. Import into your preferre
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Speaker notes:** Emphasize Log Cache gives _actual_ memory, not just _allocated_—that's key for accurate planning.
+**Speaker notes:** Emphasize Log Cache gives _actual_ memory, not just _allocated_--that's key for accurate planning.
 
 ---
 
@@ -162,7 +162,7 @@ Use this markdown as a starting point for your slides. Import into your preferre
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Speaker notes:** This is the "secret sauce"—not just showing data, but doing the math automatically.
+**Speaker notes:** This is the "secret sauce"--not just showing data, but doing the math automatically.
 
 ---
 
@@ -192,7 +192,7 @@ Use this markdown as a starting point for your slides. Import into your preferre
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Speaker notes:** Emphasize low barrier to try—sample data mode means zero setup friction.
+**Speaker notes:** Emphasize low barrier to try--sample data mode means zero setup friction.
 
 ---
 
@@ -222,7 +222,7 @@ Use this markdown as a starting point for your slides. Import into your preferre
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Speaker notes:** End with questions—invite dialogue. This builds adoption momentum.
+**Speaker notes:** End with questions--invite dialogue. This builds adoption momentum.
 
 ---
 
@@ -241,8 +241,8 @@ Include these visuals from your repo:
 
 ## Presentation Tips
 
-1. **Test screen share** before the demo—make sure resolution works
-2. **Use dark mode** in the browser—looks sharper, colorblind-friendly
+1. **Test screen share** before the demo--make sure resolution works
+2. **Use dark mode** in the browser--looks sharper, colorblind-friendly
 3. **Pre-load sample data** so you don't fumble during the demo
 4. **Have Swagger tab ready** but minimized
 5. **Keep terminal open** with CLI built

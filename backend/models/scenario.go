@@ -11,11 +11,11 @@ type ScenarioInput struct {
 	ProposedCellCPU      int      `json:"proposed_cell_cpu"`
 	ProposedCellDiskGB   int      `json:"proposed_cell_disk_gb"`
 	ProposedCellCount    int      `json:"proposed_cell_count"`
-	TargetCluster        string   `json:"target_cluster"`        // Empty = all clusters
-	SelectedResources    []string `json:"selected_resources"`    // ["cpu", "memory", "disk"]
-	OverheadPct          float64  `json:"overhead_pct"`          // Memory overhead % (default 7)
-	AdditionalApp        *AppSpec `json:"additional_app"`        // Optional app to add
-	TPSCurve             []TPSPt  `json:"tps_curve"`             // Custom TPS curve (only used if EnableTPS is true)
+	TargetCluster        string   `json:"target_cluster"`     // Empty = all clusters
+	SelectedResources    []string `json:"selected_resources"` // ["cpu", "memory", "disk"]
+	OverheadPct          float64  `json:"overhead_pct"`       // Memory overhead % (default 7)
+	AdditionalApp        *AppSpec `json:"additional_app"`     // Optional app to add
+	TPSCurve             []TPSPt  `json:"tps_curve"`          // Custom TPS curve (only used if EnableTPS is true)
 	// Host configuration for constraint analysis
 	HostCount       int `json:"host_count"`
 	MemoryPerHostGB int `json:"memory_per_host_gb"`
@@ -27,6 +27,9 @@ type ScenarioInput struct {
 	TargetVCPURatio int `json:"target_vcpu_ratio"`
 	// PlatformVMsCPU is total vCPUs allocated to non-Diego platform VMs (BOSH, Diego Brain, Router, etc.)
 	PlatformVMsCPU int `json:"platform_vms_cpu"`
+	// ChunkSizeMB is an optional override for staging chunk size.
+	// If 0, uses AvgInstanceMemoryMB from state; if that's 0, defaults to 4096 MB.
+	ChunkSizeMB int `json:"chunk_size_mb"`
 }
 
 // EnableTPS returns true if TPS analysis should be performed.
@@ -60,6 +63,7 @@ type ScenarioResult struct {
 	UtilizationPct     float64 `json:"utilization_pct"`
 	DiskUtilizationPct float64 `json:"disk_utilization_pct"`
 	FreeChunks         int     `json:"free_chunks"`
+	ChunkSizeMB        int     `json:"chunk_size_mb"` // Chunk size used in calculation (for UI transparency)
 	N1UtilizationPct   float64 `json:"n1_utilization_pct"`
 	FaultImpact        int     `json:"fault_impact"`
 	InstancesPerCell   float64 `json:"instances_per_cell"`
@@ -110,7 +114,7 @@ type ScenarioDelta struct {
 	DiskCapacityChangeGB     int     `json:"disk_capacity_change_gb"`
 	UtilizationChangePct     float64 `json:"utilization_change_pct"`
 	DiskUtilizationChangePct float64 `json:"disk_utilization_change_pct"`
-	ResilienceChange         string  `json:"resilience_change"`  // "low", "moderate", "high" based on blast radius
+	ResilienceChange         string  `json:"resilience_change"` // "low", "moderate", "high" based on blast radius
 	VCPURatioChange          float64 `json:"vcpu_ratio_change"` // Proposed ratio - current ratio
 }
 

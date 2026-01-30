@@ -21,6 +21,19 @@ const (
 	PeakTPS = 1964
 )
 
+// resolveChunkSizeMB returns the effective chunk size in MB.
+// Priority: input override → state average → default 4096MB
+// Note: Negative values are treated as unset (0). Always returns a positive value.
+func resolveChunkSizeMB(inputChunkMB, stateAvgMB int) int {
+	if inputChunkMB > 0 {
+		return inputChunkMB
+	}
+	if stateAvgMB > 0 {
+		return stateAvgMB
+	}
+	return 4096 // Default 4GB
+}
+
 // CPURiskLevel returns risk classification based on vCPU:pCPU ratio.
 // Thresholds based on VMware general guidance (workload-dependent):
 // - Conservative (<=4:1): Safe for production workloads
@@ -235,6 +248,7 @@ func (c *ScenarioCalculator) CalculateCurrent(state models.InfrastructureState, 
 		0, // physicalCoresPerHost - not available in current state
 		0, // targetVCPURatio - not available in current state
 		0, // platformVMsCPU - not available in current state
+		resolveChunkSizeMB(0, state.AvgInstanceMemoryMB),
 	)
 }
 
@@ -273,6 +287,7 @@ func (c *ScenarioCalculator) CalculateProposed(state models.InfrastructureState,
 		input.PhysicalCoresPerHost,
 		float64(input.TargetVCPURatio),
 		input.PlatformVMsCPU,
+		resolveChunkSizeMB(input.ChunkSizeMB, state.AvgInstanceMemoryMB),
 	)
 }
 
@@ -293,6 +308,7 @@ func (c *ScenarioCalculator) calculateFull(
 	physicalCoresPerHost int, // for CPU ratio calculation
 	targetVCPURatio float64, // for max cells by CPU calculation (0 = default 4:1)
 	platformVMsCPU int, // for max cells by CPU calculation
+	chunkSizeMB int, // chunk size for free chunks calculation
 ) models.ScenarioResult {
 	// Memory overhead as percentage
 	memoryOverhead := int(float64(cellMemoryGB) * (overheadPct / 100))
@@ -318,7 +334,12 @@ func (c *ScenarioCalculator) calculateFull(
 	}
 
 	// Free chunks: (capacity - used) / chunkSize
-	freeChunks := (appCapacityGB - totalAppMemoryGB) / ChunkSizeGB
+	// Convert GB to MB for precision
+	freeMemoryMB := (appCapacityGB - totalAppMemoryGB) * 1024
+	freeChunks := 0
+	if chunkSizeMB > 0 {
+		freeChunks = freeMemoryMB / chunkSizeMB
+	}
 	if freeChunks < 0 {
 		freeChunks = 0
 	}
@@ -381,6 +402,7 @@ func (c *ScenarioCalculator) calculateFull(
 		UtilizationPct:     utilizationPct,
 		DiskUtilizationPct: diskUtilizationPct,
 		FreeChunks:         freeChunks,
+		ChunkSizeMB:        chunkSizeMB,
 		N1UtilizationPct:   n1UtilizationPct,
 		FaultImpact:        faultImpact,
 		InstancesPerCell:   instancesPerCell,

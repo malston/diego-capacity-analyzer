@@ -24,16 +24,16 @@ See `./scripts/deploy.sh --help` for all options including single-phase executio
 
 The deployment script automates the full deployment lifecycle:
 
-1. **Prerequisites** — Verifies cf CLI v8+, om CLI, Node.js 18+, and CF login
-2. **Environment** — Runs `generate-env.sh` to derive all credentials from Ops Manager:
+1. **Prerequisites** -- Verifies cf CLI v8+, om CLI, Node.js 18+, and CF login
+2. **Environment** -- Runs `generate-env.sh` to derive all credentials from Ops Manager:
    - BOSH Director credentials (client, secret, CA cert, deployment name)
    - CF API credentials (admin user)
    - vSphere credentials (from Ops Manager's IaaS config)
    - CredHub credentials (for secret management)
    - Frontend build variables (`VITE_*`)
-3. **Backend** — Pushes Go app to CF, sets credentials via `cf set-env`
-4. **Frontend** — Builds React app with baked-in API URL, pushes to CF
-5. **Verify** — Confirms both apps are healthy
+3. **Backend** -- Pushes Go app to CF, sets credentials via `cf set-env`
+4. **Frontend** -- Builds React app with baked-in API URL, pushes to CF
+5. **Verify** -- Confirms both apps are healthy
 
 Use `--dry-run` to preview actions without executing, or `--phase=<name>` to run individual phases.
 

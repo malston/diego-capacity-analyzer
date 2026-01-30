@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diego Capacity Analyzer — Feature Walkthrough (with Screenshots)</title>
+    <title>Diego Capacity Analyzer -- Feature Walkthrough (with Screenshots)</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reset.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css">
@@ -112,7 +112,7 @@
                 <h1>Diego Capacity Analyzer</h1>
                 <p class="fun">🔍</p>
                 <h3>Feature Walkthrough</h3>
-                <p><small>Every button, every metric, every gauge — with screenshots!</small></p>
+                <p><small>Every button, every metric, every gauge -- with screenshots!</small></p>
                 <aside class="notes">Informal walkthrough for the team. Uses actual app screenshots.</aside>
             </section>
 
@@ -132,10 +132,10 @@
                 <h2>Metric Cards (Top Row)</h2>
                 <img src="../images/dashboard.gif" alt="Metric Cards" class="screenshot-small">
                 <div class="callout">
-                    <div class="callout-item"><span class="number-badge">1</span> <strong>Total Cells</strong> — 6 cells, 120 GB</div>
-                    <div class="callout-item"><span class="number-badge">2</span> <strong>Utilization</strong> — 60.2%</div>
-                    <div class="callout-item"><span class="number-badge">3</span> <strong>Avg CPU</strong> — 49.8%</div>
-                    <div class="callout-item"><span class="number-badge">4</span> <strong>Unused Memory</strong> — 6.2 GB</div>
+                    <div class="callout-item"><span class="number-badge">1</span> <strong>Total Cells</strong> -- 6 cells, 120 GB</div>
+                    <div class="callout-item"><span class="number-badge">2</span> <strong>Utilization</strong> -- 60.2%</div>
+                    <div class="callout-item"><span class="number-badge">3</span> <strong>Avg CPU</strong> -- 49.8%</div>
+                    <div class="callout-item"><span class="number-badge">4</span> <strong>Unused Memory</strong> -- 6.2 GB</div>
                 </div>
                 <aside class="notes">These four cards are your quick health check. Glance at them daily.</aside>
             </section>
@@ -188,14 +188,14 @@
                     <tr><td>Capacity/Allocated/Used</td><td>Memory breakdown</td></tr>
                     <tr><td>CPU %</td><td><span class="good">green</span>/<span class="warn">yellow</span>/<span class="bad">red</span></td></tr>
                 </table>
-                <aside class="notes">Per-cell breakdown. Find hot cells. diego_cell/1 is at 62% CPU — watch that one.</aside>
+                <aside class="notes">Per-cell breakdown. Find hot cells. diego_cell/1 is at 62% CPU -- watch that one.</aside>
             </section>
 
             <section>
                 <h2>What-If Mode</h2>
                 <img src="../images/tas-what-if-mode.gif" alt="What-If Mode" class="screenshot">
                 <div class="tip">💡 Toggle "What-If Mode" → drag slider to model memory overcommit</div>
-                <aside class="notes">This is the "aha" moment. Show how capacity changes as you overcommit. To apply: Ops Manager → TAS tile → Advanced Features → "Diego Cell memory capacity" field (in MB). Example: 32 GB cell × 1.5x = 49152 MB. VMware has no official recommendation — use this tool to model before changing.</aside>
+                <aside class="notes">This is the "aha" moment. Show how capacity changes as you overcommit. To apply: Ops Manager → TAS tile → Advanced Features → "Diego Cell memory capacity" field (in MB). Example: 32 GB cell × 1.5x = 49152 MB. VMware has no official recommendation -- use this tool to model before changing.</aside>
             </section>
 
             <section>
@@ -205,7 +205,7 @@
                     <ul>
                         <li><strong>1.0x</strong> = No overcommit (default, safest)</li>
                         <li><strong>1.5x</strong> = Promise 50% more than physical</li>
-                        <li><strong>2.0x+</strong> = High risk — labs only!</li>
+                        <li><strong>2.0x+</strong> = High risk -- labs only!</li>
                     </ul>
                 </div>
                 <table style="margin-top: 0.5em;">
@@ -226,17 +226,17 @@
             <section>
                 <h2>Capacity Planning Overview</h2>
                 <img src="../images/capacity-planning.gif" alt="Capacity Planning" class="screenshot">
-                <aside class="notes">This is the scenario analysis wizard. Three ways to load data: (1) vSphere Live — connects to vCenter API to query hosts, clusters, memory, CPU threads, and Diego cell VMs in real-time; (2) Upload JSON — import a saved infrastructure file or select from sample configurations; (3) Manual Entry — form-based input for custom scenarios. The demo uses sample JSON data.</aside>
+                <aside class="notes">This is the scenario analysis wizard. Three ways to load data: (1) vSphere Live -- connects to vCenter API to query hosts, clusters, memory, CPU threads, and Diego cell VMs in real-time; (2) Upload JSON -- import a saved infrastructure file or select from sample configurations; (3) Manual Entry -- form-based input for custom scenarios. The demo uses sample JSON data.</aside>
             </section>
 
             <section>
                 <h2>IaaS Capacity Section</h2>
                 <img src="../images/capacity-planning.gif" alt="IaaS Capacity" class="screenshot-small">
                 <div class="callout">
-                    <div class="callout-item"><span class="number-badge">1</span> <strong>Hosts</strong> — 15 across 2 clusters</div>
-                    <div class="callout-item"><span class="number-badge">2</span> <strong>Memory</strong> — 30.7 TB (N-1: 26.6T)</div>
-                    <div class="callout-item"><span class="number-badge">3</span> <strong>Total vCPUs</strong> — 960 logical CPUs (threads) available</div>
-                    <div class="callout-item"><span class="number-badge">4</span> <strong>Max Cells</strong> — 240 (cpu-limited)</div>
+                    <div class="callout-item"><span class="number-badge">1</span> <strong>Hosts</strong> -- 15 across 2 clusters</div>
+                    <div class="callout-item"><span class="number-badge">2</span> <strong>Memory</strong> -- 30.7 TB (N-1: 26.6T)</div>
+                    <div class="callout-item"><span class="number-badge">3</span> <strong>Total vCPUs</strong> -- 960 logical CPUs (threads) available</div>
+                    <div class="callout-item"><span class="number-badge">4</span> <strong>Max Cells</strong> -- 240 (cpu-limited)</div>
                 </div>
                 <aside class="notes">IaaS Capacity shows physical infrastructure limits. Data collected: host count per cluster, total RAM (Summary.Hardware.MemorySize), logical CPUs (Summary.Hardware.NumCpuThreads which includes hyperthreading), and Diego cell VM inventory (matched by name pattern diego_cell*, compute*). Max Cells is calculated from HA-usable memory divided by cell size.
 
@@ -254,7 +254,7 @@
                         <li>64.0 TB disk</li>
                     </ul>
                 </div>
-                <p><small>⚠️ "Proposed exceeds by 260" — current config is over capacity!</small></p>
+                <p><small>⚠️ "Proposed exceeds by 260" -- current config is over capacity!</small></p>
                 <aside class="notes">Current Configuration is auto-populated from loaded data. From vSphere: counts Diego cell VMs and reads their vCPU/memory from VM config. From JSON: uses diego_cell_count, diego_cell_cpu, diego_cell_memory fields. Memory/disk totals = cell count × cell size. Red warning appears when proposed cells exceed max deployable cells.</aside>
             </section>
 
@@ -293,9 +293,9 @@
                 <div class="feature-box">
                     <p><strong>Power user settings:</strong></p>
                     <ul>
-                        <li><strong>Memory Overhead slider</strong> — Adjust 1-20%</li>
-                        <li><strong>Hypothetical App</strong> — "Can I fit this new app?"</li>
-                        <li><strong>TPS Curve</strong> — Customize scheduler benchmark</li>
+                        <li><strong>Memory Overhead slider</strong> -- Adjust 1-20%</li>
+                        <li><strong>Hypothetical App</strong> -- "Can I fit this new app?"</li>
+                        <li><strong>TPS Curve</strong> -- Customize scheduler benchmark</li>
                     </ul>
                 </div>
                 <p><small>Most people skip this. Use it to model specific scenarios.</small></p>
@@ -323,10 +323,10 @@
             <section>
                 <h2>Why "NO"? Common Reasons</h2>
                 <ul>
-                    <li class="bad"><strong>Exceeds N-1/HA capacity</strong> — Can't survive host failure</li>
-                    <li class="bad"><strong>Memory utilization > 90%</strong> — Cells are full</li>
-                    <li class="bad"><strong>vCPU ratio too high</strong> — CPU oversubscribed (> 8:1)</li>
-                    <li class="warn"><strong>Low staging capacity</strong> — < 10 free chunks</li>
+                    <li class="bad"><strong>Exceeds N-1/HA capacity</strong> -- Can't survive host failure</li>
+                    <li class="bad"><strong>Memory utilization > 90%</strong> -- Cells are full</li>
+                    <li class="bad"><strong>vCPU ratio too high</strong> -- CPU oversubscribed (> 8:1)</li>
+                    <li class="warn"><strong>Low staging capacity</strong> -- < 10 free chunks</li>
                 </ul>
                 <div class="tip" style="margin-top: 0.5em;">💡 Check the Bottleneck Card to see which resource is constraining you</div>
                 <aside class="notes">The warnings tell you exactly what's wrong. Fix the bottleneck first.
@@ -346,7 +346,7 @@
                     <tr><td class="bad">> 85%</td><td>Critical</td><td>Can't survive host failure</td></tr>
                 </table>
                 <div class="tip" style="margin-top: 0.5em;">💡 Gauge label shows constraint: "HA 25% (≈N-3)" or "N-1"</div>
-                <aside class="notes">This gauge answers "can I survive a host failure?" — the key question.</aside>
+                <aside class="notes">This gauge answers "can I survive a host failure?" -- the key question.</aside>
             </section>
 
             <section>
@@ -362,7 +362,7 @@
                 <ul style="font-size: 0.85em;">
                     <li>HA 25% reserves 8 TB (= N-4)</li>
                     <li>N-1 reserves 2 TB (= N-1)</li>
-                    <li><span class="warn">HA wins — it's more restrictive</span></li>
+                    <li><span class="warn">HA wins -- it's more restrictive</span></li>
                 </ul>
                 <aside class="notes">The tool compares both and shows whichever is more restrictive.</aside>
             </section>
@@ -384,7 +384,7 @@
             <section>
                 <h2>Free Chunks (Staging Capacity)</h2>
                 <div class="feature-box">
-                    <p class="formula">Free Chunks = (App Capacity - Used) / 4 GB</p>
+                    <p class="formula">Free Chunks = (App Capacity - Used) / Chunk Size</p>
                 </div>
                 <table>
                     <tr><th>Chunks</th><th>Status</th><th>Impact</th></tr>
@@ -392,8 +392,8 @@
                     <tr><td class="warn">10-19</td><td>Limited</td><td>May queue during busy periods</td></tr>
                     <tr><td class="bad">< 10</td><td>Constrained</td><td>Deployment bottleneck</td></tr>
                 </table>
-                <p><small>Each <code>cf push</code> needs ~4 GB to stage a droplet</small></p>
-                <aside class="notes">Low chunks = long deploy queues. This is why pushes sometimes hang.</aside>
+                <p><small>Chunk size auto-detected from avg app instance memory (defaults to 4GB)</small></p>
+                <aside class="notes">Low chunks = long deploy queues. Chunk size varies by workload type.</aside>
             </section>
 
             <section>
@@ -414,7 +414,7 @@
             <section>
                 <h2>TPS (Scheduler Performance)</h2>
                 <div class="feature-box">
-                    <p><strong>Tasks Per Second</strong> — how fast Diego schedules containers</p>
+                    <p><strong>Tasks Per Second</strong> -- how fast Diego schedules containers</p>
                     <table>
                         <tr><th>Cells</th><th>TPS</th><th>Notes</th></tr>
                         <tr><td>3</td><td class="good">1,964</td><td>Peak performance</td></tr>

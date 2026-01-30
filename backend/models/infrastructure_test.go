@@ -67,9 +67,9 @@ func TestInfrastructureStateCalculation(t *testing.T) {
 				DiegoCellCPU:      4,
 			},
 		},
-		PlatformVMsGB:      4800,
-		TotalAppMemoryGB:   10500,
-		TotalAppInstances:  7500,
+		PlatformVMsGB:     4800,
+		TotalAppMemoryGB:  10500,
+		TotalAppInstances: 7500,
 	}
 
 	state := mi.ToInfrastructureState()
@@ -92,5 +92,36 @@ func TestInfrastructureStateCalculation(t *testing.T) {
 	// 250 + 220 = 470 cells
 	if state.TotalCellCount != 470 {
 		t.Errorf("Expected TotalCellCount 470, got %d", state.TotalCellCount)
+	}
+}
+
+func TestAvgInstanceMemoryMB(t *testing.T) {
+	mi := ManualInput{
+		Name:              "test",
+		Clusters:          []ClusterInput{{Name: "c1", HostCount: 4, MemoryGBPerHost: 512, CPUCoresPerHost: 32, DiegoCellCount: 10, DiegoCellMemoryGB: 32, DiegoCellCPU: 4}},
+		PlatformVMsGB:     200,
+		TotalAppMemoryGB:  150,
+		TotalAppInstances: 50,
+	}
+	state := mi.ToInfrastructureState()
+
+	// 150 GB * 1024 MB/GB / 50 instances = 3072 MB
+	expected := 3072
+	if state.AvgInstanceMemoryMB != expected {
+		t.Errorf("Expected AvgInstanceMemoryMB %d, got %d", expected, state.AvgInstanceMemoryMB)
+	}
+}
+
+func TestAvgInstanceMemoryMB_ZeroInstances(t *testing.T) {
+	mi := ManualInput{
+		Name:              "test",
+		Clusters:          []ClusterInput{{Name: "c1", HostCount: 4, MemoryGBPerHost: 512, CPUCoresPerHost: 32, DiegoCellCount: 10, DiegoCellMemoryGB: 32, DiegoCellCPU: 4}},
+		TotalAppMemoryGB:  150,
+		TotalAppInstances: 0,
+	}
+	state := mi.ToInfrastructureState()
+
+	if state.AvgInstanceMemoryMB != 0 {
+		t.Errorf("Expected AvgInstanceMemoryMB 0 for zero instances, got %d", state.AvgInstanceMemoryMB)
 	}
 }
