@@ -79,6 +79,7 @@ type InfrastructureState struct {
 	TotalAppMemoryGB             int            `json:"total_app_memory_gb"`
 	TotalAppDiskGB               int            `json:"total_app_disk_gb"`
 	TotalAppInstances            int            `json:"total_app_instances"`
+	AvgInstanceMemoryMB          int            `json:"avg_instance_memory_mb"`
 	Timestamp                    time.Time      `json:"timestamp"`
 	Cached                       bool           `json:"cached"`
 }
@@ -242,6 +243,11 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 	}
 	if state.HAMinHostFailuresSurvived == -1 {
 		state.HAMinHostFailuresSurvived = 0
+	}
+
+	// Calculate average instance memory
+	if state.TotalAppInstances > 0 {
+		state.AvgInstanceMemoryMB = state.TotalAppMemoryGB * 1024 / state.TotalAppInstances
 	}
 
 	return state
