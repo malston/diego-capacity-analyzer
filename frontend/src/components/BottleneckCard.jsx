@@ -1,16 +1,17 @@
 // ABOUTME: Multi-resource bottleneck display component
 // ABOUTME: Shows resource exhaustion ordering with highlighted constraint
 
-import { AlertTriangle, HardDrive, Cpu, Database } from 'lucide-react';
+import { AlertTriangle, HardDrive, Cpu, Database } from "lucide-react";
+import Tooltip from "./Tooltip";
 
 // Get icon for resource type
 const getResourceIcon = (type) => {
   switch (type) {
-    case 'memory':
+    case "memory":
       return HardDrive;
-    case 'cpu':
+    case "cpu":
       return Cpu;
-    case 'disk':
+    case "disk":
       return Database;
     default:
       return HardDrive;
@@ -21,27 +22,29 @@ const getResourceIcon = (type) => {
 const getUtilizationColor = (utilization) => {
   if (utilization >= 85) {
     return {
-      text: 'text-red-400',
-      bg: 'bg-red-500',
-      bgLight: 'bg-red-500/20',
+      text: "text-red-400",
+      bg: "bg-red-500",
+      bgLight: "bg-red-500/20",
     };
   } else if (utilization >= 70) {
     return {
-      text: 'text-amber-400',
-      bg: 'bg-amber-500',
-      bgLight: 'bg-amber-500/20',
+      text: "text-amber-400",
+      bg: "bg-amber-500",
+      bgLight: "bg-amber-500/20",
     };
   }
   return {
-    text: 'text-cyan-400',
-    bg: 'bg-cyan-500',
-    bgLight: 'bg-cyan-500/20',
+    text: "text-cyan-400",
+    bg: "bg-cyan-500",
+    bgLight: "bg-cyan-500/20",
   };
 };
 
 const BottleneckCard = ({ resources = [] }) => {
   // Sort resources by utilization (highest first)
-  const sortedResources = [...resources].sort((a, b) => b.utilization - a.utilization);
+  const sortedResources = [...resources].sort(
+    (a, b) => b.utilization - a.utilization,
+  );
   const constrainingResource = sortedResources[0];
 
   if (resources.length === 0) {
@@ -60,7 +63,13 @@ const BottleneckCard = ({ resources = [] }) => {
     <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
       <h3 className="text-lg font-semibold mb-4 text-gray-200 flex items-center gap-2">
         <AlertTriangle size={18} className="text-amber-400" />
-        Resource Exhaustion Order
+        <Tooltip
+          text="Resources ranked by utilization. The #1 resource will hit its limit first -- scaling apps or adding cells is blocked by this constraint until you address it."
+          position="bottom"
+          showIcon
+        >
+          <span>Resource Exhaustion Order</span>
+        </Tooltip>
       </h3>
 
       <ul className="space-y-3">
@@ -76,15 +85,17 @@ const BottleneckCard = ({ resources = [] }) => {
               data-constraint={isConstraint}
               className={`rounded-lg p-4 border transition-all ${
                 isConstraint
-                  ? 'bg-amber-500/10 border-amber-500/50'
-                  : 'bg-slate-700/30 border-slate-600/30'
+                  ? "bg-amber-500/10 border-amber-500/50"
+                  : "bg-slate-700/30 border-slate-600/30"
               }`}
             >
               <div className="flex items-center gap-3">
                 {/* Ranking */}
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                    isConstraint ? 'bg-amber-500/30 text-amber-400' : 'bg-slate-600/50 text-gray-400'
+                    isConstraint
+                      ? "bg-amber-500/30 text-amber-400"
+                      : "bg-slate-600/50 text-gray-400"
                   }`}
                 >
                   {index + 1}
@@ -93,13 +104,20 @@ const BottleneckCard = ({ resources = [] }) => {
                 {/* Resource Icon and Name */}
                 <div className="flex items-center gap-2 flex-1">
                   <Icon size={16} className={colors.text} />
-                  <span className={`font-medium ${isConstraint ? 'text-amber-200' : 'text-gray-300'}`}>
+                  <span
+                    className={`font-medium ${isConstraint ? "text-amber-200" : "text-gray-300"}`}
+                  >
                     {resource.name}
                   </span>
                   {isConstraint && (
-                    <span className="text-xs text-amber-400 px-2 py-0.5 bg-amber-500/20 rounded">
-                      ← Closest to limit
-                    </span>
+                    <Tooltip
+                      text="This resource determines your maximum capacity. Adding Diego cells or scaling apps will be impossible once this hits 100%."
+                      position="bottom"
+                    >
+                      <span className="text-xs text-amber-400 px-2 py-0.5 bg-amber-500/20 rounded cursor-help">
+                        ← Closest to limit
+                      </span>
+                    </Tooltip>
                   )}
                 </div>
 
@@ -133,8 +151,11 @@ const BottleneckCard = ({ resources = [] }) => {
       {constrainingResource && (
         <div className="mt-4 p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
           <p className="text-sm text-gray-300">
-            <span className="font-medium text-amber-400">{constrainingResource.name}</span>
-            {' '}is your constraint. Address this resource before worrying about others.
+            <span className="font-medium text-amber-400">
+              {constrainingResource.name}
+            </span>{" "}
+            is your constraint. Address this resource before worrying about
+            others.
           </p>
         </div>
       )}
