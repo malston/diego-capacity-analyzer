@@ -265,15 +265,15 @@
             <section>
                 <h2>Staging Capacity (Free Chunks)</h2>
                 <div class="feature-box">
-                    <p class="formula">Free Chunks = (App Capacity - Used) / 4 GB</p>
+                    <p class="formula">Free Chunks = (App Capacity - Used) / Chunk Size</p>
                     <ul>
                         <li><span class="good">≥ 20</span> = Healthy</li>
                         <li><span class="warn">10-19</span> = May queue</li>
                         <li><span class="bad">< 10</span> = Deployment bottleneck</li>
                     </ul>
                 </div>
-                <p><small>Each `cf push` needs ~4 GB to stage a droplet</small></p>
-                <aside class="notes">Low chunks = long deploy queues.</aside>
+                <p><small>Chunk size auto-detected from avg app instance memory (defaults to 4GB)</small></p>
+                <aside class="notes">Low chunks = long deploy queues. Chunk size varies by workload type.</aside>
             </section>
 
             <section>

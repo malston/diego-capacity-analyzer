@@ -133,11 +133,13 @@ HA wins—it's more restrictive.
 
 ### Q: What's a "free chunk"?
 
-**A:** A 4 GB block available for `cf push` staging. When you push an app, Diego needs ~4 GB to stage the droplet before starting containers.
+**A:** A memory block available for `cf push` staging. Chunk size is auto-detected from your average app instance memory (defaults to 4GB if unavailable). When you push an app, Diego needs a chunk to stage the droplet before starting containers.
 
 - **≥ 20 chunks** = healthy
 - **10-19** = limited, may queue during busy periods
 - **< 10** = constrained, deployment bottleneck
+
+The UI displays the actual chunk size used (e.g., "2GB chunks for staging" for Go/Python workloads, "4GB chunks" for Java-heavy platforms).
 
 ---
 
