@@ -11,6 +11,25 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/backend/services"
 )
 
+// TestTLS_DefaultSecureConfig verifies that with only required CF env vars set,
+// TLS validation defaults to secure (skip=false).
+func TestTLS_DefaultSecureConfig(t *testing.T) {
+	t.Cleanup(withTestCFEnv(t))
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Verify secure defaults
+	if cfg.CFSkipSSLValidation {
+		t.Error("CFSkipSSLValidation should default to false (secure)")
+	}
+	if cfg.BOSHSkipSSLValidation {
+		t.Error("BOSHSkipSSLValidation should default to false (secure)")
+	}
+}
+
 // TestTLS_BOSHSkipSSLValidationTrue verifies that BOSH_SKIP_SSL_VALIDATION=true
 // allows the BOSH client to be created without error. The actual TLS behavior
 // is tested in services/boshapi_test.go with a mock TLS server.

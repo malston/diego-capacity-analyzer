@@ -8,6 +8,20 @@ import (
 	"testing"
 )
 
+// withTestCFEnv sets CF environment variables to test values and returns
+// a cleanup function that restores the original values. Use with t.Cleanup().
+//
+// Example:
+//
+//	func TestSomething(t *testing.T) {
+//	    t.Cleanup(withTestCFEnv(t))
+//	    // CF_API_URL, CF_USERNAME, CF_PASSWORD are now set
+//	}
+func withTestCFEnv(t *testing.T) func() {
+	t.Helper()
+	return withTestCFEnvAndExtra(t, nil)
+}
+
 // withTestCFEnvAndExtra sets CF environment variables plus additional vars,
 // returning a cleanup function that restores all original values.
 //
