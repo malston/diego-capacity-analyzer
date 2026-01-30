@@ -39,16 +39,16 @@ python3 -m http.server 8888
 
 **Keyboard shortcuts in presentations:**
 
-- `→` / `←` — Navigate slides
-- `S` — Open speaker notes (separate window)
-- `O` — Overview mode
-- `F` — Fullscreen
+- `→` / `←` -- Navigate slides
+- `S` -- Open speaker notes (separate window)
+- `O` -- Overview mode
+- `F` -- Fullscreen
 
 ## Reference Documents
 
-- **FAQ**: [`docs/FAQ.md`](../FAQ.md) — Common questions and answers
-- **UI Guide**: [`docs/UI-GUIDE.md`](../UI-GUIDE.md) — Full dashboard documentation
-- **Formula Cheatsheet**: [`formula-cheatsheet.md`](./formula-cheatsheet.md) — All calculations explained
+- **FAQ**: [`docs/FAQ.md`](../FAQ.md) -- Common questions and answers
+- **UI Guide**: [`docs/UI-GUIDE.md`](../UI-GUIDE.md) -- Full dashboard documentation
+- **Formula Cheatsheet**: [`formula-cheatsheet.md`](./formula-cheatsheet.md) -- All calculations explained
 
 ## Sample Data
 
@@ -65,4 +65,4 @@ The app includes pre-built sample scenarios in `frontend/public/samples/`:
 | `diego-benchmark-50k.json`      | 20 hosts, 250 cells             | None | CF benchmark: 62.5K instances   |
 | `diego-benchmark-250k.json`     | 36 hosts, 1000 cells, 3 AZs     | N-3  | CF benchmark: 250K instances    |
 
-Load these via the dashboard's "Load Sample" dropdown — no credentials needed.
+Load these via the dashboard's "Load Sample" dropdown -- no credentials needed.

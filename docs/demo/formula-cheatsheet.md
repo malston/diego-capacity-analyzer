@@ -1,4 +1,4 @@
-# Diego Capacity Analyzer — Formula Cheatsheet
+# Diego Capacity Analyzer -- Formula Cheatsheet
 
 Quick reference for all the math behind the capacity calculations.
 

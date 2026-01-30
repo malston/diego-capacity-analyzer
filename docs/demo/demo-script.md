@@ -1,4 +1,4 @@
-# Diego Capacity Analyzer — Demo Script (Cheat Sheet)
+# Diego Capacity Analyzer -- Demo Script (Cheat Sheet)
 
 **Print this single page. Follow it during the demo.**
 
@@ -24,7 +24,7 @@ open http://localhost:5173           # Browser in dark mode
 
 | Slide    | Say                                                                                                |
 | -------- | -------------------------------------------------------------------------------------------------- |
-| Title    | "Diego Capacity Analyzer—capacity planning without the spreadsheets."                              |
+| Title    | "Diego Capacity Analyzer--capacity planning without the spreadsheets."                              |
 | Problem  | "How do you answer 'will it fit?' today? Spreadsheets, manual math, start over for every what-if." |
 | Solution | "One dashboard, real-time data, instant modeling. Let me show you."                                |
 
@@ -52,11 +52,11 @@ open http://localhost:5173           # Browser in dark mode
 | Action                         | Say                                                                    |
 | ------------------------------ | ---------------------------------------------------------------------- |
 | Click Scenarios → Run Analysis | "What if we doubled cell memory?"                                      |
-| Step 1: Select all resources   | "Memory, CPU, and disk—full picture."                                  |
+| Step 1: Select all resources   | "Memory, CPU, and disk--full picture."                                  |
 | Step 2: Change 64GB → 128GB    | "Scale-up scenario."                                                   |
 | Step 3: Show CPU ratio slider  | "4:1 is moderate. 8:1 triggers warnings."                              |
 | Step 4: Show HA settings       | "N-1 tolerance calculated automatically."                              |
-| **Results: Will It Fit?**      | "Green checkmark—yes, it fits."                                        |
+| **Results: Will It Fit?**      | "Green checkmark--yes, it fits."                                        |
 | **Bottleneck card**            | "Constrained by N-1 HA, not raw memory. Add one host = more headroom." |
 | **Recommendations**            | "Prioritized: add hosts first, then scale-out."                        |
 
@@ -70,7 +70,7 @@ open http://localhost:5173           # Browser in dark mode
 | --------------- | ---------------------------------------------------------------------- |
 | Data flow       | "BOSH, CF, Log Cache, vSphere → unified model → REST API → React."     |
 | Integrations    | "Log Cache gives actual memory, not just allocated. Key for accuracy." |
-| Capacity engine | "N-1 HA, multi-resource bottlenecks, scenario comparison—automatic."   |
+| Capacity engine | "N-1 HA, multi-resource bottlenecks, scenario comparison--automatic."   |
 
 **→ Switch to browser**
 
@@ -106,7 +106,7 @@ open http://localhost:5173           # Browser in dark mode
 
 - "Without changing any infrastructure..."
 - "That used to take a day of spreadsheet work"
-- "Not just data—prioritized recommendations"
+- "Not just data--prioritized recommendations"
 - "Constrained by X, not Y" (bottleneck insight)
 - "Five minutes to try it yourself"
 

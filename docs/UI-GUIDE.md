@@ -190,7 +190,7 @@ After loading infrastructure data, the IaaS Capacity section displays your physi
 
 ### HA Admission Control
 
-The available memory is constrained by vSphere HA Admission Control, which reserves a percentage of cluster resources for failover capacity. This is what vSphere actually enforces—you cannot deploy VMs beyond this limit.
+The available memory is constrained by vSphere HA Admission Control, which reserves a percentage of cluster resources for failover capacity. This is what vSphere actually enforces--you cannot deploy VMs beyond this limit.
 
 | Display          | Meaning                                                     |
 | ---------------- | ----------------------------------------------------------- |
@@ -243,7 +243,7 @@ If your **Proposed Cell Count** exceeds Max Cells, an amber warning appears show
 
 ### CPU Configuration
 
-The vCPU:pCPU ratio is **calculated as an output**, not configured as an input. This reflects reality: you can't set a "target ratio" in vSphere—the ratio is a consequence of how many cells you deploy and what size they are.
+The vCPU:pCPU ratio is **calculated as an output**, not configured as an input. This reflects reality: you can't set a "target ratio" in vSphere--the ratio is a consequence of how many cells you deploy and what size they are.
 
 | Metric                   | What It Means                                     |
 | ------------------------ | ------------------------------------------------- |
@@ -306,7 +306,7 @@ Whichever reserves more capacity is the limiting constraint and is displayed in 
 
 ### CPU Utilization (vCPU:pCPU Ratio)
 
-The vCPU:pCPU ratio shows how many virtual CPUs are allocated per physical CPU core. This is a **calculated output** based on your cell count and cell vCPU size—it's not a configurable setting.
+The vCPU:pCPU ratio shows how many virtual CPUs are allocated per physical CPU core. This is a **calculated output** based on your cell count and cell vCPU size--it's not a configurable setting.
 
 | Ratio         | Risk Level | Meaning                                                   |
 | ------------- | ---------- | --------------------------------------------------------- |
@@ -431,7 +431,7 @@ These two percentages operate at different layers and are **not** redundant:
 
 **How they work together:**
 
-1. **vSphere perspective**: A 32GB Diego cell consumes 32GB of cluster memory. HA admission reserves capacity based on this full VM footprint—vSphere doesn't know or care what runs inside the VM.
+1. **vSphere perspective**: A 32GB Diego cell consumes 32GB of cluster memory. HA admission reserves capacity based on this full VM footprint--vSphere doesn't know or care what runs inside the VM.
 
 2. **Diego perspective**: Of that 32GB cell, ~30GB is available for application containers. The remaining ~2GB (7%) runs Garden, system processes, and the Diego executor.
 
@@ -478,9 +478,9 @@ Diego cells should **never** be subject to these techniques. If they are:
 - OOM kills and container crashes follow
 - Performance becomes unpredictable
 
-Setting a memory reservation tells vSphere "guarantee this VM's full memory allocation—never reclaim from it." This ensures Diego cells have dedicated physical memory and aren't sacrificed when other workloads cause host pressure.
+Setting a memory reservation tells vSphere "guarantee this VM's full memory allocation--never reclaim from it." This ensures Diego cells have dedicated physical memory and aren't sacrificed when other workloads cause host pressure.
 
-**Note:** Memory reservations reduce the pool of memory available for other VMs. If you reserve 32GB for each of 470 Diego cells, that's 15TB that cannot be overcommitted. This is intentional—Diego cells need predictable memory access.
+**Note:** Memory reservations reduce the pool of memory available for other VMs. If you reserve 32GB for each of 470 Diego cells, that's 15TB that cannot be overcommitted. This is intentional--Diego cells need predictable memory access.
 
 ---
 
@@ -604,7 +604,7 @@ Expandable panel with configuration overrides:
 - Adjusts the percentage of cell memory reserved for Garden runtime and system processes
 - Formula: `App Capacity = cells × (cell_memory × (1 - overhead%))`
 - The 7% default is an empirical estimate; verify against your actual cell utilization if precision matters
-- This is separate from HA Admission Control—see [HA Admission vs. Memory Overhead](#ha-admission-vs-memory-overhead-not-double-counting) for details
+- This is separate from HA Admission Control--see [HA Admission vs. Memory Overhead](#ha-admission-vs-memory-overhead-not-double-counting) for details
 
 **Add Hypothetical App**
 
@@ -692,12 +692,12 @@ The metric scorecards in the results section use color-coded status badges to in
 
 | Scorecard          | Warning Threshold | Critical Threshold | Notes                                                  |
 | ------------------ | ----------------- | ------------------ | ------------------------------------------------------ |
-| **Cell Count**     | —                 | —                  | Informational only; no status thresholds               |
-| **App Capacity**   | —                 | —                  | Informational only; no status thresholds               |
+| **Cell Count**     | --                 | --                  | Informational only; no status thresholds               |
+| **App Capacity**   | --                 | --                  | Informational only; no status thresholds               |
 | **Fault Impact**   | ≥25 apps/cell     | ≥50 apps/cell      | Lower is better; high values mean larger blast radius  |
 | **Instances/Cell** | ≥30               | ≥50                | Lower is better; high density increases failure impact |
 
-**Note:** Cell Count and App Capacity display status based on the direction of change (improvement vs regression) rather than absolute thresholds. These metrics don't have inherently "bad" values—500 cells isn't worse than 50 cells; it depends on your workload requirements.
+**Note:** Cell Count and App Capacity display status based on the direction of change (improvement vs regression) rather than absolute thresholds. These metrics don't have inherently "bad" values--500 cells isn't worse than 50 cells; it depends on your workload requirements.
 
 ---
 

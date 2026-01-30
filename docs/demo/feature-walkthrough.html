@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diego Capacity Analyzer — Feature Walkthrough</title>
+    <title>Diego Capacity Analyzer -- Feature Walkthrough</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reset.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css">
@@ -92,9 +92,9 @@
                 <div class="feature-box">
                     <p>Stacked bar chart per isolation segment:</p>
                     <ul>
-                        <li><span class="blue">■ Used</span> — Actually consumed by apps</li>
-                        <li><span class="green">■ Allocated Unused</span> — Reserved but idle (waste!)</li>
-                        <li><span class="gray">■ Available</span> — Free for new apps</li>
+                        <li><span class="blue">■ Used</span> -- Actually consumed by apps</li>
+                        <li><span class="green">■ Allocated Unused</span> -- Reserved but idle (waste!)</li>
+                        <li><span class="gray">■ Available</span> -- Free for new apps</li>
                     </ul>
                 </div>
                 <div class="tip">💡 Lots of green = apps are over-provisioned. Right-size them!</div>
@@ -156,9 +156,9 @@
                 <div class="feature-box">
                     <p>Three options:</p>
                     <ul>
-                        <li><strong>vSphere Live</strong> — Real-time from vCenter</li>
-                        <li><strong>Upload JSON</strong> — Import a file + sample picker</li>
-                        <li><strong>Manual Entry</strong> — Type it in</li>
+                        <li><strong>vSphere Live</strong> -- Real-time from vCenter</li>
+                        <li><strong>Upload JSON</strong> -- Import a file + sample picker</li>
+                        <li><strong>Manual Entry</strong> -- Type it in</li>
                     </ul>
                 </div>
                 <p><small>9 sample files: small → enterprise → benchmarks</small></p>
@@ -192,16 +192,16 @@
                         <li>HA Admission Control %</li>
                     </ul>
                 </div>
-                <aside class="notes">Ratio isn't a target—it's an output of your config.</aside>
+                <aside class="notes">Ratio isn't a target--it's an output of your config.</aside>
             </section>
 
             <section>
                 <h2>Step 4: Advanced Options</h2>
                 <div class="feature-box">
                     <ul>
-                        <li><strong>Memory Overhead slider</strong> — Adjust 1-20%</li>
-                        <li><strong>Hypothetical App</strong> — "Can I fit this new app?"</li>
-                        <li><strong>TPS Curve</strong> — Customize scheduler benchmark</li>
+                        <li><strong>Memory Overhead slider</strong> -- Adjust 1-20%</li>
+                        <li><strong>Hypothetical App</strong> -- "Can I fit this new app?"</li>
+                        <li><strong>TPS Curve</strong> -- Customize scheduler benchmark</li>
                     </ul>
                 </div>
                 <aside class="notes">Power user stuff. Most people skip this.</aside>
@@ -220,7 +220,7 @@
                     <tr><th>Status</th><th>Meaning</th></tr>
                     <tr><td class="good">✓ YES</td><td>All checks pass</td></tr>
                     <tr><td class="warn">⚠ MAYBE</td><td>Warnings to review</td></tr>
-                    <tr><td class="bad">✗ NO</td><td>Critical issues—adjust config</td></tr>
+                    <tr><td class="bad">✗ NO</td><td>Critical issues--adjust config</td></tr>
                 </table>
                 <aside class="notes">This is what everyone wants to know first.</aside>
             </section>
@@ -242,10 +242,10 @@
             <section>
                 <h2>Why "NO"? Common Reasons</h2>
                 <ul>
-                    <li class="bad"><strong>Exceeds N-1/HA capacity</strong> — Can't survive host failure</li>
-                    <li class="bad"><strong>Memory utilization > 90%</strong> — Cells are full</li>
-                    <li class="bad"><strong>vCPU ratio too high</strong> — CPU oversubscribed</li>
-                    <li class="warn"><strong>Low staging capacity</strong> — Can't deploy new apps</li>
+                    <li class="bad"><strong>Exceeds N-1/HA capacity</strong> -- Can't survive host failure</li>
+                    <li class="bad"><strong>Memory utilization > 90%</strong> -- Cells are full</li>
+                    <li class="bad"><strong>vCPU ratio too high</strong> -- CPU oversubscribed</li>
+                    <li class="warn"><strong>Low staging capacity</strong> -- Can't deploy new apps</li>
                 </ul>
                 <p><small>Check the Bottleneck Card for specifics</small></p>
                 <aside class="notes">The warnings tell you exactly what's wrong.</aside>
@@ -259,7 +259,7 @@
                     <tr><td>Disk</td><td>< 80%</td><td>80-90%</td><td>> 90%</td></tr>
                 </table>
                 <p class="formula">Memory Util = App Memory / App Capacity</p>
-                <aside class="notes">Separate from HA gauge—this is app-level utilization.</aside>
+                <aside class="notes">Separate from HA gauge--this is app-level utilization.</aside>
             </section>
 
             <section>
@@ -291,7 +291,7 @@
             <section>
                 <h2>TPS (Scheduler Performance)</h2>
                 <div class="feature-box">
-                    <p>Tasks Per Second — how fast Diego schedules containers</p>
+                    <p>Tasks Per Second -- how fast Diego schedules containers</p>
                     <ul>
                         <li>Peak: ~1,964 TPS at 3 cells</li>
                         <li>100 cells: ~1,389 TPS (-30%)</li>
@@ -347,10 +347,10 @@
                 <div class="feature-box">
                     <p>Prioritized actions based on your bottleneck:</p>
                     <ul>
-                        <li><strong>Scale-out</strong> — Add more cells</li>
-                        <li><strong>Scale-up</strong> — Bigger cells</li>
-                        <li><strong>Infrastructure</strong> — Add hosts</li>
-                        <li><strong>Optimization</strong> — Right-size apps</li>
+                        <li><strong>Scale-out</strong> -- Add more cells</li>
+                        <li><strong>Scale-up</strong> -- Bigger cells</li>
+                        <li><strong>Infrastructure</strong> -- Add hosts</li>
+                        <li><strong>Optimization</strong> -- Right-size apps</li>
                     </ul>
                 </div>
                 <p><small>Each shows impact + priority (1 = do first)</small></p>

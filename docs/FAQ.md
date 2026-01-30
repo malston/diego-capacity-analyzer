@@ -1,4 +1,4 @@
-# Diego Capacity Analyzer — FAQ
+# Diego Capacity Analyzer -- FAQ
 
 Likely questions from team demos and how to answer them.
 
@@ -25,7 +25,7 @@ Before this tool, you'd pull data from BOSH, CF API, and vSphere separately, mer
 | **Log Cache** | _Actual_ container memory (not just allocated) |
 | **vSphere**   | Host/cluster inventory                         |
 
-The key insight is Log Cache—it tells us what apps actually use, not just what they requested.
+The key insight is Log Cache--it tells us what apps actually use, not just what they requested.
 
 ---
 
@@ -84,10 +84,10 @@ This works because apps rarely use 100% of their allocation simultaneously. But 
 
 When VMs demand more RAM than physically exists, vSphere uses this hierarchy:
 
-1. **Transparent Page Sharing** — dedupe identical pages (low impact)
-2. **Ballooning** — inflate balloon driver, force guest to page (medium impact)
-3. **Compression** — compress cold pages (medium impact)
-4. **Host Swapping** — hypervisor swaps to disk (severe impact)
+1. **Transparent Page Sharing** -- dedupe identical pages (low impact)
+2. **Ballooning** -- inflate balloon driver, force guest to page (medium impact)
+3. **Compression** -- compress cold pages (medium impact)
+4. **Host Swapping** -- hypervisor swaps to disk (severe impact)
 
 The **1.3x threshold** is where ballooning becomes unlikely under normal load. Above that, you're betting workloads won't spike together.
 
@@ -103,9 +103,9 @@ The **1.3x threshold** is where ballooning becomes unlikely under normal load. A
 
 **A:** Check the warnings. The most common reasons:
 
-1. **Exceeds N-1/HA capacity** — Your cells + platform VMs exceed what's usable after reserving for host failure tolerance
-2. **Memory utilization > 90%** — Apps fill the cell capacity
-3. **vCPU:pCPU ratio too high** — CPU oversubscription beyond your target
+1. **Exceeds N-1/HA capacity** -- Your cells + platform VMs exceed what's usable after reserving for host failure tolerance
+2. **Memory utilization > 90%** -- Apps fill the cell capacity
+3. **vCPU:pCPU ratio too high** -- CPU oversubscription beyond your target
 
 The bottleneck card tells you _which_ resource is constraining you.
 
@@ -120,14 +120,14 @@ The bottleneck card tells you _which_ resource is constraining you.
 | **N-1**          | Simple: reserve one host's worth of memory      |
 | **HA Admission** | vSphere setting: reserve X% of cluster capacity |
 
-The tool compares both and shows whichever is more restrictive. HA Admission is what vSphere actually enforces—you can't deploy VMs beyond its limit.
+The tool compares both and shows whichever is more restrictive. HA Admission is what vSphere actually enforces--you can't deploy VMs beyond its limit.
 
 **Example:** On a 15-host cluster with 2 TB/host:
 
 - HA 25% reserves 7.5 TB (≈ N-3)
 - N-1 reserves 2 TB
 
-HA wins—it's more restrictive.
+HA wins--it's more restrictive.
 
 ---
 
@@ -171,7 +171,7 @@ Low cell counts mean each failure has outsized impact.
 
 ### Q: Why 7% memory overhead?
 
-**A:** That's what Garden runtime, the Diego executor, and OS processes consume inside a Diego cell. It's an empirical estimate—your actual overhead may vary.
+**A:** That's what Garden runtime, the Diego executor, and OS processes consume inside a Diego cell. It's an empirical estimate--your actual overhead may vary.
 
 You can adjust this in Advanced Options if you've measured something different.
 
@@ -207,13 +207,13 @@ Start with Priority 1. It addresses your bottleneck.
 
 ### Q: Why does it recommend adding hosts when I could add cells?
 
-**A:** If you're constrained by N-1/HA capacity, adding cells doesn't help—you've already hit the limit. Adding hosts increases the total pool and reduces the percentage impact of any single host failure.
+**A:** If you're constrained by N-1/HA capacity, adding cells doesn't help--you've already hit the limit. Adding hosts increases the total pool and reduces the percentage impact of any single host failure.
 
 ---
 
 ### Q: What if I disagree with the recommendation?
 
-**A:** The recommendations are suggestions based on your current bottleneck. You know your environment best—if a recommendation doesn't fit your constraints (budget, data center space, etc.), consider the alternatives it offers.
+**A:** The recommendations are suggestions based on your current bottleneck. You know your environment best--if a recommendation doesn't fit your constraints (budget, data center space, etc.), consider the alternatives it offers.
 
 ---
 
@@ -253,7 +253,7 @@ You can customize the curve in Advanced Options to match your observed performan
 
 ### Q: Can I run this in production?
 
-**A:** The tool itself is read-only—it queries APIs but doesn't make changes. Safe to point at production BOSH/CF. The only consideration is API rate limits if you refresh constantly.
+**A:** The tool itself is read-only--it queries APIs but doesn't make changes. Safe to point at production BOSH/CF. The only consideration is API rate limits if you refresh constantly.
 
 ---
 
@@ -273,7 +273,7 @@ You can customize the curve in Advanced Options to match your observed performan
 
 | Question                       | One-liner                                |
 | ------------------------------ | ---------------------------------------- |
-| What's the main metric?        | N-1/HA Utilization—stay under 85%        |
+| What's the main metric?        | N-1/HA Utilization--stay under 85%        |
 | Healthy utilization?           | 60-75%                                   |
 | How many chunks is safe?       | ≥ 20                                     |
 | Max vCPU ratio for production? | 4:1 or less                              |
