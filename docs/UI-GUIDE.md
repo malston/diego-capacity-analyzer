@@ -160,10 +160,11 @@ _Running capacity analysis through the wizard to see detailed scenario results w
 | **Upload JSON**  | Import infrastructure JSON file; also shows sample file picker        |
 | **Manual Entry** | Form-based input for custom infrastructure configuration              |
 
-**Sample Data:** When using Upload JSON mode, you can select from 6 pre-built configurations:
+**Sample Data:** When using Upload JSON mode, you can select from 8 pre-built configurations:
 
 - Small Foundation (Dev/Test), Medium Foundation (Staging), Large Foundation (Production)
 - Enterprise Multi-Cluster
+- CPU-Constrained, Memory-Constrained
 - Diego Benchmark 50K, Diego Benchmark 250K
 
 After loading data, a **Current Configuration** summary appears showing your existing cell count, size, and total capacity. This helps you understand what you're comparing against before proposing changes.
@@ -189,10 +190,10 @@ The available memory is constrained by vSphere HA Admission Control, which reser
 | ---------------- | ----------------------------------------------------------- |
 | **HA X% (≈N-Y)** | X% reserved for HA, equivalent to surviving Y host failures |
 
-**Example:** With 30TB total memory and 25% HA Admission Control:
+**Example:** With 32TB total memory (16 hosts × 2TB) and 25% HA Admission Control:
 
-- Usable memory: 30TB × 75% = 22.5TB
-- Implied tolerance: 25% of 15 hosts ≈ 3.75 hosts → N-3/N-4 tolerance
+- Usable memory: 32TB × 75% = 24TB
+- Implied tolerance: 25% of 16 hosts = 4 hosts → N-4 tolerance
 
 ### Max Cells Calculation
 
@@ -290,12 +291,12 @@ Whichever reserves more capacity is the limiting constraint and is displayed in 
 | **75-85%** | Warning  | Approaching capacity limits           |
 | **> 85%**  | Critical | Near or exceeding deployable capacity |
 
-**Key insight:** HA Admission Control is what vSphere actually enforces. If you configure 25% HA, vSphere reserves 25% of cluster resources and won't let you deploy VMs beyond the remaining 75%. This is equivalent to roughly N-3 or N-4 host failure tolerance on a 15-host cluster.
+**Key insight:** HA Admission Control is what vSphere actually enforces. If you configure 25% HA, vSphere reserves 25% of cluster resources and won't let you deploy VMs beyond the remaining 75%. This is equivalent to N-4 host failure tolerance on a 16-host cluster.
 
-**Example:** On a 15-host cluster with 2 TB per host (30 TB total):
+**Example:** On a 16-host cluster with 2 TB per host (32 TB total):
 
-- HA 25% reserves 7.5 TB (≈N-4 equivalent) → HA is limiting
-- HA 5% reserves 1.5 TB (< N-1's 2 TB) → N-1 is limiting
+- HA 25% reserves 8 TB (= N-4) → HA is limiting
+- HA 5% reserves 1.6 TB (< N-1's 2 TB) → N-1 is limiting
 
 ### CPU Utilization (vCPU:pCPU Ratio)
 
@@ -717,7 +718,7 @@ Measures whether your cluster can handle VM load within capacity constraints. Th
 
 - System compares HA reserved capacity vs N-1 reserved capacity
 - Whichever reserves MORE is the limiting constraint (less usable capacity)
-- Example: HA 25% on 30 TB = 7.5 TB reserved; N-1 = 2 TB reserved → HA is limiting
+- Example: HA 25% on 32 TB = 8 TB reserved; N-1 = 2 TB reserved → HA is limiting
 
 **Formula:** `Utilization = (Total Cell Memory + Platform VMs) / Usable Capacity × 100`
 
