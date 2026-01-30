@@ -1,17 +1,16 @@
-// ABOUTME: JWT authentication middleware for CF UAA tokens
-// ABOUTME: Validates token structure and expiration, extracts user claims
+// ABOUTME: Authentication middleware for CF UAA tokens and session cookies
+// ABOUTME: Verifies JWT signatures via JWKS client, extracts user claims
 
 package middleware
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
-	"time"
+
+	"github.com/markalston/diego-capacity-analyzer/backend/services"
 )
 
 // AuthMode defines how authentication is enforced
@@ -33,6 +32,7 @@ type SessionValidatorFunc func(sessionID string) *UserClaims
 type AuthConfig struct {
 	Mode             AuthMode
 	SessionValidator SessionValidatorFunc // Optional: validates session cookies
+	JWKSClient       *services.JWKSClient // Optional: validates Bearer token signatures
 }
 
 // ValidateAuthMode validates an auth mode string and returns the corresponding AuthMode.
@@ -91,11 +91,28 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 				}
 
 				token := strings.TrimPrefix(authHeader, "Bearer ")
-				claims, err := parseJWT(token)
-				if err != nil {
-					slog.Debug("Auth rejected: invalid token", "path", r.URL.Path, "error", err.Error())
-					http.Error(w, "Invalid token: "+err.Error(), http.StatusUnauthorized)
+
+				// If JWKSClient is not configured, Bearer auth is unavailable
+				if cfg.JWKSClient == nil {
+					slog.Debug("Auth rejected: JWKSClient not configured", "path", r.URL.Path)
+					http.Error(w, "Bearer authentication unavailable, please use web UI login", http.StatusUnauthorized)
 					return
+				}
+
+				// Use JWKS client for cryptographic signature verification
+				jwtClaims, err := cfg.JWKSClient.VerifyAndParse(token)
+				if err != nil {
+					// Log detailed error for debugging, but return generic message to client
+					// to avoid leaking internal details (key IDs, algorithm info, etc.)
+					slog.Debug("Auth rejected: invalid token", "path", r.URL.Path, "error", err.Error())
+					http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+					return
+				}
+
+				// Convert services.JWTClaims to middleware.UserClaims
+				claims := &UserClaims{
+					Username: jwtClaims.Username,
+					UserID:   jwtClaims.UserID,
 				}
 
 				slog.Debug("Auth: valid bearer token", "path", r.URL.Path, "user", claims.Username)
@@ -144,71 +161,4 @@ func GetUserClaims(r *http.Request) *UserClaims {
 		return nil
 	}
 	return claims
-}
-
-// parseJWT extracts claims from a JWT token.
-// Note: This implementation validates structure and expiration but does not
-// cryptographically verify the signature. For demo purposes, we trust tokens
-// issued by CF UAA.
-func parseJWT(token string) (*UserClaims, error) {
-	parts := strings.Split(token, ".")
-	if len(parts) != 3 {
-		return nil, &jwtError{"malformed token structure"}
-	}
-
-	payload, err := base64URLDecode(parts[1])
-	if err != nil {
-		return nil, &jwtError{"invalid payload encoding"}
-	}
-
-	var claims jwtClaims
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return nil, &jwtError{"invalid payload format"}
-	}
-
-	// Check expiration
-	if claims.Exp > 0 && time.Now().Unix() > claims.Exp {
-		return nil, &jwtError{"token expired"}
-	}
-
-	// Validate required claims
-	if claims.UserName == "" {
-		return nil, &jwtError{"missing required claim: user_name"}
-	}
-
-	return &UserClaims{
-		Username: claims.UserName,
-		UserID:   claims.UserID,
-	}, nil
-}
-
-// jwtClaims represents CF UAA JWT payload fields
-type jwtClaims struct {
-	UserName string `json:"user_name"`
-	UserID   string `json:"user_id"`
-	Exp      int64  `json:"exp"`
-}
-
-// jwtError represents a JWT validation error
-type jwtError struct {
-	msg string
-}
-
-func (e *jwtError) Error() string {
-	return e.msg
-}
-
-// base64URLDecode decodes base64url encoded data (RFC 4648)
-func base64URLDecode(s string) ([]byte, error) {
-	// RawURLEncoding handles base64url without padding
-	// Add padding if present in input (some JWTs include it)
-	data, err := base64.RawURLEncoding.DecodeString(s)
-	if err != nil {
-		// Try with standard URL encoding (with padding) as fallback
-		data, err = base64.URLEncoding.DecodeString(s)
-		if err != nil {
-			return nil, &jwtError{"invalid payload encoding"}
-		}
-	}
-	return data, nil
 }
