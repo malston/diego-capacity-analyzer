@@ -2,34 +2,57 @@
 // ABOUTME: Main what-if scenario analyzer component
 // ABOUTME: Combines data source, comparison table, and warnings
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calculator, RefreshCw, FileDown, Sparkles, Server, HardDrive, Cpu, Database, AlertCircle } from 'lucide-react';
-import Tooltip from './Tooltip';
-import DataSourceSelector from './DataSourceSelector';
-import ScenarioResults from './ScenarioResults';
-import ScenarioWizard from './wizard/ScenarioWizard';
-import { scenarioApi } from '../services/scenarioApi';
-import { useToast } from '../contexts/ToastContext';
-import { VM_SIZE_PRESETS, DEFAULT_PRESET_INDEX, findMatchingPreset } from '../config/vmPresets';
-import { generateMarkdownReport, downloadMarkdown } from '../utils/exportMarkdown';
+import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  Calculator,
+  RefreshCw,
+  FileDown,
+  Sparkles,
+  Server,
+  HardDrive,
+  Cpu,
+  Database,
+  AlertCircle,
+} from "lucide-react";
+import Tooltip from "./Tooltip";
+import DataSourceSelector from "./DataSourceSelector";
+import ScenarioResults from "./ScenarioResults";
+import ScenarioWizard from "./wizard/ScenarioWizard";
+import { scenarioApi } from "../services/scenarioApi";
+import { useToast } from "../contexts/ToastContext";
+import {
+  VM_SIZE_PRESETS,
+  DEFAULT_PRESET_INDEX,
+  findMatchingPreset,
+} from "../config/vmPresets";
+import {
+  generateMarkdownReport,
+  downloadMarkdown,
+} from "../utils/exportMarkdown";
 import {
   DEFAULT_SELECTED_RESOURCES,
   OVERHEAD_DEFAULTS,
   DEFAULT_TPS_CURVE,
-} from '../config/resourceConfig';
+} from "../config/resourceConfig";
 
 const IAAS_TOOLTIPS = {
-  hosts: "Total ESXi hosts in your cluster(s). More hosts = more physical capacity and better fault tolerance.",
-  totalMemory: "Total RAM across all hosts. HA-usable memory (based on HA Admission Control %) shows what vSphere allows you to deploy.",
-  totalCPUs: "Total physical CPU cores across all hosts. The vCPU:pCPU ratio is calculated based on your cell configuration.",
-  maxCells: "Maximum Diego cells deployable based on HA-usable memory. Shows the resulting vCPU:pCPU ratio at both current and max cell counts.",
+  hosts:
+    "Total ESXi hosts in your cluster(s). More hosts = more physical capacity and better fault tolerance.",
+  totalMemory:
+    "Total RAM across all hosts. HA-usable memory (based on HA Admission Control %) shows what vSphere allows you to deploy.",
+  totalCPUs:
+    "Total physical CPU cores across all hosts. The vCPU:pCPU ratio is calculated based on your cell configuration.",
+  maxCells:
+    "Maximum Diego cells deployable based on HA-usable memory. Shows the resulting vCPU:pCPU ratio at both current and max cell counts.",
 };
 
 // CPU ratio risk level thresholds (matches CPUGauge.jsx)
 const getRatioRisk = (ratio) => {
-  if (ratio <= 4) return { level: 'low', label: 'Low', color: 'text-emerald-400' };
-  if (ratio <= 8) return { level: 'medium', label: 'Medium', color: 'text-amber-400' };
-  return { level: 'high', label: 'High', color: 'text-red-400' };
+  if (ratio <= 4)
+    return { level: "low", label: "Low", color: "text-emerald-400" };
+  if (ratio <= 8)
+    return { level: "medium", label: "Medium", color: "text-amber-400" };
+  return { level: "high", label: "High", color: "text-red-400" };
 };
 
 const ScenarioAnalyzer = () => {
@@ -48,7 +71,9 @@ const ScenarioAnalyzer = () => {
   const [cellCount, setCellCount] = useState(0);
 
   // New feature state
-  const [selectedResources, setSelectedResources] = useState(DEFAULT_SELECTED_RESOURCES);
+  const [selectedResources, setSelectedResources] = useState(
+    DEFAULT_SELECTED_RESOURCES,
+  );
   const [overheadPct, setOverheadPct] = useState(OVERHEAD_DEFAULTS.memoryPct);
 
   // CPU configuration state
@@ -66,73 +91,104 @@ const ScenarioAnalyzer = () => {
 
   // Additional app state
   const [additionalApp, setAdditionalApp] = useState({
-    name: 'hypothetical-app',
+    name: "hypothetical-app",
     instances: 1,
     memoryGB: 1,
     diskGB: 1,
   });
   const [useAdditionalApp, setUseAdditionalApp] = useState(false);
 
+  // Chunk size override for staging capacity (MB)
+  // null means use auto-detected value from infrastructureState.max_instance_memory_mb
+  const [chunkSizeMB, setChunkSizeMB] = useState(null);
+
   // TPS curve state (disabled by default - model is experimental)
   const [enableTPS, setEnableTPS] = useState(false);
   const [tpsCurve, setTPSCurve] = useState(DEFAULT_TPS_CURVE);
 
-  const handleDataLoaded = useCallback(async (data) => {
-    console.log('[ScenarioAnalyzer] handleDataLoaded called with:', data.name);
-    setInfrastructureData(data);
-    setLoading(true);
-    setError(null);
+  const handleDataLoaded = useCallback(
+    async (data) => {
+      console.log(
+        "[ScenarioAnalyzer] handleDataLoaded called with:",
+        data.name,
+      );
+      setInfrastructureData(data);
+      setLoading(true);
+      setError(null);
 
-    try {
-      console.log('[ScenarioAnalyzer] Calling setManualInfrastructure...');
-      const state = await scenarioApi.setManualInfrastructure(data);
-      console.log('[ScenarioAnalyzer] Backend returned state with', state.total_cell_count, 'cells');
-      setInfrastructureState(state);
+      try {
+        console.log("[ScenarioAnalyzer] Calling setManualInfrastructure...");
+        const state = await scenarioApi.setManualInfrastructure(data);
+        console.log(
+          "[ScenarioAnalyzer] Backend returned state with",
+          state.total_cell_count,
+          "cells",
+        );
+        setInfrastructureState(state);
 
-      // Set initial disk from first cluster if available
-      if (data.clusters[0]?.diego_cell_disk_gb) {
-        setCustomDisk(data.clusters[0].diego_cell_disk_gb);
+        // Set initial disk from first cluster if available
+        if (data.clusters[0]?.diego_cell_disk_gb) {
+          setCustomDisk(data.clusters[0].diego_cell_disk_gb);
+        }
+        // Set HA admission control from data source if available
+        if (data.clusters[0]?.ha_admission_control_percentage) {
+          setHaAdmissionPct(data.clusters[0].ha_admission_control_percentage);
+        }
+        // Pre-populate chunk size from max_instance_memory_mb if available
+        // This comes from live CF data or sample files
+        if (state.max_instance_memory_mb > 0) {
+          setChunkSizeMB(state.max_instance_memory_mb);
+        }
+        // Note: cellCount is auto-set by the useEffect that calculates equivalent capacity
+
+        // Show confirmation with cell count from backend
+        showToast(
+          `Infrastructure loaded: ${state.total_cell_count} cells`,
+          "success",
+        );
+      } catch (err) {
+        console.error("[ScenarioAnalyzer] Error loading infrastructure:", err);
+        setError(err.message);
+        showToast(`Failed to load infrastructure: ${err.message}`, "error");
+      } finally {
+        setLoading(false);
       }
-      // Set HA admission control from data source if available
-      if (data.clusters[0]?.ha_admission_control_percentage) {
-        setHaAdmissionPct(data.clusters[0].ha_admission_control_percentage);
-      }
-      // Note: cellCount is auto-set by the useEffect that calculates equivalent capacity
-
-      // Show confirmation with cell count from backend
-      showToast(`Infrastructure loaded: ${state.total_cell_count} cells`, 'success');
-    } catch (err) {
-      console.error('[ScenarioAnalyzer] Error loading infrastructure:', err);
-      setError(err.message);
-      showToast(`Failed to load infrastructure: ${err.message}`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [showToast]);
+    },
+    [showToast],
+  );
 
   // Load from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('scenario-infrastructure');
+    const saved = localStorage.getItem("scenario-infrastructure");
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        const totalCells = data.clusters?.reduce((sum, c) => sum + (c.diego_cell_count || 0), 0) || 0;
-        console.log(`[ScenarioAnalyzer] Loading from localStorage: "${data.name}" with ${totalCells} cells`);
+        const totalCells =
+          data.clusters?.reduce(
+            (sum, c) => sum + (c.diego_cell_count || 0),
+            0,
+          ) || 0;
+        console.log(
+          `[ScenarioAnalyzer] Loading from localStorage: "${data.name}" with ${totalCells} cells`,
+        );
         setInfrastructureData(data);
         handleDataLoaded(data);
       } catch (e) {
-        console.error('[ScenarioAnalyzer] Failed to load saved infrastructure:', e);
+        console.error(
+          "[ScenarioAnalyzer] Failed to load saved infrastructure:",
+          e,
+        );
       }
     } else {
-      console.log('[ScenarioAnalyzer] No saved infrastructure in localStorage');
+      console.log("[ScenarioAnalyzer] No saved infrastructure in localStorage");
     }
   }, [handleDataLoaded]);
 
   const toggleResource = (resourceId) => {
-    setSelectedResources(prev =>
+    setSelectedResources((prev) =>
       prev.includes(resourceId)
-        ? prev.filter(r => r !== resourceId)
-        : [...prev, resourceId]
+        ? prev.filter((r) => r !== resourceId)
+        : [...prev, resourceId],
     );
   };
 
@@ -147,12 +203,19 @@ const ScenarioAnalyzer = () => {
     if (!infrastructureData?.clusters?.length) return null;
 
     const clusters = infrastructureData.clusters;
-    const totalCells = clusters.reduce((sum, c) => sum + (c.diego_cell_count || 0), 0);
-    const totalHosts = clusters.reduce((sum, c) => sum + (c.host_count || 0), 0);
+    const totalCells = clusters.reduce(
+      (sum, c) => sum + (c.diego_cell_count || 0),
+      0,
+    );
+    const totalHosts = clusters.reduce(
+      (sum, c) => sum + (c.host_count || 0),
+      0,
+    );
 
     // Get cell specs from first cluster (assume uniform)
     const firstCluster = clusters[0];
-    const cellCpu = firstCluster.diego_cell_cpu || firstCluster.diego_cell_vcpu || 0;
+    const cellCpu =
+      firstCluster.diego_cell_cpu || firstCluster.diego_cell_vcpu || 0;
     const cellMemoryGB = firstCluster.diego_cell_memory_gb || 0;
     const cellDiskGB = firstCluster.diego_cell_disk_gb || 0;
 
@@ -160,7 +223,7 @@ const ScenarioAnalyzer = () => {
     const totalDiskGB = totalCells * cellDiskGB;
 
     return {
-      name: infrastructureData.name || 'Loaded Infrastructure',
+      name: infrastructureData.name || "Loaded Infrastructure",
       totalCells,
       totalHosts,
       cellCpu,
@@ -175,11 +238,12 @@ const ScenarioAnalyzer = () => {
   // Auto-select VM preset to match loaded infrastructure cell size
   // This must run BEFORE the cell count effect so preset is correct when calculating equivalentCells
   useEffect(() => {
-    if (!currentConfig || !currentConfig.cellCpu || !currentConfig.cellMemoryGB) return;
+    if (!currentConfig || !currentConfig.cellCpu || !currentConfig.cellMemoryGB)
+      return;
 
     const { presetIndex, isCustom } = findMatchingPreset(
       currentConfig.cellCpu,
-      currentConfig.cellMemoryGB
+      currentConfig.cellMemoryGB,
     );
 
     setSelectedPreset(presetIndex);
@@ -198,7 +262,9 @@ const ScenarioAnalyzer = () => {
     const proposedMemoryGB = preset.memoryGB || customMemory;
 
     // Calculate equivalent cells to maintain same total capacity
-    const equivalentCells = Math.round(currentConfig.totalMemoryGB / proposedMemoryGB);
+    const equivalentCells = Math.round(
+      currentConfig.totalMemoryGB / proposedMemoryGB,
+    );
 
     // Auto-set cell count to equivalent capacity
     setCellCount(equivalentCells);
@@ -212,7 +278,9 @@ const ScenarioAnalyzer = () => {
     const proposedMemoryGB = preset.memoryGB || customMemory;
 
     // Calculate equivalent cells to maintain same total capacity
-    const equivalentCells = Math.round(currentConfig.totalMemoryGB / proposedMemoryGB);
+    const equivalentCells = Math.round(
+      currentConfig.totalMemoryGB / proposedMemoryGB,
+    );
 
     // Only show if user's cell count is BELOW equivalent (manually reduced)
     if (cellCount >= equivalentCells) return null;
@@ -229,7 +297,10 @@ const ScenarioAnalyzer = () => {
     if (!infrastructureData?.clusters?.length) return null;
 
     const clusters = infrastructureData.clusters;
-    const totalHosts = clusters.reduce((sum, c) => sum + (c.host_count || 0), 0);
+    const totalHosts = clusters.reduce(
+      (sum, c) => sum + (c.host_count || 0),
+      0,
+    );
 
     // Only show if we have IaaS-level data (hosts with memory)
     if (totalHosts === 0) return null;
@@ -257,16 +328,22 @@ const ScenarioAnalyzer = () => {
 
     // Calculate implied N-X tolerance from HA %
     // (how many host failures the HA % covers)
-    const impliedHostFailures = memoryGBPerHost > 0
-      ? Math.floor((totalMemoryGB - haUsableMemoryGB) / memoryGBPerHost)
-      : 0;
+    const impliedHostFailures =
+      memoryGBPerHost > 0
+        ? Math.floor((totalMemoryGB - haUsableMemoryGB) / memoryGBPerHost)
+        : 0;
 
     // Determine which constraint is more restrictive
-    const effectiveUsableMemoryGB = Math.min(haUsableMemoryGB, n1UsableMemoryGB);
-    const constraintLimiting = haUsableMemoryGB <= n1UsableMemoryGB ? 'ha' : 'n1';
+    const effectiveUsableMemoryGB = Math.min(
+      haUsableMemoryGB,
+      n1UsableMemoryGB,
+    );
+    const constraintLimiting =
+      haUsableMemoryGB <= n1UsableMemoryGB ? "ha" : "n1";
 
     // Also compute per-host values for CPU config defaults
-    const coresPerHost = totalHosts > 0 ? Math.round(totalCPUCores / totalHosts) : 64;
+    const coresPerHost =
+      totalHosts > 0 ? Math.round(totalCPUCores / totalHosts) : 64;
 
     return {
       totalHosts,
@@ -313,7 +390,9 @@ const ScenarioAnalyzer = () => {
 
     // Memory is the hard constraint for max cells
     // Use the more restrictive of HA usable or N-1 usable memory
-    const maxCells = Math.floor(iaasCapacity.effectiveUsableMemoryGB / proposedMemoryGB);
+    const maxCells = Math.floor(
+      iaasCapacity.effectiveUsableMemoryGB / proposedMemoryGB,
+    );
 
     // Calculate resulting CPU ratios at current and max cell counts
     const currentVCPUs = cellCount * proposedCPU;
@@ -322,9 +401,10 @@ const ScenarioAnalyzer = () => {
     const maxRatio = pCPU > 0 ? maxVCPUs / pCPU : 0;
 
     // Determine bottleneck label based on which constraint is limiting
-    const constraintLabel = iaasCapacity.constraintLimiting === 'ha'
-      ? `HA ${iaasCapacity.haAdmissionPct}%`
-      : 'N-1';
+    const constraintLabel =
+      iaasCapacity.constraintLimiting === "ha"
+        ? `HA ${iaasCapacity.haAdmissionPct}%`
+        : "N-1";
 
     return {
       maxCells,
@@ -335,7 +415,7 @@ const ScenarioAnalyzer = () => {
       pCPU,
       currentVCPUs,
       maxVCPUs,
-      bottleneck: constraintLabel,  // Which memory constraint limits max cells
+      bottleneck: constraintLabel, // Which memory constraint limits max cells
     };
   }, [iaasCapacity, selectedPreset, customMemory, customCPU, cellCount]);
 
@@ -353,14 +433,16 @@ const ScenarioAnalyzer = () => {
       const scenarioInput = {
         proposed_cell_memory_gb: memory,
         proposed_cell_cpu: cpu,
-        proposed_cell_disk_gb: selectedResources.includes('disk') ? customDisk : 0,
+        proposed_cell_disk_gb: selectedResources.includes("disk")
+          ? customDisk
+          : 0,
         proposed_cell_count: cellCount,
         selected_resources: selectedResources,
         overhead_pct: overheadPct,
         // TPS curve only included when enabled (experimental feature)
         ...(enableTPS && { tps_curve: tpsCurve }),
         // CPU configuration (only included when CPU is selected)
-        ...(selectedResources.includes('cpu') && {
+        ...(selectedResources.includes("cpu") && {
           physical_cores_per_host: physicalCoresPerHost,
           target_vcpu_ratio: targetVCPURatio,
           platform_vms_cpu: platformVMsCPU,
@@ -369,6 +451,8 @@ const ScenarioAnalyzer = () => {
         host_count: hostCount,
         memory_per_host_gb: memoryPerHost,
         ha_admission_pct: haAdmissionPct,
+        // Chunk size override for staging capacity (only when user provides value)
+        ...(chunkSizeMB && { chunk_size_mb: chunkSizeMB }),
       };
 
       // Add hypothetical app if enabled
@@ -383,10 +467,10 @@ const ScenarioAnalyzer = () => {
 
       const result = await scenarioApi.compareScenario(scenarioInput);
       setComparison(result);
-      showToast('Analysis complete', 'success');
+      showToast("Analysis complete", "success");
     } catch (err) {
       setError(err.message);
-      showToast(`Analysis failed: ${err.message}`, 'error');
+      showToast(`Analysis failed: ${err.message}`, "error");
     } finally {
       setLoading(false);
     }
@@ -397,7 +481,7 @@ const ScenarioAnalyzer = () => {
   const handleExportMarkdown = () => {
     if (!comparison || !infrastructureData) return;
     const markdown = generateMarkdownReport(comparison, infrastructureData);
-    const filename = `${infrastructureData.name || 'capacity'}-analysis-${new Date().toISOString().split('T')[0]}.md`;
+    const filename = `${infrastructureData.name || "capacity"}-analysis-${new Date().toISOString().split("T")[0]}.md`;
     downloadMarkdown(markdown, filename);
   };
 
@@ -419,7 +503,9 @@ const ScenarioAnalyzer = () => {
 
       {!infrastructureState && (
         <div className="text-center py-8 text-gray-500">
-          <p className="text-sm">Load infrastructure data above to start analyzing scenarios</p>
+          <p className="text-sm">
+            Load infrastructure data above to start analyzing scenarios
+          </p>
         </div>
       )}
 
@@ -432,8 +518,12 @@ const ScenarioAnalyzer = () => {
             {maxCellsEstimate && (
               <span className="ml-auto text-sm font-normal">
                 <span className="text-gray-400">Max Cells:</span>
-                <span className="ml-2 text-cyan-400 font-mono font-bold">{maxCellsEstimate.maxCells}</span>
-                <span className="text-gray-500 text-xs ml-1">({maxCellsEstimate.bottleneck}-limited)</span>
+                <span className="ml-2 text-cyan-400 font-mono font-bold">
+                  {maxCellsEstimate.maxCells}
+                </span>
+                <span className="text-gray-500 text-xs ml-1">
+                  ({maxCellsEstimate.bottleneck}-limited)
+                </span>
               </span>
             )}
           </h3>
@@ -459,7 +549,11 @@ const ScenarioAnalyzer = () => {
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
               <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
                 <HardDrive size={14} />
-                <Tooltip text={IAAS_TOOLTIPS.totalMemory} position="bottom" showIcon>
+                <Tooltip
+                  text={IAAS_TOOLTIPS.totalMemory}
+                  position="bottom"
+                  showIcon
+                >
                   Total Memory
                 </Tooltip>
               </div>
@@ -469,9 +563,14 @@ const ScenarioAnalyzer = () => {
                   : `${iaasCapacity.totalMemoryGB}G`}
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                <Tooltip text={`HA Admission Control reserves ${iaasCapacity.haAdmissionPct}% of cluster resources. This is equivalent to N-${iaasCapacity.impliedHostFailures} tolerance (survives ${iaasCapacity.impliedHostFailures} host failures).`} position="bottom" showIcon>
+                <Tooltip
+                  text={`HA Admission Control reserves ${iaasCapacity.haAdmissionPct}% of cluster resources. This is equivalent to N-${iaasCapacity.impliedHostFailures} tolerance (survives ${iaasCapacity.impliedHostFailures} host failures).`}
+                  position="bottom"
+                  showIcon
+                >
                   <span className="cursor-help">
-                    HA {iaasCapacity.haAdmissionPct}% (≈N-{iaasCapacity.impliedHostFailures}):{' '}
+                    HA {iaasCapacity.haAdmissionPct}% (≈N-
+                    {iaasCapacity.impliedHostFailures}):{" "}
                     {iaasCapacity.haUsableMemoryGB >= 1000
                       ? `${(iaasCapacity.haUsableMemoryGB / 1000).toFixed(1)}T`
                       : `${Math.round(iaasCapacity.haUsableMemoryGB)}G`}
@@ -483,7 +582,11 @@ const ScenarioAnalyzer = () => {
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
               <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
                 <Cpu size={14} />
-                <Tooltip text={IAAS_TOOLTIPS.totalCPUs} position="bottom" showIcon>
+                <Tooltip
+                  text={IAAS_TOOLTIPS.totalCPUs}
+                  position="bottom"
+                  showIcon
+                >
                   Total vCPUs
                 </Tooltip>
               </div>
@@ -495,12 +598,16 @@ const ScenarioAnalyzer = () => {
             <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
               <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-wider mb-2">
                 <Calculator size={14} />
-                <Tooltip text={IAAS_TOOLTIPS.maxCells} position="bottom" showIcon>
+                <Tooltip
+                  text={IAAS_TOOLTIPS.maxCells}
+                  position="bottom"
+                  showIcon
+                >
                   Max Cells
                 </Tooltip>
               </div>
               <div className="text-2xl font-mono font-bold text-cyan-400">
-                {maxCellsEstimate?.maxCells || '—'}
+                {maxCellsEstimate?.maxCells || "—"}
               </div>
               {maxCellsEstimate && cellCount > maxCellsEstimate.maxCells && (
                 <div className="text-xs text-amber-400 mt-1 flex items-center gap-1">
@@ -546,7 +653,8 @@ const ScenarioAnalyzer = () => {
                 Cell Size
               </div>
               <div className="text-2xl font-mono font-bold text-emerald-400">
-                {currentConfig.cellCpu} <span className="text-gray-500">×</span> {currentConfig.cellMemoryGB}
+                {currentConfig.cellCpu} <span className="text-gray-500">×</span>{" "}
+                {currentConfig.cellMemoryGB}
               </div>
               <div className="text-xs text-gray-500 mt-1">vCPU × GB</div>
             </div>
@@ -625,6 +733,11 @@ const ScenarioAnalyzer = () => {
           setTPSCurve={setTPSCurve}
           enableTPS={enableTPS}
           setEnableTPS={setEnableTPS}
+          chunkSizeMB={chunkSizeMB}
+          setChunkSizeMB={setChunkSizeMB}
+          autoDetectedChunkSizeMB={
+            infrastructureState?.max_instance_memory_mb || 0
+          }
           onStepComplete={handleStepComplete}
         />
       )}
@@ -639,7 +752,8 @@ const ScenarioAnalyzer = () => {
                 Ready to Analyze
               </h3>
               <p className="text-sm text-gray-400 mt-1">
-                {preset.label}, {cellCount} cells | {selectedResources.join(', ')}
+                {preset.label}, {cellCount} cells |{" "}
+                {selectedResources.join(", ")}
                 {overheadPct !== 7 && ` | ${overheadPct}% overhead`}
               </p>
             </div>

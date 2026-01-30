@@ -1,20 +1,20 @@
 // ABOUTME: Container component for scenario configuration wizard
 // ABOUTME: Manages step navigation and renders appropriate step content
 
-import { useState, useCallback, useMemo } from 'react';
-import StepIndicator from './StepIndicator';
-import CellConfigStep from './steps/CellConfigStep';
-import ResourceTypesStep from './steps/ResourceTypesStep';
-import CPUConfigStep from './steps/CPUConfigStep';
-import AdvancedStep from './steps/AdvancedStep';
+import { useState, useCallback, useMemo } from "react";
+import StepIndicator from "./StepIndicator";
+import CellConfigStep from "./steps/CellConfigStep";
+import ResourceTypesStep from "./steps/ResourceTypesStep";
+import CPUConfigStep from "./steps/CPUConfigStep";
+import AdvancedStep from "./steps/AdvancedStep";
 
 const BASE_STEPS = [
-  { id: 'resources', label: 'Resources', required: true },
-  { id: 'cell-config', label: 'Cell Config', required: true },
-  { id: 'advanced', label: 'Advanced', required: false },
+  { id: "resources", label: "Resources", required: true },
+  { id: "cell-config", label: "Cell Config", required: true },
+  { id: "advanced", label: "Advanced", required: false },
 ];
 
-const CPU_STEP = { id: 'cpu-config', label: 'CPU Config', required: false };
+const CPU_STEP = { id: "cpu-config", label: "CPU Config", required: false };
 
 const ScenarioWizard = ({
   // Cell config props
@@ -59,6 +59,10 @@ const ScenarioWizard = ({
   setTPSCurve,
   enableTPS,
   setEnableTPS,
+  // Chunk size props
+  chunkSizeMB,
+  setChunkSizeMB,
+  autoDetectedChunkSizeMB,
   // Callbacks
   onStepComplete,
 }) => {
@@ -68,7 +72,7 @@ const ScenarioWizard = ({
   // Dynamically build steps based on selected resources
   const steps = useMemo(() => {
     const result = [BASE_STEPS[0], BASE_STEPS[1]]; // Resources, Cell Config
-    if (selectedResources.includes('cpu')) {
+    if (selectedResources.includes("cpu")) {
       result.push(CPU_STEP);
     }
     result.push(BASE_STEPS[2]); // Advanced
@@ -82,7 +86,7 @@ const ScenarioWizard = ({
       }
       onStepComplete?.(stepIndex);
     },
-    [completedSteps, onStepComplete]
+    [completedSteps, onStepComplete],
   );
 
   const handleContinue = useCallback(() => {
@@ -101,7 +105,7 @@ const ScenarioWizard = ({
     const isLastStep = currentStep === steps.length - 1;
 
     switch (currentStepId) {
-      case 'resources':
+      case "resources":
         return (
           <ResourceTypesStep
             selectedResources={selectedResources}
@@ -111,7 +115,7 @@ const ScenarioWizard = ({
             onContinue={handleContinue}
           />
         );
-      case 'cell-config':
+      case "cell-config":
         return (
           <CellConfigStep
             selectedPreset={selectedPreset}
@@ -126,7 +130,7 @@ const ScenarioWizard = ({
             onContinue={handleContinue}
           />
         );
-      case 'cpu-config':
+      case "cpu-config":
         return (
           <CPUConfigStep
             physicalCoresPerHost={physicalCoresPerHost}
@@ -142,7 +146,7 @@ const ScenarioWizard = ({
             onSkip={handleContinue}
           />
         );
-      case 'advanced':
+      case "advanced":
         return (
           <AdvancedStep
             overheadPct={overheadPct}
@@ -163,6 +167,9 @@ const ScenarioWizard = ({
             setMemoryPerHost={setMemoryPerHost}
             haAdmissionPct={haAdmissionPct}
             setHaAdmissionPct={setHaAdmissionPct}
+            chunkSizeMB={chunkSizeMB}
+            setChunkSizeMB={setChunkSizeMB}
+            autoDetectedChunkSizeMB={autoDetectedChunkSizeMB}
             isLastStep={isLastStep}
           />
         );
