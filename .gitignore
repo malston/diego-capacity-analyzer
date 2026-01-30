@@ -44,6 +44,7 @@ cli/diego-capacity
 **/CLAUDE.md
 !.claude/CLAUDE.md
 !/CLAUDE.md
+.claude/*.local.md
 
 # Deployment script state and config
 .state/
