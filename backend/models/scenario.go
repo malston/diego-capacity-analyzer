@@ -63,6 +63,7 @@ type ScenarioResult struct {
 	UtilizationPct     float64 `json:"utilization_pct"`
 	DiskUtilizationPct float64 `json:"disk_utilization_pct"`
 	FreeChunks         int     `json:"free_chunks"`
+	ChunkSizeMB        int     `json:"chunk_size_mb"` // Chunk size used in calculation (for UI transparency)
 	N1UtilizationPct   float64 `json:"n1_utilization_pct"`
 	FaultImpact        int     `json:"fault_impact"`
 	InstancesPerCell   float64 `json:"instances_per_cell"`
