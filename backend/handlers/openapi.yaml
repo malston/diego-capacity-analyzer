@@ -24,6 +24,10 @@ tags:
   - name: Analysis
     description: Bottleneck analysis and recommendations
 
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+
 paths:
   /api/v1/health:
     get:
@@ -281,6 +285,21 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token from CF UAA. Obtain via:
+        - `cf oauth-token` for user tokens
+        - OAuth2 client_credentials grant for automation
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: DIEGO_SESSION
+      description: Session cookie from /api/v1/auth/login
+
   schemas:
     ErrorResponse:
       type: object
