@@ -18,6 +18,7 @@ import (
 )
 
 const sessionCookieName = "DIEGO_SESSION"
+const csrfCookieName = "DIEGO_CSRF"
 
 // Login authenticates with CF UAA and creates a server-side session
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
@@ -63,6 +64,15 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	// Set httpOnly cookie with session ID only
 	h.setSessionCookie(w, sessionID)
 
+	// Set CSRF cookie (readable by JavaScript for inclusion in headers)
+	csrfToken, err := h.sessionService.GetCSRFToken(sessionID)
+	if err != nil {
+		slog.Error("Failed to get CSRF token", "sessionID", sessionID, "error", err)
+		h.writeError(w, "Failed to create session", http.StatusInternalServerError)
+		return
+	}
+	h.setCSRFCookie(w, csrfToken)
+
 	// Return success response (no tokens!)
 	h.writeJSON(w, http.StatusOK, models.LoginResponse{
 		Success:  true,
@@ -99,8 +109,9 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Clear cookie
+	// Clear cookies
 	h.clearSessionCookie(w)
+	h.clearCSRFCookie(w)
 
 	h.writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -340,6 +351,42 @@ func (h *Handler) clearSessionCookie(w http.ResponseWriter) {
 		Name:     sessionCookieName,
 		Value:    "",
 		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+		MaxAge:   -1, // Delete cookie
+	})
+}
+
+// setCSRFCookie sets the CSRF token cookie (readable by JavaScript)
+func (h *Handler) setCSRFCookie(w http.ResponseWriter, csrfToken string) {
+	secure := true
+	if h.cfg != nil {
+		secure = h.cfg.CookieSecure
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     csrfCookieName,
+		Value:    csrfToken,
+		HttpOnly: false, // Must be readable by JavaScript
+		Secure:   secure,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+		MaxAge:   3600, // 1 hour
+	})
+}
+
+// clearCSRFCookie removes the CSRF cookie
+func (h *Handler) clearCSRFCookie(w http.ResponseWriter) {
+	secure := true
+	if h.cfg != nil {
+		secure = h.cfg.CookieSecure
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     csrfCookieName,
+		Value:    "",
+		HttpOnly: false,
 		Secure:   secure,
 		SameSite: http.SameSiteStrictMode,
 		Path:     "/",
