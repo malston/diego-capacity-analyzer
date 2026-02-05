@@ -108,6 +108,15 @@ func (s *SessionService) UpdateTokens(sessionID, accessToken, refreshToken strin
 	return nil
 }
 
+// GetCSRFToken returns the CSRF token for a session
+func (s *SessionService) GetCSRFToken(sessionID string) (string, error) {
+	session, err := s.Get(sessionID)
+	if err != nil {
+		return "", err
+	}
+	return session.CSRFToken, nil
+}
+
 // sessionKey returns the cache key for a session ID
 func sessionKey(sessionID string) string {
 	return "session:" + sessionID
