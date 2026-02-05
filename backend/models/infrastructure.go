@@ -10,7 +10,7 @@ type ClusterInput struct {
 	Name                         string `json:"name"`
 	HostCount                    int    `json:"host_count"`
 	MemoryGBPerHost              int    `json:"memory_gb_per_host"`
-	CPUCoresPerHost              int    `json:"cpu_cores_per_host"`
+	CPUThreadsPerHost            int    `json:"cpu_threads_per_host"`
 	HAAdmissionControlPercentage int    `json:"ha_admission_control_percentage"`
 	DiegoCellCount               int    `json:"diego_cell_count"`
 	DiegoCellMemoryGB            int    `json:"diego_cell_memory_gb"`
@@ -36,7 +36,7 @@ type ClusterState struct {
 	MemoryGB                     int     `json:"memory_gb"`
 	CPUCores                     int     `json:"cpu_cores"`
 	MemoryGBPerHost              int     `json:"memory_gb_per_host"`
-	CPUCoresPerHost              int     `json:"cpu_cores_per_host"`
+	CPUThreadsPerHost            int     `json:"cpu_threads_per_host"`
 	HAAdmissionControlPercentage int     `json:"ha_admission_control_percentage"`
 	HAUsableMemoryGB             int     `json:"ha_usable_memory_gb"`
 	HAUsableCPUCores             int     `json:"ha_usable_cpu_cores"`
@@ -147,7 +147,7 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 
 	for i, c := range mi.Clusters {
 		clusterMemory := c.HostCount * c.MemoryGBPerHost
-		clusterCPU := c.HostCount * c.CPUCoresPerHost
+		clusterCPU := c.HostCount * c.CPUThreadsPerHost
 		clusterVCPUs := c.DiegoCellCount * c.DiegoCellCPU
 		clusterCellMemory := c.DiegoCellCount * c.DiegoCellMemoryGB
 		n1Memory := (c.HostCount - 1) * c.MemoryGBPerHost
@@ -188,7 +188,7 @@ func (mi *ManualInput) ToInfrastructureState() InfrastructureState {
 			MemoryGB:                     clusterMemory,
 			CPUCores:                     clusterCPU,
 			MemoryGBPerHost:              c.MemoryGBPerHost,
-			CPUCoresPerHost:              c.CPUCoresPerHost,
+			CPUThreadsPerHost:            c.CPUThreadsPerHost,
 			HAAdmissionControlPercentage: c.HAAdmissionControlPercentage,
 			HAUsableMemoryGB:             haUsableMemory,
 			HAUsableCPUCores:             haUsableCPU,

@@ -39,7 +39,7 @@ func TestDashboardRendersWithHeader(t *testing.T) {
 				DiegoCellCPU:      8,
 				DiegoCellDiskGB:   200,
 				MemoryGBPerHost:   512,
-				CPUCoresPerHost:   32,
+				CPUThreadsPerHost:   32,
 			},
 		},
 	}

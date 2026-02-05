@@ -6,7 +6,7 @@
       "name": "memory-bound-cluster",
       "host_count": 4,
       "memory_gb_per_host": 512,
-      "cpu_cores_per_host": 32,
+      "cpu_threads_per_host": 32,
       "ha_admission_control_percentage": 25,
       "diego_cell_count": 40,
       "diego_cell_memory_gb": 32,

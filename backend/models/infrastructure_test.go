@@ -13,7 +13,7 @@ func TestManualInputParsing(t *testing.T) {
 				"name": "cluster-01",
 				"host_count": 8,
 				"memory_gb_per_host": 2048,
-				"cpu_cores_per_host": 64,
+				"cpu_threads_per_host": 64,
 				"diego_cell_count": 250,
 				"diego_cell_memory_gb": 32,
 				"diego_cell_cpu": 4
@@ -52,7 +52,7 @@ func TestInfrastructureStateCalculation(t *testing.T) {
 				Name:              "cluster-01",
 				HostCount:         8,
 				MemoryGBPerHost:   2048,
-				CPUCoresPerHost:   64,
+				CPUThreadsPerHost:   64,
 				DiegoCellCount:    250,
 				DiegoCellMemoryGB: 32,
 				DiegoCellCPU:      4,
@@ -61,7 +61,7 @@ func TestInfrastructureStateCalculation(t *testing.T) {
 				Name:              "cluster-02",
 				HostCount:         7,
 				MemoryGBPerHost:   2048,
-				CPUCoresPerHost:   64,
+				CPUThreadsPerHost:   64,
 				DiegoCellCount:    220,
 				DiegoCellMemoryGB: 32,
 				DiegoCellCPU:      4,
@@ -98,7 +98,7 @@ func TestInfrastructureStateCalculation(t *testing.T) {
 func TestAvgInstanceMemoryMB(t *testing.T) {
 	mi := ManualInput{
 		Name:              "test",
-		Clusters:          []ClusterInput{{Name: "c1", HostCount: 4, MemoryGBPerHost: 512, CPUCoresPerHost: 32, DiegoCellCount: 10, DiegoCellMemoryGB: 32, DiegoCellCPU: 4}},
+		Clusters:          []ClusterInput{{Name: "c1", HostCount: 4, MemoryGBPerHost: 512, CPUThreadsPerHost: 32, DiegoCellCount: 10, DiegoCellMemoryGB: 32, DiegoCellCPU: 4}},
 		PlatformVMsGB:     200,
 		TotalAppMemoryGB:  150,
 		TotalAppInstances: 50,
@@ -115,7 +115,7 @@ func TestAvgInstanceMemoryMB(t *testing.T) {
 func TestAvgInstanceMemoryMB_ZeroInstances(t *testing.T) {
 	mi := ManualInput{
 		Name:              "test",
-		Clusters:          []ClusterInput{{Name: "c1", HostCount: 4, MemoryGBPerHost: 512, CPUCoresPerHost: 32, DiegoCellCount: 10, DiegoCellMemoryGB: 32, DiegoCellCPU: 4}},
+		Clusters:          []ClusterInput{{Name: "c1", HostCount: 4, MemoryGBPerHost: 512, CPUThreadsPerHost: 32, DiegoCellCount: 10, DiegoCellMemoryGB: 32, DiegoCellCPU: 4}},
 		TotalAppMemoryGB:  150,
 		TotalAppInstances: 0,
 	}
@@ -130,7 +130,7 @@ func TestMaxInstanceMemoryMB_FromManualInput(t *testing.T) {
 	// Test that MaxInstanceMemoryMB is properly copied from ManualInput to InfrastructureState
 	mi := ManualInput{
 		Name:                "test",
-		Clusters:            []ClusterInput{{Name: "c1", HostCount: 4, MemoryGBPerHost: 512, CPUCoresPerHost: 32, DiegoCellCount: 10, DiegoCellMemoryGB: 32, DiegoCellCPU: 4}},
+		Clusters:            []ClusterInput{{Name: "c1", HostCount: 4, MemoryGBPerHost: 512, CPUThreadsPerHost: 32, DiegoCellCount: 10, DiegoCellMemoryGB: 32, DiegoCellCPU: 4}},
 		PlatformVMsGB:       200,
 		TotalAppMemoryGB:    150,
 		TotalAppInstances:   50,
@@ -152,7 +152,7 @@ func TestMaxInstanceMemoryMB_JSONParsing(t *testing.T) {
 				"name": "cluster-01",
 				"host_count": 8,
 				"memory_gb_per_host": 1024,
-				"cpu_cores_per_host": 64,
+				"cpu_threads_per_host": 64,
 				"diego_cell_count": 50,
 				"diego_cell_memory_gb": 64,
 				"diego_cell_cpu": 8

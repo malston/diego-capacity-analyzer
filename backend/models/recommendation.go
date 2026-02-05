@@ -187,7 +187,7 @@ func GenerateAddHostsRecommendation(state InfrastructureState, constrainingResou
 		impact = fmt.Sprintf("Adds %d GB of physical memory capacity and improves HA", memoryGain)
 
 	case "CPU":
-		if cluster.CPUCoresPerHost == 0 {
+		if cluster.CPUThreadsPerHost == 0 {
 			return nil
 		}
 		currentCPURatio := state.VCPURatio
@@ -196,13 +196,13 @@ func GenerateAddHostsRecommendation(state InfrastructureState, constrainingResou
 		} else {
 			// Calculate hosts needed to get vCPU:pCPU to 4:1
 			targetCores := float64(state.TotalVCPUs) / 4.0
-			neededHosts := int(targetCores/float64(cluster.CPUCoresPerHost)) + 1
+			neededHosts := int(targetCores/float64(cluster.CPUThreadsPerHost)) + 1
 			hostsToAdd = neededHosts - state.TotalHostCount
 			if hostsToAdd < 1 {
 				hostsToAdd = 1
 			}
 		}
-		cpuGain := hostsToAdd * cluster.CPUCoresPerHost
+		cpuGain := hostsToAdd * cluster.CPUThreadsPerHost
 		impact = fmt.Sprintf("Adds %d physical CPU cores, reducing vCPU overcommit", cpuGain)
 
 	default:

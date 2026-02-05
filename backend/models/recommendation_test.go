@@ -426,7 +426,7 @@ func createTestInfrastructure(
 				Name:              "test-cluster",
 				HostCount:         hostCount,
 				MemoryGBPerHost:   memPerHost,
-				CPUCoresPerHost:   cpuPerHost,
+				CPUThreadsPerHost:   cpuPerHost,
 				DiegoCellCount:    cellCount,
 				DiegoCellMemoryGB: cellMem,
 				DiegoCellCPU:      cellCPU,

@@ -189,7 +189,7 @@ const DataSourceSelector = ({ onDataLoaded, currentData }) => {
             name: formData.name.trim(),
             host_count: parseInt(formData.hostCount),
             memory_gb_per_host: parseInt(formData.ramPerHost),
-            cpu_cores_per_host: parseInt(formData.cpuCoresPerHost) || 64,
+            cpu_threads_per_host: parseInt(formData.cpuCoresPerHost) || 64,
             diego_cell_count: parseInt(formData.diegoCellCount),
             diego_cell_memory_gb: parseInt(formData.cellMemory),
             diego_cell_cpu: parseInt(formData.cellVCpu),

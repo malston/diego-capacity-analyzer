@@ -106,19 +106,19 @@ func (v *VSphereClient) Disconnect(ctx context.Context) error {
 
 // ClusterInfo holds cluster inventory data
 type ClusterInfo struct {
-	Name           string
-	Hosts          []HostInfo
-	TotalMemoryMB  int64
-	TotalCPUCores  int32
-	DiegoCellCount int
-	DiegoCells     []VMInfo
+	Name            string
+	Hosts           []HostInfo
+	TotalMemoryMB   int64
+	TotalCPUThreads int32
+	DiegoCellCount  int
+	DiegoCells      []VMInfo
 }
 
 // HostInfo holds ESXi host data
 type HostInfo struct {
 	Name        string
 	MemoryMB    int64
-	CPUCores    int32
+	CPUThreads  int32
 	InCluster   string
 	PowerState  string
 	Maintenance bool
@@ -179,7 +179,7 @@ func (v *VSphereClient) getClusterInfo(ctx context.Context, cluster *object.Clus
 		}
 		info.Hosts = append(info.Hosts, hostInfo)
 		info.TotalMemoryMB += hostInfo.MemoryMB
-		info.TotalCPUCores += hostInfo.CPUCores
+		info.TotalCPUThreads += hostInfo.CPUThreads
 	}
 
 	// Get Diego cells in this cluster
@@ -204,7 +204,7 @@ func (v *VSphereClient) getHostInfo(ctx context.Context, host *object.HostSystem
 	info := HostInfo{
 		Name:        host.Name(),
 		MemoryMB:    hostMo.Summary.Hardware.MemorySize / (1024 * 1024),
-		CPUCores:    int32(hostMo.Summary.Hardware.NumCpuThreads), // Logical processors (includes hyperthreading)
+		CPUThreads:    int32(hostMo.Summary.Hardware.NumCpuThreads), // Logical processors (includes hyperthreading)
 		InCluster:   clusterName,
 		PowerState:  string(hostMo.Runtime.PowerState),
 		Maintenance: hostMo.Runtime.InMaintenanceMode,
@@ -328,7 +328,7 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 	// First, collect all host stats
 	var totalHosts int
 	var totalMemoryMB int64
-	var totalCPUCores int32
+	var totalCPUThreads int32
 	var avgMemoryPerHost int
 	var avgCPUPerHost int
 
@@ -337,14 +337,14 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 			if h.PowerState == "poweredOn" && !h.Maintenance {
 				totalHosts++
 				totalMemoryMB += h.MemoryMB
-				totalCPUCores += h.CPUCores
+				totalCPUThreads += h.CPUThreads
 			}
 		}
 	}
 
 	if totalHosts > 0 {
 		avgMemoryPerHost = int(totalMemoryMB / int64(totalHosts) / 1024) // Convert to GB
-		avgCPUPerHost = int(totalCPUCores) / totalHosts
+		avgCPUPerHost = int(totalCPUThreads) / totalHosts
 	}
 
 	// Group Diego cells by cluster for proper per-cluster analysis
@@ -367,13 +367,13 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 		// Calculate per-host metrics for this cluster
 		var clusterHosts int
 		var clusterMemoryMB int64
-		var clusterCPUCores int32
+		var clusterCPUThreads int32
 
 		for _, h := range c.Hosts {
 			if h.PowerState == "poweredOn" && !h.Maintenance {
 				clusterHosts++
 				clusterMemoryMB += h.MemoryMB
-				clusterCPUCores += h.CPUCores
+				clusterCPUThreads += h.CPUThreads
 			}
 		}
 
@@ -382,7 +382,7 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 		}
 
 		memoryPerHost := int(clusterMemoryMB / int64(clusterHosts) / 1024) // GB
-		cpuPerHost := int(clusterCPUCores) / clusterHosts
+		cpuPerHost := int(clusterCPUThreads) / clusterHosts
 
 		// Use first cell's size (assuming uniform within cluster)
 		cellMemoryGB := cells[0].CellMemoryGB
@@ -398,7 +398,7 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 			Name:              c.Name,
 			HostCount:         clusterHosts,
 			MemoryGBPerHost:   memoryPerHost,
-			CPUCoresPerHost:   cpuPerHost,
+			CPUThreadsPerHost: cpuPerHost,
 			DiegoCellCount:    len(cells),
 			DiegoCellMemoryGB: cellMemoryGB,
 			DiegoCellCPU:      cellCPU,
@@ -423,7 +423,7 @@ func (v *VSphereClient) GetInfrastructureState(ctx context.Context) (models.Infr
 			Name:              "unassigned",
 			HostCount:         totalHosts,
 			MemoryGBPerHost:   avgMemoryPerHost,
-			CPUCoresPerHost:   avgCPUPerHost,
+			CPUThreadsPerHost: avgCPUPerHost,
 			DiegoCellCount:    len(defaultCells),
 			DiegoCellMemoryGB: cellMemoryGB,
 			DiegoCellCPU:      cellCPU,

@@ -123,7 +123,7 @@ Returns live infrastructure data from vSphere.
       "memory_gb": 512,
       "cpu_cores": 128,
       "memory_gb_per_host": 128,
-      "cpu_cores_per_host": 32,
+      "cpu_threads_per_host": 32,
       "ha_admission_control_percentage": 25,
       "ha_usable_memory_gb": 384,
       "ha_usable_cpu_cores": 96,
@@ -175,7 +175,7 @@ Set infrastructure state from manual input (JSON upload or form data).
       "name": "TAS-Cluster",
       "host_count": 4,
       "memory_gb_per_host": 128,
-      "cpu_cores_per_host": 32,
+      "cpu_threads_per_host": 32,
       "ha_admission_control_percentage": 25,
       "cells": [
         {
@@ -711,7 +711,7 @@ After collecting the values above:
       "name": "TAS-Cluster",
       "host_count": 8,
       "memory_gb_per_host": 2048,
-      "cpu_cores_per_host": 64,
+      "cpu_threads_per_host": 64,
       "diego_cell_count": 250,
       "diego_cell_memory_gb": 32,
       "diego_cell_cpu": 4

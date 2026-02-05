@@ -74,7 +74,7 @@ type ClusterState struct {
 	MemoryGB                     int     `json:"memory_gb"`
 	CPUCores                     int     `json:"cpu_cores"`
 	MemoryGBPerHost              int     `json:"memory_gb_per_host"`
-	CPUCoresPerHost              int     `json:"cpu_cores_per_host"`
+	CPUThreadsPerHost              int     `json:"cpu_threads_per_host"`
 	HAAdmissionControlPercentage int     `json:"ha_admission_control_percentage"`
 	HAUsableMemoryGB             int     `json:"ha_usable_memory_gb"`
 	HAHostFailuresSurvived       int     `json:"ha_host_failures_survived"`
@@ -121,7 +121,7 @@ type ClusterInput struct {
 	Name                         string `json:"name"`
 	HostCount                    int    `json:"host_count"`
 	MemoryGBPerHost              int    `json:"memory_gb_per_host"`
-	CPUCoresPerHost              int    `json:"cpu_cores_per_host"`
+	CPUThreadsPerHost              int    `json:"cpu_threads_per_host"`
 	HAAdmissionControlPercentage int    `json:"ha_admission_control_percentage"`
 	DiegoCellCount               int    `json:"diego_cell_count"`
 	DiegoCellMemoryGB            int    `json:"diego_cell_memory_gb"`
