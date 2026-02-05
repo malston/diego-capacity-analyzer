@@ -1,6 +1,8 @@
 // ABOUTME: API client for what-if scenario analysis endpoints
 // ABOUTME: Handles manual infrastructure input and scenario comparison with BFF auth
 
+import { withCSRFToken } from "../utils/csrf";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 export const scenarioApi = {
@@ -12,7 +14,7 @@ export const scenarioApi = {
   async setManualInfrastructure(data) {
     const response = await fetch(`${API_URL}/api/v1/infrastructure/manual`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: withCSRFToken({ "Content-Type": "application/json" }),
       credentials: "include",
       body: JSON.stringify(data),
     });
@@ -31,7 +33,7 @@ export const scenarioApi = {
   async compareScenario(input) {
     const response = await fetch(`${API_URL}/api/v1/scenario/compare`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: withCSRFToken({ "Content-Type": "application/json" }),
       credentials: "include",
       body: JSON.stringify(input),
     });
@@ -83,7 +85,7 @@ export const scenarioApi = {
   async setInfrastructureState(state) {
     const response = await fetch(`${API_URL}/api/v1/infrastructure/state`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: withCSRFToken({ "Content-Type": "application/json" }),
       credentials: "include",
       body: JSON.stringify(state),
     });
@@ -102,7 +104,7 @@ export const scenarioApi = {
   async calculatePlanning(input) {
     const response = await fetch(`${API_URL}/api/v1/infrastructure/planning`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: withCSRFToken({ "Content-Type": "application/json" }),
       credentials: "include",
       body: JSON.stringify(input),
     });

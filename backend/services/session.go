@@ -26,13 +26,19 @@ func NewSessionService(c *cache.Cache) *SessionService {
 // Create generates a new session and stores it in the cache
 // Returns the cryptographically secure session ID
 func (s *SessionService) Create(username, userID, accessToken, refreshToken string, tokenExpiry time.Time) (string, error) {
-	// Generate 32 bytes of cryptographically secure random data
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
+	// Generate 32 bytes of cryptographically secure random data for session ID
+	sessionIDBytes := make([]byte, 32)
+	if _, err := rand.Read(sessionIDBytes); err != nil {
 		return "", err
 	}
+	sessionID := base64.URLEncoding.EncodeToString(sessionIDBytes)
 
-	sessionID := base64.URLEncoding.EncodeToString(bytes)
+	// Generate 32 bytes of cryptographically secure random data for CSRF token
+	csrfBytes := make([]byte, 32)
+	if _, err := rand.Read(csrfBytes); err != nil {
+		return "", err
+	}
+	csrfToken := base64.URLEncoding.EncodeToString(csrfBytes)
 
 	session := &models.Session{
 		ID:           sessionID,
@@ -40,6 +46,7 @@ func (s *SessionService) Create(username, userID, accessToken, refreshToken stri
 		UserID:       userID,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		CSRFToken:    csrfToken,
 		TokenExpiry:  tokenExpiry,
 		CreatedAt:    time.Now(),
 	}
@@ -99,6 +106,15 @@ func (s *SessionService) UpdateTokens(sessionID, accessToken, refreshToken strin
 	s.cache.SetWithTTL(sessionKey(sessionID), session, ttl)
 
 	return nil
+}
+
+// GetCSRFToken returns the CSRF token for a session
+func (s *SessionService) GetCSRFToken(sessionID string) (string, error) {
+	session, err := s.Get(sessionID)
+	if err != nil {
+		return "", err
+	}
+	return session.CSRFToken, nil
 }
 
 // sessionKey returns the cache key for a session ID

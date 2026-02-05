@@ -266,3 +266,89 @@ func TestSessionService_ConcurrentAccess(t *testing.T) {
 		<-done
 	}
 }
+
+func TestSessionService_Create_GeneratesCSRFToken(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	svc := NewSessionService(c)
+
+	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	session, err := svc.Get(sessionID)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	if session.CSRFToken == "" {
+		t.Error("Expected CSRFToken to be generated, got empty string")
+	}
+
+	// Token should be base64 encoded 32 bytes = 44 characters
+	if len(session.CSRFToken) < 40 {
+		t.Errorf("CSRFToken too short, expected ~44 chars, got %d", len(session.CSRFToken))
+	}
+}
+
+func TestSessionService_Create_UniqueCSRFTokens(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	svc := NewSessionService(c)
+
+	expiry := time.Now().Add(time.Hour)
+	tokens := make(map[string]bool)
+
+	// Create 100 sessions and verify all CSRF tokens are unique
+	for i := 0; i < 100; i++ {
+		sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", expiry)
+		if err != nil {
+			t.Fatalf("Create failed at iteration %d: %v", i, err)
+		}
+		session, err := svc.Get(sessionID)
+		if err != nil {
+			t.Fatalf("Get failed at iteration %d: %v", i, err)
+		}
+		if tokens[session.CSRFToken] {
+			t.Errorf("Duplicate CSRF token generated: %s", session.CSRFToken)
+		}
+		tokens[session.CSRFToken] = true
+	}
+}
+
+func TestSessionService_GetCSRFToken(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	svc := NewSessionService(c)
+
+	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	csrfToken, err := svc.GetCSRFToken(sessionID)
+	if err != nil {
+		t.Fatalf("GetCSRFToken failed: %v", err)
+	}
+
+	if csrfToken == "" {
+		t.Error("Expected non-empty CSRF token")
+	}
+
+	// Token should match what's stored in the session
+	session, _ := svc.Get(sessionID)
+	if csrfToken != session.CSRFToken {
+		t.Errorf("GetCSRFToken returned %q, but session has %q", csrfToken, session.CSRFToken)
+	}
+}
+
+func TestSessionService_GetCSRFToken_InvalidSession(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	svc := NewSessionService(c)
+
+	_, err := svc.GetCSRFToken("nonexistent-session")
+	if err == nil {
+		t.Error("Expected error for nonexistent session")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("Error should contain 'not found', got: %v", err)
+	}
+}
