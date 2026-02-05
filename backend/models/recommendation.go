@@ -203,7 +203,7 @@ func GenerateAddHostsRecommendation(state InfrastructureState, constrainingResou
 			}
 		}
 		cpuGain := hostsToAdd * cluster.CPUThreadsPerHost
-		impact = fmt.Sprintf("Adds %d physical CPU cores, reducing vCPU overcommit", cpuGain)
+		impact = fmt.Sprintf("Adds %d CPU threads, reducing vCPU overcommit", cpuGain)
 
 	default:
 		hostsToAdd = 1
