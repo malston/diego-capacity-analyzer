@@ -1,6 +1,8 @@
 // ABOUTME: Cloud Foundry authentication service using BFF OAuth pattern
 // ABOUTME: Authenticates via backend endpoints, never exposes tokens to JavaScript
 
+import { withCSRFToken } from "../utils/csrf";
+
 /**
  * Cloud Foundry Authentication Service (BFF Pattern)
  * Handles authentication through backend endpoints with httpOnly cookies.
@@ -61,6 +63,7 @@ class CFAuthService {
     try {
       await fetch("/api/v1/auth/logout", {
         method: "POST",
+        headers: withCSRFToken(),
         credentials: "include",
       });
     } finally {
