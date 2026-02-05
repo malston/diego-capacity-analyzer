@@ -240,7 +240,7 @@ func TestSetManualInfrastructure(t *testing.T) {
 			Name:              "cluster-1",
 			HostCount:         4,
 			MemoryGBPerHost:   256,
-			CPUCoresPerHost:   32,
+			CPUThreadsPerHost:   32,
 			DiegoCellCount:    10,
 			DiegoCellMemoryGB: 64,
 			DiegoCellCPU:      8,

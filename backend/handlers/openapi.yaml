@@ -460,9 +460,9 @@ components:
         memory_gb_per_host:
           type: integer
           description: Memory per host in GB
-        cpu_cores_per_host:
+        cpu_threads_per_host:
           type: integer
-          description: CPU cores per host
+          description: CPU threads per host (logical processors, includes hyperthreading)
         ha_admission_control_percentage:
           type: integer
           description: HA admission control percentage (0-100)
@@ -511,7 +511,7 @@ components:
           - name: "tas-cluster-1"
             host_count: 4
             memory_gb_per_host: 512
-            cpu_cores_per_host: 40
+            cpu_threads_per_host: 40
             ha_admission_control_percentage: 25
             diego_cell_count: 12
             diego_cell_memory_gb: 32
@@ -536,7 +536,7 @@ components:
           type: integer
         memory_gb_per_host:
           type: integer
-        cpu_cores_per_host:
+        cpu_threads_per_host:
           type: integer
         ha_admission_control_percentage:
           type: integer

@@ -200,8 +200,8 @@ func New(infra *client.InfrastructureState) *Wizard {
 		if c.HAAdmissionControlPercentage > 0 {
 			input.HAAdmissionPct = c.HAAdmissionControlPercentage
 		}
-		if c.CPUCoresPerHost > 0 {
-			input.PhysicalCoresPerHost = c.CPUCoresPerHost
+		if c.CPUThreadsPerHost > 0 {
+			input.PhysicalCoresPerHost = c.CPUThreadsPerHost
 		}
 	}
 

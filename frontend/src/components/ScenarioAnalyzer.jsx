@@ -315,7 +315,7 @@ const ScenarioAnalyzer = () => {
 
     const totalCPUCores = clusters.reduce((sum, c) => {
       if (c.cpu_cores) return sum + c.cpu_cores;
-      return sum + (c.host_count || 0) * (c.cpu_cores_per_host || 64);
+      return sum + (c.host_count || 0) * (c.cpu_threads_per_host || 64);
     }, 0);
 
     // Calculate available memory using HA Admission Control %

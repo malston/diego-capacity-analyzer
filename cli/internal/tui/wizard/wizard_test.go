@@ -40,7 +40,7 @@ func TestWizardUsesInfraValues(t *testing.T) {
 			DiegoCellDiskGB:              100,
 			DiegoCellCount:               10,
 			MemoryGBPerHost:              256,
-			CPUCoresPerHost:              16,
+			CPUThreadsPerHost:              16,
 			HAAdmissionControlPercentage: 10,
 		}},
 	}

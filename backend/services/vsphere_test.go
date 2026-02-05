@@ -211,9 +211,9 @@ func TestClusterInfoHostAggregation(t *testing.T) {
 	info := ClusterInfo{
 		Name: "test-cluster",
 		Hosts: []HostInfo{
-			{Name: "esx01", MemoryMB: 524288, CPUCores: 32},
-			{Name: "esx02", MemoryMB: 524288, CPUCores: 32},
-			{Name: "esx03", MemoryMB: 524288, CPUCores: 32},
+			{Name: "esx01", MemoryMB: 524288, CPUThreads: 32},
+			{Name: "esx02", MemoryMB: 524288, CPUThreads: 32},
+			{Name: "esx03", MemoryMB: 524288, CPUThreads: 32},
 		},
 	}
 
@@ -222,7 +222,7 @@ func TestClusterInfoHostAggregation(t *testing.T) {
 	var totalCores int32
 	for _, h := range info.Hosts {
 		totalMemory += h.MemoryMB
-		totalCores += h.CPUCores
+		totalCores += h.CPUThreads
 	}
 
 	expectedMemory := int64(3 * 524288) // 3 hosts × 512GB

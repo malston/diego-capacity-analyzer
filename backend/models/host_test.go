@@ -13,7 +13,7 @@ func TestClusterInput_HAAdmissionControlPercentage(t *testing.T) {
 		Name:                          "HA Cluster",
 		HostCount:                     4,
 		MemoryGBPerHost:               1024,
-		CPUCoresPerHost:               64,
+		CPUThreadsPerHost:               64,
 		HAAdmissionControlPercentage:  25, // Reserve 25% for HA
 		DiegoCellCount:                100,
 		DiegoCellMemoryGB:             32,
@@ -33,7 +33,7 @@ func TestClusterState_HostLevelFields(t *testing.T) {
 				Name:                          "cluster-01",
 				HostCount:                     4,
 				MemoryGBPerHost:               1024,
-				CPUCoresPerHost:               64,
+				CPUThreadsPerHost:               64,
 				HAAdmissionControlPercentage:  25,
 				DiegoCellCount:                100,
 				DiegoCellMemoryGB:             32,
@@ -51,8 +51,8 @@ func TestClusterState_HostLevelFields(t *testing.T) {
 		t.Errorf("Expected MemoryGBPerHost 1024, got %d", cluster.MemoryGBPerHost)
 	}
 
-	if cluster.CPUCoresPerHost != 64 {
-		t.Errorf("Expected CPUCoresPerHost 64, got %d", cluster.CPUCoresPerHost)
+	if cluster.CPUThreadsPerHost != 64 {
+		t.Errorf("Expected CPUThreadsPerHost 64, got %d", cluster.CPUThreadsPerHost)
 	}
 
 	if cluster.HAAdmissionControlPercentage != 25 {
@@ -100,7 +100,7 @@ func TestClusterState_HAUsableCapacity(t *testing.T) {
 						Name:                          "cluster-01",
 						HostCount:                     tt.hostCount,
 						MemoryGBPerHost:               tt.memoryPerHost,
-						CPUCoresPerHost:               64,
+						CPUThreadsPerHost:               64,
 						HAAdmissionControlPercentage:  tt.haPercentage,
 						DiegoCellCount:                10,
 						DiegoCellMemoryGB:             32,
@@ -152,7 +152,7 @@ func TestClusterState_HAUsableCPU(t *testing.T) {
 						Name:                          "cluster-01",
 						HostCount:                     tt.hostCount,
 						MemoryGBPerHost:               1024,
-						CPUCoresPerHost:               tt.coresPerHost,
+						CPUThreadsPerHost:               tt.coresPerHost,
 						HAAdmissionControlPercentage:  tt.haPercentage,
 						DiegoCellCount:                10,
 						DiegoCellMemoryGB:             32,
@@ -179,7 +179,7 @@ func TestClusterState_VMsPerHost(t *testing.T) {
 				Name:                          "cluster-01",
 				HostCount:                     4,
 				MemoryGBPerHost:               1024,
-				CPUCoresPerHost:               64,
+				CPUThreadsPerHost:               64,
 				HAAdmissionControlPercentage:  0,
 				DiegoCellCount:                100, // 100 cells across 4 hosts
 				DiegoCellMemoryGB:             32,
@@ -206,7 +206,7 @@ func TestInfrastructureState_TotalHAUsableCapacity(t *testing.T) {
 				Name:                          "cluster-01",
 				HostCount:                     4,
 				MemoryGBPerHost:               1024,
-				CPUCoresPerHost:               64,
+				CPUThreadsPerHost:               64,
 				HAAdmissionControlPercentage:  25,
 				DiegoCellCount:                100,
 				DiegoCellMemoryGB:             32,
@@ -216,7 +216,7 @@ func TestInfrastructureState_TotalHAUsableCapacity(t *testing.T) {
 				Name:                          "cluster-02",
 				HostCount:                     3,
 				MemoryGBPerHost:               512,
-				CPUCoresPerHost:               48,
+				CPUThreadsPerHost:               48,
 				HAAdmissionControlPercentage:  25,
 				DiegoCellCount:                50,
 				DiegoCellMemoryGB:             32,
@@ -251,7 +251,7 @@ func TestHostLevelFieldsSerialization(t *testing.T) {
 		MemoryGB:                     4096,
 		CPUCores:                     256,
 		MemoryGBPerHost:              1024,
-		CPUCoresPerHost:              64,
+		CPUThreadsPerHost:              64,
 		HAAdmissionControlPercentage: 25,
 		HAUsableMemoryGB:             3072,
 		HAUsableCPUCores:             192,
@@ -271,8 +271,8 @@ func TestHostLevelFieldsSerialization(t *testing.T) {
 	if decoded.MemoryGBPerHost != state.MemoryGBPerHost {
 		t.Errorf("MemoryGBPerHost mismatch: got %d, want %d", decoded.MemoryGBPerHost, state.MemoryGBPerHost)
 	}
-	if decoded.CPUCoresPerHost != state.CPUCoresPerHost {
-		t.Errorf("CPUCoresPerHost mismatch: got %d, want %d", decoded.CPUCoresPerHost, state.CPUCoresPerHost)
+	if decoded.CPUThreadsPerHost != state.CPUThreadsPerHost {
+		t.Errorf("CPUThreadsPerHost mismatch: got %d, want %d", decoded.CPUThreadsPerHost, state.CPUThreadsPerHost)
 	}
 	if decoded.HAAdmissionControlPercentage != state.HAAdmissionControlPercentage {
 		t.Errorf("HAAdmissionControlPercentage mismatch: got %d, want %d", decoded.HAAdmissionControlPercentage, state.HAAdmissionControlPercentage)
@@ -367,7 +367,7 @@ func TestClusterState_HostMemoryUtilization(t *testing.T) {
 						Name:              "cluster-01",
 						HostCount:         tt.hostCount,
 						MemoryGBPerHost:   tt.memoryPerHost,
-						CPUCoresPerHost:   64,
+						CPUThreadsPerHost:   64,
 						DiegoCellCount:    tt.cellCount,
 						DiegoCellMemoryGB: tt.cellMemory,
 						DiegoCellCPU:      4,
@@ -439,7 +439,7 @@ func TestClusterState_HostCPUUtilization(t *testing.T) {
 						Name:              "cluster-01",
 						HostCount:         tt.hostCount,
 						MemoryGBPerHost:   1024,
-						CPUCoresPerHost:   tt.coresPerHost,
+						CPUThreadsPerHost:   tt.coresPerHost,
 						DiegoCellCount:    tt.cellCount,
 						DiegoCellMemoryGB: 32,
 						DiegoCellCPU:      tt.cellCPU,
@@ -466,7 +466,7 @@ func TestClusterState_ZeroHostsHandled(t *testing.T) {
 				Name:              "empty-cluster",
 				HostCount:         0,
 				MemoryGBPerHost:   1024,
-				CPUCoresPerHost:   64,
+				CPUThreadsPerHost:   64,
 				DiegoCellCount:    10,
 				DiegoCellMemoryGB: 32,
 				DiegoCellCPU:      4,
@@ -497,7 +497,7 @@ func TestInfrastructureState_AggregateHostUtilization(t *testing.T) {
 				Name:              "cluster-01",
 				HostCount:         4,
 				MemoryGBPerHost:   1024,
-				CPUCoresPerHost:   64,
+				CPUThreadsPerHost:   64,
 				DiegoCellCount:    64, // 50% memory usage (2048/4096), 100% CPU (256/256)
 				DiegoCellMemoryGB: 32,
 				DiegoCellCPU:      4,
@@ -506,7 +506,7 @@ func TestInfrastructureState_AggregateHostUtilization(t *testing.T) {
 				Name:              "cluster-02",
 				HostCount:         2,
 				MemoryGBPerHost:   512,
-				CPUCoresPerHost:   32,
+				CPUThreadsPerHost:   32,
 				DiegoCellCount:    16, // 50% memory usage (512/1024), 100% CPU (64/64)
 				DiegoCellMemoryGB: 32,
 				DiegoCellCPU:      4,
@@ -639,7 +639,7 @@ func TestClusterState_HAHostFailureCapacity(t *testing.T) {
 						Name:                         "cluster-01",
 						HostCount:                    tt.hostCount,
 						MemoryGBPerHost:              tt.memoryPerHost,
-						CPUCoresPerHost:              64,
+						CPUThreadsPerHost:              64,
 						HAAdmissionControlPercentage: tt.haPercentage,
 						DiegoCellCount:               tt.cellCount,
 						DiegoCellMemoryGB:            tt.cellMemory,
@@ -678,7 +678,7 @@ func TestInfrastructureState_AggregateHAStatus(t *testing.T) {
 					Name:              "cluster-01",
 					HostCount:         4,
 					MemoryGBPerHost:   1024,
-					CPUCoresPerHost:   64,
+					CPUThreadsPerHost:   64,
 					DiegoCellCount:    24, // 768 GB needed, can survive 3 failures
 					DiegoCellMemoryGB: 32,
 					DiegoCellCPU:      4,
@@ -687,7 +687,7 @@ func TestInfrastructureState_AggregateHAStatus(t *testing.T) {
 					Name:              "cluster-02",
 					HostCount:         3,
 					MemoryGBPerHost:   1024,
-					CPUCoresPerHost:   64,
+					CPUThreadsPerHost:   64,
 					DiegoCellCount:    24, // 768 GB needed, 3 hosts, can survive 2 failures
 					DiegoCellMemoryGB: 32,
 					DiegoCellCPU:      4,
@@ -703,7 +703,7 @@ func TestInfrastructureState_AggregateHAStatus(t *testing.T) {
 					Name:              "cluster-01",
 					HostCount:         4,
 					MemoryGBPerHost:   1024,
-					CPUCoresPerHost:   64,
+					CPUThreadsPerHost:   64,
 					DiegoCellCount:    24,
 					DiegoCellMemoryGB: 32,
 					DiegoCellCPU:      4,
@@ -712,7 +712,7 @@ func TestInfrastructureState_AggregateHAStatus(t *testing.T) {
 					Name:                         "cluster-02",
 					HostCount:                    4,
 					MemoryGBPerHost:              1024,
-					CPUCoresPerHost:              64,
+					CPUThreadsPerHost:              64,
 					HAAdmissionControlPercentage: 25,
 					DiegoCellCount:               96, // High utilization
 					DiegoCellMemoryGB:            32,
