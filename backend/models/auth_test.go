@@ -241,3 +241,39 @@ func TestSession_NotJSONSerializable(t *testing.T) {
 		t.Error("RefreshToken MUST NOT be exposed in JSON serialization")
 	}
 }
+
+func TestSession_HasCSRFToken(t *testing.T) {
+	session := Session{
+		ID:        "test-session-id",
+		Username:  "testuser",
+		CSRFToken: "test-csrf-token",
+	}
+
+	if session.CSRFToken != "test-csrf-token" {
+		t.Errorf("Expected CSRFToken 'test-csrf-token', got '%s'", session.CSRFToken)
+	}
+}
+
+func TestSession_CSRFTokenNotInJSON(t *testing.T) {
+	// CSRF token should NEVER be exposed in JSON serialization
+	session := Session{
+		ID:        "session-id",
+		Username:  "admin",
+		CSRFToken: "secret-csrf-token",
+	}
+
+	data, err := json.Marshal(session)
+	if err != nil {
+		t.Fatalf("Marshal failed unexpectedly: %v", err)
+	}
+
+	var jsonMap map[string]interface{}
+	if err := json.Unmarshal(data, &jsonMap); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	// Verify CSRF token is NOT exposed in JSON (using json:"-" tag)
+	if _, ok := jsonMap["csrf_token"]; ok {
+		t.Error("CSRFToken MUST NOT be exposed in JSON serialization")
+	}
+}
