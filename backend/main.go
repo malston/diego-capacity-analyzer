@@ -147,14 +147,14 @@ func main() {
 		// Go 1.22+ pattern: "METHOD /path"
 		pattern := route.Method + " " + route.Path
 
-		// Apply middleware chain: CORS -> Auth (if not public) -> LogRequest -> Handler
+		// Apply middleware chain: CORS -> CSRF -> Auth (if not public) -> LogRequest -> Handler
 		var handler http.HandlerFunc
 		if route.Public {
 			// Public routes: no auth
-			handler = middleware.Chain(route.Handler, corsMiddleware, middleware.LogRequest)
+			handler = middleware.Chain(route.Handler, corsMiddleware, middleware.CSRF(), middleware.LogRequest)
 		} else {
 			// Protected routes: apply auth middleware
-			handler = middleware.Chain(route.Handler, corsMiddleware, middleware.Auth(authCfg), middleware.LogRequest)
+			handler = middleware.Chain(route.Handler, corsMiddleware, middleware.CSRF(), middleware.Auth(authCfg), middleware.LogRequest)
 		}
 		mux.HandleFunc(pattern, handler)
 
