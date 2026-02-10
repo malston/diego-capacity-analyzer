@@ -34,6 +34,7 @@ type Session struct {
 	UserID       string    `json:"user_id"`
 	AccessToken  string    `json:"-"` // Never expose to client
 	RefreshToken string    `json:"-"` // Never expose to client
+	CSRFToken    string    `json:"-"` // Never expose to client
 	TokenExpiry  time.Time `json:"token_expiry"`
 	CreatedAt    time.Time `json:"created_at"`
 }

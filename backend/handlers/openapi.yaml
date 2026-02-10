@@ -99,6 +99,8 @@ paths:
       summary: Manual infrastructure input
       description: Accepts manual infrastructure input for what-if capacity analysis.
       operationId: setManualInfrastructure
+      parameters:
+        - $ref: "#/components/parameters/CSRFToken"
       requestBody:
         required: true
         content:
@@ -118,6 +120,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/CSRFError"
 
   /api/v1/infrastructure/state:
     post:
@@ -126,6 +130,8 @@ paths:
       summary: Set infrastructure state directly
       description: Accepts an InfrastructureState directly (e.g., from vSphere cache or external source).
       operationId: setInfrastructureState
+      parameters:
+        - $ref: "#/components/parameters/CSRFToken"
       requestBody:
         required: true
         content:
@@ -145,6 +151,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/CSRFError"
 
   /api/v1/infrastructure/status:
     get:
@@ -168,6 +176,8 @@ paths:
       summary: Calculate max deployable cells
       description: Calculates maximum deployable Diego cells given IaaS capacity constraints.
       operationId: planInfrastructure
+      parameters:
+        - $ref: "#/components/parameters/CSRFToken"
       requestBody:
         required: true
         content:
@@ -187,6 +197,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/CSRFError"
 
   /api/v1/infrastructure/apps:
     get:
@@ -222,6 +234,8 @@ paths:
       summary: Compare current vs proposed scenarios
       description: Compares current infrastructure against a proposed scenario for what-if analysis.
       operationId: compareScenario
+      parameters:
+        - $ref: "#/components/parameters/CSRFToken"
       requestBody:
         required: true
         content:
@@ -241,6 +255,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/CSRFError"
 
   /api/v1/bottleneck:
     get:
@@ -299,6 +315,30 @@ components:
       in: cookie
       name: DIEGO_SESSION
       description: Session cookie from /api/v1/auth/login
+
+  responses:
+    CSRFError:
+      description: CSRF token missing or invalid
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "CSRF token missing or invalid"
+
+  parameters:
+    CSRFToken:
+      name: X-CSRF-Token
+      in: header
+      description: >
+        CSRF token from DIEGO_CSRF cookie. Required for session-authenticated
+        POST/PUT/DELETE requests. Not required for Bearer token authentication,
+        safe methods (GET/HEAD/OPTIONS), or unauthenticated requests.
+      required: false
+      schema:
+        type: string
 
   schemas:
     ErrorResponse:

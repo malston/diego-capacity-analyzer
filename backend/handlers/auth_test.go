@@ -646,3 +646,100 @@ func TestRefresh_NoSession(t *testing.T) {
 		t.Errorf("Status = %d, want %d", resp.StatusCode, http.StatusUnauthorized)
 	}
 }
+
+func TestLogin_SetsCSRFCookie(t *testing.T) {
+	cfServer, uaaServer := setupMockCFAndUAAServers("admin", "secret")
+	defer cfServer.Close()
+	defer uaaServer.Close()
+
+	c := cache.New(5 * time.Minute)
+	sessionSvc := services.NewSessionService(c)
+	cfg := &config.Config{
+		CFAPIUrl:     cfServer.URL,
+		CookieSecure: false, // false for test (http)
+	}
+
+	h := NewHandler(cfg, c)
+	h.SetSessionService(sessionSvc)
+
+	body := `{"username":"admin","password":"secret"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Login(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", resp.StatusCode, w.Body.String())
+	}
+
+	// Check for CSRF cookie
+	cookies := resp.Cookies()
+	var csrfCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "DIEGO_CSRF" {
+			csrfCookie = c
+			break
+		}
+	}
+
+	if csrfCookie == nil {
+		t.Fatal("Expected DIEGO_CSRF cookie to be set")
+	}
+
+	if csrfCookie.HttpOnly {
+		t.Error("CSRF cookie should NOT be HttpOnly (must be readable by JavaScript)")
+	}
+
+	if csrfCookie.Value == "" {
+		t.Error("CSRF cookie should have a value")
+	}
+
+	if csrfCookie.SameSite != http.SameSiteLaxMode {
+		t.Errorf("CSRF cookie SameSite = %v, want Lax", csrfCookie.SameSite)
+	}
+}
+
+func TestLogout_ClearsCSRFCookie(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	sessionSvc := services.NewSessionService(c)
+
+	// Create a session
+	sessionID, err := sessionSvc.Create("testuser", "user-123", "access", "refresh", time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatalf("Failed to create session: %v", err)
+	}
+
+	cfg := &config.Config{CookieSecure: false}
+	h := NewHandler(cfg, c)
+	h.SetSessionService(sessionSvc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: sessionID})
+	w := httptest.NewRecorder()
+
+	h.Logout(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	// Check that CSRF cookie is cleared
+	cookies := resp.Cookies()
+	var csrfCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "DIEGO_CSRF" {
+			csrfCookie = c
+			break
+		}
+	}
+
+	if csrfCookie == nil {
+		t.Fatal("Expected DIEGO_CSRF cookie to be set (for clearing)")
+	}
+	if csrfCookie.MaxAge != -1 {
+		t.Errorf("CSRF Cookie MaxAge = %d, want -1 (expired)", csrfCookie.MaxAge)
+	}
+}
