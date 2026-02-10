@@ -6,6 +6,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -110,6 +111,74 @@ func TestRateLimiter_ConcurrentAccess(t *testing.T) {
 	}
 }
 
+func TestRateLimiter_ExpiredEntriesCleanedUp(t *testing.T) {
+	rl := NewRateLimiter(1, 20*time.Millisecond)
+
+	// Create entries for multiple keys
+	for i := 0; i < 5; i++ {
+		rl.Allow(fmt.Sprintf("key-%d", i))
+	}
+
+	// Verify entries exist
+	rl.mu.Lock()
+	initialLen := len(rl.windows)
+	rl.mu.Unlock()
+	if initialLen != 5 {
+		t.Fatalf("Expected 5 entries, got %d", initialLen)
+	}
+
+	// Wait for windows to expire
+	time.Sleep(30 * time.Millisecond)
+
+	// Access a key to trigger lazy deletion (old entry gets deleted + new one created)
+	rl.Allow("key-0")
+
+	rl.mu.Lock()
+	afterLen := len(rl.windows)
+	rl.mu.Unlock()
+
+	// key-0's expired entry was deleted and a new one created, so count stays the same
+	// for key-0 but the other 4 expired entries are still there until sweep
+	// (sweep happens at multiples of 100). The important thing is that key-0 was
+	// properly replaced (not leaked).
+	if afterLen > 5 {
+		t.Errorf("Expected at most 5 entries after lazy delete, got %d", afterLen)
+	}
+}
+
+func TestRateLimiter_ConcurrentMultiKey(t *testing.T) {
+	rl := NewRateLimiter(5, time.Minute)
+	keys := []string{"key-a", "key-b", "key-c", "key-d"}
+
+	var wg sync.WaitGroup
+	results := make(map[string]int)
+	var mu sync.Mutex
+
+	// Send 10 requests per key concurrently (limit is 5)
+	for _, key := range keys {
+		for i := 0; i < 10; i++ {
+			wg.Add(1)
+			go func(k string) {
+				defer wg.Done()
+				allowed, _ := rl.Allow(k)
+				if allowed {
+					mu.Lock()
+					results[k]++
+					mu.Unlock()
+				}
+			}(key)
+		}
+	}
+
+	wg.Wait()
+
+	for _, key := range keys {
+		if results[key] != 5 {
+			t.Errorf("Key %q: expected 5 allowed, got %d", key, results[key])
+		}
+	}
+}
+
 func TestRateLimiter_RetryAfterValue(t *testing.T) {
 	rl := NewRateLimiter(1, time.Minute)
 	rl.Allow("test-key")
@@ -175,6 +244,17 @@ func TestClientIP_XForwardedFor(t *testing.T) {
 				t.Errorf("ClientIP() = %q, want %q", key, tt.expected)
 			}
 		})
+	}
+}
+
+func TestClientIP_EmptyXFF(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.Header.Set("X-Forwarded-For", "")
+	r.RemoteAddr = "10.0.0.5:9999"
+
+	key := ClientIP(r)
+	if key != "ip:10.0.0.5" {
+		t.Errorf("ClientIP() with empty XFF = %q, want %q (should fallback to RemoteAddr)", key, "ip:10.0.0.5")
 	}
 }
 

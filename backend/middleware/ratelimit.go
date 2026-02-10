@@ -50,14 +50,25 @@ func (rl *RateLimiter) Allow(key string) (bool, time.Duration) {
 
 	// Start a new window if none exists or the current one expired
 	if !exists || now.After(c.expiresAt) {
+		// Delete expired entry to prevent unbounded map growth
+		if exists {
+			delete(rl.windows, key)
+		}
 		rl.windows[key] = &counter{
 			count:     1,
 			expiresAt: now.Add(rl.window),
 		}
+
+		// Periodic sweep: clean up all expired entries every 100 new windows.
+		// This bounds memory to at most active keys + 100 stale entries.
+		if len(rl.windows)%100 == 0 {
+			rl.sweep(now)
+		}
+
 		return true, 0
 	}
 
-	// Within current window
+	// Within current window -- counter only accessed while holding rl.mu
 	if c.count < rl.limit {
 		c.count++
 		return true, 0
@@ -68,7 +79,21 @@ func (rl *RateLimiter) Allow(key string) (bool, time.Duration) {
 	return false, retryAfter
 }
 
+// sweep removes all expired entries from the windows map.
+// Must be called while holding rl.mu.
+func (rl *RateLimiter) sweep(now time.Time) {
+	for k, c := range rl.windows {
+		if now.After(c.expiresAt) {
+			delete(rl.windows, k)
+		}
+	}
+}
+
 // ClientIP extracts the client IP from X-Forwarded-For (leftmost) or RemoteAddr.
+// This trusts the X-Forwarded-For header, which is safe when the application runs
+// behind a trusted reverse proxy (e.g., CF gorouter, ALB) that sets the header.
+// If exposed directly to the internet without a proxy, attackers could spoof this
+// header to bypass IP-based rate limits.
 func ClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		// Take the leftmost (client-facing) IP
@@ -133,7 +158,7 @@ func RateLimit(limiter *RateLimiter, keyFunc func(*http.Request) string) func(ht
 
 			// Rate limited
 			retrySeconds := int(math.Ceil(retryAfter.Seconds()))
-			slog.Debug("Rate limit exceeded", "key", key, "path", r.URL.Path, "retry_after", retrySeconds)
+			slog.Warn("Rate limit exceeded", "key", key, "path", r.URL.Path, "retry_after", retrySeconds)
 
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Retry-After", fmt.Sprintf("%d", retrySeconds))

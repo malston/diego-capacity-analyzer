@@ -109,6 +109,21 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("CF_PASSWORD is required")
 	}
 
+	// Validate rate limit values
+	for _, rl := range []struct {
+		name  string
+		value int
+	}{
+		{"RATE_LIMIT_AUTH", cfg.RateLimitAuth},
+		{"RATE_LIMIT_REFRESH", cfg.RateLimitRefresh},
+		{"RATE_LIMIT_WRITE", cfg.RateLimitWrite},
+		{"RATE_LIMIT_DEFAULT", cfg.RateLimitDefault},
+	} {
+		if rl.value < 1 || rl.value > 10000 {
+			return nil, fmt.Errorf("%s must be between 1 and 10000, got %d", rl.name, rl.value)
+		}
+	}
+
 	return cfg, nil
 }
 

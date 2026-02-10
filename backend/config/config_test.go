@@ -152,6 +152,31 @@ func TestLoadConfig_RateLimitFromEnv(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_RateLimitInvalidValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		env   string
+		value string
+	}{
+		{"zero value", "RATE_LIMIT_AUTH", "0"},
+		{"negative value", "RATE_LIMIT_REFRESH", "-1"},
+		{"exceeds max", "RATE_LIMIT_DEFAULT", "10001"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+				tt.env: tt.value,
+			}))
+
+			_, err := Load()
+			if err == nil {
+				t.Errorf("Expected error for %s=%s, got nil", tt.env, tt.value)
+			}
+		})
+	}
+}
+
 func TestLoadConfig_URLSchemePrefixing(t *testing.T) {
 	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
 		"CF_API_URL":       "api.sys.test.com", // Override to test scheme prefixing
