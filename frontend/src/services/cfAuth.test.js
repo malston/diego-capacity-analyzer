@@ -89,6 +89,7 @@ describe("CFAuthService (BFF Pattern)", () => {
 
       expect(global.fetch).toHaveBeenCalledWith("/api/v1/auth/logout", {
         method: "POST",
+        headers: {},
         credentials: "include",
       });
     });
