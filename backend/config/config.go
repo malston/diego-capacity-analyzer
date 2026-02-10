@@ -19,6 +19,13 @@ type Config struct {
 	CORSAllowedOrigins []string // allowed CORS origins (empty = block all cross-origin)
 	CookieSecure       bool     // Set Secure flag on session cookies (default: true)
 
+	// Rate Limiting
+	RateLimitEnabled bool // Enable rate limiting (default: true)
+	RateLimitAuth    int  // Requests per minute for auth endpoints (default: 5)
+	RateLimitRefresh int  // Requests per minute for refresh endpoint (default: 10)
+	RateLimitWrite   int  // Requests per minute for write endpoints (default: 10)
+	RateLimitDefault int  // Requests per minute for all other endpoints (default: 100)
+
 	// CF API
 	CFAPIUrl            string
 	CFUsername          string
@@ -60,6 +67,12 @@ func Load() (*Config, error) {
 		AuthMode:           getEnv("AUTH_MODE", "optional"),
 		CORSAllowedOrigins: getEnvStringList("CORS_ALLOWED_ORIGINS"),
 		CookieSecure:       getEnvBool("COOKIE_SECURE", true),
+
+		RateLimitEnabled: getEnvBool("RATE_LIMIT_ENABLED", true),
+		RateLimitAuth:    getEnvInt("RATE_LIMIT_AUTH", 5),
+		RateLimitRefresh: getEnvInt("RATE_LIMIT_REFRESH", 10),
+		RateLimitWrite:   getEnvInt("RATE_LIMIT_WRITE", 10),
+		RateLimitDefault: getEnvInt("RATE_LIMIT_DEFAULT", 100),
 
 		CFAPIUrl:            ensureScheme(os.Getenv("CF_API_URL")),
 		CFUsername:          os.Getenv("CF_USERNAME"),
