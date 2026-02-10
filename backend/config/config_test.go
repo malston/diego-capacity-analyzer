@@ -96,6 +96,87 @@ func TestLoadConfig_AuthModeFromEnv(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_RateLimitDefaults(t *testing.T) {
+	t.Cleanup(withCleanCFEnv(t))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if !cfg.RateLimitEnabled {
+		t.Error("Expected RateLimitEnabled default true, got false")
+	}
+	if cfg.RateLimitAuth != 5 {
+		t.Errorf("Expected RateLimitAuth default 5, got %d", cfg.RateLimitAuth)
+	}
+	if cfg.RateLimitRefresh != 10 {
+		t.Errorf("Expected RateLimitRefresh default 10, got %d", cfg.RateLimitRefresh)
+	}
+	if cfg.RateLimitWrite != 10 {
+		t.Errorf("Expected RateLimitWrite default 10, got %d", cfg.RateLimitWrite)
+	}
+	if cfg.RateLimitDefault != 100 {
+		t.Errorf("Expected RateLimitDefault default 100, got %d", cfg.RateLimitDefault)
+	}
+}
+
+func TestLoadConfig_RateLimitFromEnv(t *testing.T) {
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"RATE_LIMIT_ENABLED": "false",
+		"RATE_LIMIT_AUTH":    "20",
+		"RATE_LIMIT_REFRESH": "30",
+		"RATE_LIMIT_WRITE":   "40",
+		"RATE_LIMIT_DEFAULT": "200",
+	}))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.RateLimitEnabled {
+		t.Error("Expected RateLimitEnabled false, got true")
+	}
+	if cfg.RateLimitAuth != 20 {
+		t.Errorf("Expected RateLimitAuth 20, got %d", cfg.RateLimitAuth)
+	}
+	if cfg.RateLimitRefresh != 30 {
+		t.Errorf("Expected RateLimitRefresh 30, got %d", cfg.RateLimitRefresh)
+	}
+	if cfg.RateLimitWrite != 40 {
+		t.Errorf("Expected RateLimitWrite 40, got %d", cfg.RateLimitWrite)
+	}
+	if cfg.RateLimitDefault != 200 {
+		t.Errorf("Expected RateLimitDefault 200, got %d", cfg.RateLimitDefault)
+	}
+}
+
+func TestLoadConfig_RateLimitInvalidValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		env   string
+		value string
+	}{
+		{"zero value", "RATE_LIMIT_AUTH", "0"},
+		{"negative value", "RATE_LIMIT_REFRESH", "-1"},
+		{"exceeds max", "RATE_LIMIT_DEFAULT", "10001"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+				tt.env: tt.value,
+			}))
+
+			_, err := Load()
+			if err == nil {
+				t.Errorf("Expected error for %s=%s, got nil", tt.env, tt.value)
+			}
+		})
+	}
+}
+
 func TestLoadConfig_URLSchemePrefixing(t *testing.T) {
 	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
 		"CF_API_URL":       "api.sys.test.com", // Override to test scheme prefixing

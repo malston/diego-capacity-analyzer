@@ -19,6 +19,13 @@ type Config struct {
 	CORSAllowedOrigins []string // allowed CORS origins (empty = block all cross-origin)
 	CookieSecure       bool     // Set Secure flag on session cookies (default: true)
 
+	// Rate Limiting
+	RateLimitEnabled bool // Enable rate limiting (default: true)
+	RateLimitAuth    int  // Requests per minute for auth endpoints (default: 5)
+	RateLimitRefresh int  // Requests per minute for refresh endpoint (default: 10)
+	RateLimitWrite   int  // Requests per minute for write endpoints (default: 10)
+	RateLimitDefault int  // Requests per minute for all other endpoints (default: 100)
+
 	// CF API
 	CFAPIUrl            string
 	CFUsername          string
@@ -61,6 +68,12 @@ func Load() (*Config, error) {
 		CORSAllowedOrigins: getEnvStringList("CORS_ALLOWED_ORIGINS"),
 		CookieSecure:       getEnvBool("COOKIE_SECURE", true),
 
+		RateLimitEnabled: getEnvBool("RATE_LIMIT_ENABLED", true),
+		RateLimitAuth:    getEnvInt("RATE_LIMIT_AUTH", 5),
+		RateLimitRefresh: getEnvInt("RATE_LIMIT_REFRESH", 10),
+		RateLimitWrite:   getEnvInt("RATE_LIMIT_WRITE", 10),
+		RateLimitDefault: getEnvInt("RATE_LIMIT_DEFAULT", 100),
+
 		CFAPIUrl:            ensureScheme(os.Getenv("CF_API_URL")),
 		CFUsername:          os.Getenv("CF_USERNAME"),
 		CFPassword:          os.Getenv("CF_PASSWORD"),
@@ -94,6 +107,21 @@ func Load() (*Config, error) {
 	}
 	if cfg.CFPassword == "" {
 		return nil, fmt.Errorf("CF_PASSWORD is required")
+	}
+
+	// Validate rate limit values
+	for _, rl := range []struct {
+		name  string
+		value int
+	}{
+		{"RATE_LIMIT_AUTH", cfg.RateLimitAuth},
+		{"RATE_LIMIT_REFRESH", cfg.RateLimitRefresh},
+		{"RATE_LIMIT_WRITE", cfg.RateLimitWrite},
+		{"RATE_LIMIT_DEFAULT", cfg.RateLimitDefault},
+	} {
+		if rl.value < 1 || rl.value > 10000 {
+			return nil, fmt.Errorf("%s must be between 1 and 10000, got %d", rl.name, rl.value)
+		}
 	}
 
 	return cfg, nil

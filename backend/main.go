@@ -133,6 +133,31 @@ func main() {
 		slog.Warn("CORS_ALLOWED_ORIGINS not set, cross-origin requests will be blocked")
 	}
 
+	// Configure rate limiters (nil if disabled)
+	var rateLimiters map[string]func(http.HandlerFunc) http.HandlerFunc
+	if cfg.RateLimitEnabled {
+		window := time.Minute
+		rateLimiters = map[string]func(http.HandlerFunc) http.HandlerFunc{
+			"auth":    middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitAuth, window), middleware.ClientIP),
+			"refresh": middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitRefresh, window), middleware.SessionKey),
+			"write":   middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitWrite, window), middleware.UserOrIP),
+			"":        middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitDefault, window), middleware.UserOrIP),
+		}
+		slog.Info("Rate limiting enabled",
+			"auth", cfg.RateLimitAuth,
+			"refresh", cfg.RateLimitRefresh,
+			"write", cfg.RateLimitWrite,
+			"default", cfg.RateLimitDefault,
+		)
+	} else {
+		// All tiers map to a nil-limiter no-op
+		noOp := middleware.RateLimit(nil, nil)
+		rateLimiters = map[string]func(http.HandlerFunc) http.HandlerFunc{
+			"auth": noOp, "refresh": noOp, "write": noOp, "": noOp,
+		}
+		slog.Info("Rate limiting disabled")
+	}
+
 	// Initialize handlers
 	h := handlers.NewHandler(cfg, c)
 	h.SetSessionService(sessionService)
@@ -147,15 +172,22 @@ func main() {
 		// Go 1.22+ pattern: "METHOD /path"
 		pattern := route.Method + " " + route.Path
 
-		// Apply middleware chain: CORS -> CSRF -> Auth (if not public) -> LogRequest -> Handler
-		var handler http.HandlerFunc
-		if route.Public {
-			// Public routes: no auth
-			handler = middleware.Chain(route.Handler, corsMiddleware, middleware.CSRF(), middleware.LogRequest)
-		} else {
-			// Protected routes: apply auth middleware
-			handler = middleware.Chain(route.Handler, corsMiddleware, middleware.CSRF(), middleware.Auth(authCfg), middleware.LogRequest)
+		// Build middleware chain based on route properties
+		// Order: CORS -> CSRF -> Auth (if protected) -> RateLimit (if not exempt) -> LogRequest -> Handler
+		mws := []func(http.HandlerFunc) http.HandlerFunc{corsMiddleware, middleware.CSRF()}
+		if !route.Public {
+			mws = append(mws, middleware.Auth(authCfg))
 		}
+		if route.RateLimit != "none" {
+			rlMiddleware, ok := rateLimiters[route.RateLimit]
+			if !ok {
+				slog.Error("Unknown rate limit tier", "tier", route.RateLimit, "path", route.Path)
+				os.Exit(1)
+			}
+			mws = append(mws, rlMiddleware)
+		}
+		mws = append(mws, middleware.LogRequest)
+		handler := middleware.Chain(route.Handler, mws...)
 		mux.HandleFunc(pattern, handler)
 
 		// Backward compatibility: also register without /v1/
@@ -163,9 +195,9 @@ func main() {
 		if legacyPath != route.Path {
 			legacyPattern := route.Method + " " + legacyPath
 			mux.HandleFunc(legacyPattern, handler)
-			slog.Debug("Registered route", "pattern", pattern, "legacy", legacyPattern, "public", route.Public)
+			slog.Debug("Registered route", "pattern", pattern, "legacy", legacyPattern, "public", route.Public, "rateLimit", route.RateLimit)
 		} else {
-			slog.Debug("Registered route", "pattern", pattern, "public", route.Public)
+			slog.Debug("Registered route", "pattern", pattern, "public", route.Public, "rateLimit", route.RateLimit)
 		}
 	}
 
