@@ -7,36 +7,37 @@ import "net/http"
 
 // Route defines an API endpoint with its HTTP method and handler.
 type Route struct {
-	Method  string           // HTTP method (GET, POST, etc.)
-	Path    string           // URL path (e.g., "/api/v1/health")
-	Handler http.HandlerFunc // Handler function
-	Public  bool             // If true, no authentication required
+	Method    string           // HTTP method (GET, POST, etc.)
+	Path      string           // URL path (e.g., "/api/v1/health")
+	Handler   http.HandlerFunc // Handler function
+	Public    bool             // If true, no authentication required
+	RateLimit string           // Rate limit tier: "auth", "refresh", "write", "none", or "" (default)
 }
 
 // Routes returns all API routes for registration.
 // Routes use /api/v1/ prefix; legacy /api/ routes are registered separately.
 func (h *Handler) Routes() []Route {
 	return []Route{
-		// Health & Status (public - no auth required)
-		{Method: http.MethodGet, Path: "/api/v1/health", Handler: h.Health, Public: true},
+		// Health & Status (public, exempt from rate limiting)
+		{Method: http.MethodGet, Path: "/api/v1/health", Handler: h.Health, Public: true, RateLimit: "none"},
 		{Method: http.MethodGet, Path: "/api/v1/dashboard", Handler: h.Dashboard},
 
 		// Authentication (public - handles own auth)
-		{Method: http.MethodPost, Path: "/api/v1/auth/login", Handler: h.Login, Public: true},
-		{Method: http.MethodGet, Path: "/api/v1/auth/me", Handler: h.Me, Public: true},
-		{Method: http.MethodPost, Path: "/api/v1/auth/logout", Handler: h.Logout, Public: true},
-		{Method: http.MethodPost, Path: "/api/v1/auth/refresh", Handler: h.Refresh, Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/auth/login", Handler: h.Login, Public: true, RateLimit: "auth"},
+		{Method: http.MethodGet, Path: "/api/v1/auth/me", Handler: h.Me, Public: true, RateLimit: "none"},
+		{Method: http.MethodPost, Path: "/api/v1/auth/logout", Handler: h.Logout, Public: true, RateLimit: "auth"},
+		{Method: http.MethodPost, Path: "/api/v1/auth/refresh", Handler: h.Refresh, Public: true, RateLimit: "refresh"},
 
 		// Infrastructure
 		{Method: http.MethodGet, Path: "/api/v1/infrastructure", Handler: h.GetInfrastructure},
-		{Method: http.MethodPost, Path: "/api/v1/infrastructure/manual", Handler: h.SetManualInfrastructure},
-		{Method: http.MethodPost, Path: "/api/v1/infrastructure/state", Handler: h.SetInfrastructureState},
+		{Method: http.MethodPost, Path: "/api/v1/infrastructure/manual", Handler: h.SetManualInfrastructure, RateLimit: "write"},
+		{Method: http.MethodPost, Path: "/api/v1/infrastructure/state", Handler: h.SetInfrastructureState, RateLimit: "write"},
 		{Method: http.MethodGet, Path: "/api/v1/infrastructure/status", Handler: h.GetInfrastructureStatus},
-		{Method: http.MethodPost, Path: "/api/v1/infrastructure/planning", Handler: h.PlanInfrastructure},
+		{Method: http.MethodPost, Path: "/api/v1/infrastructure/planning", Handler: h.PlanInfrastructure, RateLimit: "write"},
 		{Method: http.MethodGet, Path: "/api/v1/infrastructure/apps", Handler: h.GetInfrastructureApps},
 
 		// Scenario
-		{Method: http.MethodPost, Path: "/api/v1/scenario/compare", Handler: h.CompareScenario},
+		{Method: http.MethodPost, Path: "/api/v1/scenario/compare", Handler: h.CompareScenario, RateLimit: "write"},
 
 		// Analysis
 		{Method: http.MethodGet, Path: "/api/v1/bottleneck", Handler: h.AnalyzeBottleneck},
@@ -50,7 +51,7 @@ func (h *Handler) Routes() []Route {
 		{Method: http.MethodGet, Path: "/api/v1/cf/processes/{guid}/stats", Handler: h.CFProxyProcessStats},
 		{Method: http.MethodGet, Path: "/api/v1/cf/spaces/{guid}", Handler: h.CFProxySpaces},
 
-		// Documentation (public - no auth required)
-		{Method: http.MethodGet, Path: "/api/v1/openapi.yaml", Handler: h.OpenAPISpec, Public: true},
+		// Documentation (public, exempt from rate limiting)
+		{Method: http.MethodGet, Path: "/api/v1/openapi.yaml", Handler: h.OpenAPISpec, Public: true, RateLimit: "none"},
 	}
 }
