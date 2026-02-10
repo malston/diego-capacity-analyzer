@@ -1,7 +1,7 @@
 // ABOUTME: Tests for CSRF token utility functions
 // ABOUTME: Validates cookie parsing and header construction for double-submit pattern
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { getCSRFToken, withCSRFToken } from "./csrf";
 
 describe("getCSRFToken", () => {
