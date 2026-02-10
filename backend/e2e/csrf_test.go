@@ -159,11 +159,15 @@ func TestCSRF_E2E_TokenMismatchRejected(t *testing.T) {
 		middleware.CSRF(),
 	)
 
+	// 44-character tokens matching base64url-encoded 32 bytes
+	headerToken := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnop=="
+	cookieToken := "ZYXWVUTSRQPONMLKJIHGFEDCBAzyxwvutsrqponmlk=="
+
 	req := httptest.NewRequest("POST", "/api/v1/test", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-CSRF-Token", "token-from-header")
+	req.Header.Set("X-CSRF-Token", headerToken)
 	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "valid-session"})
-	req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: "different-token-in-cookie"})
+	req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: cookieToken})
 	rr := httptest.NewRecorder()
 	handler(rr, req)
 
@@ -253,6 +257,8 @@ func TestCSRF_E2E_StateChangingMethodsRequireValidation(t *testing.T) {
 		middleware.CSRF(),
 	)
 
+	// 44-character token matching base64url-encoded 32 bytes
+	validToken := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnop=="
 	unsafeMethods := []string{"POST", "PUT", "DELETE", "PATCH"}
 
 	for _, method := range unsafeMethods {
@@ -260,7 +266,7 @@ func TestCSRF_E2E_StateChangingMethodsRequireValidation(t *testing.T) {
 			req := httptest.NewRequest(method, "/api/v1/test", strings.NewReader(`{}`))
 			req.Header.Set("Content-Type", "application/json")
 			req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "session-id"})
-			req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: "csrf-token"})
+			req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: validToken})
 			// Missing X-CSRF-Token header
 			rr := httptest.NewRecorder()
 			handler(rr, req)
@@ -273,9 +279,9 @@ func TestCSRF_E2E_StateChangingMethodsRequireValidation(t *testing.T) {
 		t.Run(method+"_with_valid_token", func(t *testing.T) {
 			req := httptest.NewRequest(method, "/api/v1/test", strings.NewReader(`{}`))
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("X-CSRF-Token", "csrf-token")
+			req.Header.Set("X-CSRF-Token", validToken)
 			req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "session-id"})
-			req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: "csrf-token"})
+			req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: validToken})
 			rr := httptest.NewRecorder()
 			handler(rr, req)
 

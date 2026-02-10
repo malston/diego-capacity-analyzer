@@ -9,6 +9,12 @@ import (
 	"testing"
 )
 
+// 44-character tokens matching base64url-encoded 32 bytes
+const (
+	testCSRFToken  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnop=="
+	testCSRFToken2 = "ZYXWVUTSRQPONMLKJIHGFEDCBAzyxwvutsrqponmlk=="
+)
+
 func TestCSRF_SkipsGETRequests(t *testing.T) {
 	handler := CSRF()(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -119,8 +125,8 @@ func TestCSRF_RejectsTokenMismatch(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/test", nil)
 	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "session-id"})
-	req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: "token-1"})
-	req.Header.Set("X-CSRF-Token", "token-2")
+	req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: testCSRFToken})
+	req.Header.Set("X-CSRF-Token", testCSRFToken2)
 	rr := httptest.NewRecorder()
 	handler(rr, req)
 
@@ -136,8 +142,8 @@ func TestCSRF_AcceptsValidToken(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/test", nil)
 	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "session-id"})
-	req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: "valid-token"})
-	req.Header.Set("X-CSRF-Token", "valid-token")
+	req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: testCSRFToken})
+	req.Header.Set("X-CSRF-Token", testCSRFToken)
 	rr := httptest.NewRecorder()
 	handler(rr, req)
 
@@ -153,13 +159,30 @@ func TestCSRF_WorksWithPUT(t *testing.T) {
 
 	req := httptest.NewRequest("PUT", "/test", nil)
 	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "session-id"})
-	req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: "csrf-token"})
-	req.Header.Set("X-CSRF-Token", "csrf-token")
+	req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: testCSRFToken})
+	req.Header.Set("X-CSRF-Token", testCSRFToken)
 	rr := httptest.NewRecorder()
 	handler(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected 200 for PUT with valid token, got %d", rr.Code)
+	}
+}
+
+func TestCSRF_RejectsInvalidTokenLength(t *testing.T) {
+	handler := CSRF()(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest("POST", "/test", nil)
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "session-id"})
+	req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: "short"})
+	req.Header.Set("X-CSRF-Token", "short")
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("Expected 403 for short token, got %d", rr.Code)
 	}
 }
 
@@ -170,8 +193,8 @@ func TestCSRF_WorksWithDELETE(t *testing.T) {
 
 	req := httptest.NewRequest("DELETE", "/test", nil)
 	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "session-id"})
-	req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: "csrf-token"})
-	req.Header.Set("X-CSRF-Token", "csrf-token")
+	req.AddCookie(&http.Cookie{Name: "DIEGO_CSRF", Value: testCSRFToken})
+	req.Header.Set("X-CSRF-Token", testCSRFToken)
 	rr := httptest.NewRecorder()
 	handler(rr, req)
 

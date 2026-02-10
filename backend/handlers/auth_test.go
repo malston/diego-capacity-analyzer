@@ -696,8 +696,8 @@ func TestLogin_SetsCSRFCookie(t *testing.T) {
 		t.Error("CSRF cookie should have a value")
 	}
 
-	if csrfCookie.SameSite != http.SameSiteStrictMode {
-		t.Errorf("CSRF cookie SameSite = %v, want Strict", csrfCookie.SameSite)
+	if csrfCookie.SameSite != http.SameSiteLaxMode {
+		t.Errorf("CSRF cookie SameSite = %v, want Lax", csrfCookie.SameSite)
 	}
 }
 

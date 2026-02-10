@@ -332,7 +332,10 @@ components:
     CSRFToken:
       name: X-CSRF-Token
       in: header
-      description: CSRF token from DIEGO_CSRF cookie (required for session-authenticated POST/PUT/DELETE)
+      description: >
+        CSRF token from DIEGO_CSRF cookie. Required for session-authenticated
+        POST/PUT/DELETE requests. Not required for Bearer token authentication,
+        safe methods (GET/HEAD/OPTIONS), or unauthenticated requests.
       required: false
       schema:
         type: string

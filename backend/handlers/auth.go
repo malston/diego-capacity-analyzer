@@ -61,8 +61,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set httpOnly cookie with session ID only
-	h.setSessionCookie(w, sessionID)
+	// Set httpOnly cookie with session ID only (MaxAge matches token lifetime)
+	h.setSessionCookie(w, sessionID, tokenResp.ExpiresIn)
 
 	// Set CSRF cookie (readable by JavaScript for inclusion in headers)
 	csrfToken, err := h.sessionService.GetCSRFToken(sessionID)
@@ -71,7 +71,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, "Failed to create session", http.StatusInternalServerError)
 		return
 	}
-	h.setCSRFCookie(w, csrfToken)
+	h.setCSRFCookie(w, csrfToken, tokenResp.ExpiresIn)
 
 	// Return success response (no tokens!)
 	h.writeJSON(w, http.StatusOK, models.LoginResponse{
@@ -323,7 +323,7 @@ func (h *Handler) getSessionFromCookie(r *http.Request) *models.Session {
 }
 
 // setSessionCookie sets the httpOnly session cookie
-func (h *Handler) setSessionCookie(w http.ResponseWriter, sessionID string) {
+func (h *Handler) setSessionCookie(w http.ResponseWriter, sessionID string, maxAge int) {
 	secure := true
 	if h.cfg != nil {
 		secure = h.cfg.CookieSecure
@@ -336,7 +336,7 @@ func (h *Handler) setSessionCookie(w http.ResponseWriter, sessionID string) {
 		Secure:   secure,
 		SameSite: http.SameSiteStrictMode,
 		Path:     "/",
-		MaxAge:   3600, // 1 hour
+		MaxAge:   maxAge,
 	})
 }
 
@@ -358,8 +358,10 @@ func (h *Handler) clearSessionCookie(w http.ResponseWriter) {
 	})
 }
 
-// setCSRFCookie sets the CSRF token cookie (readable by JavaScript)
-func (h *Handler) setCSRFCookie(w http.ResponseWriter, csrfToken string) {
+// setCSRFCookie sets the CSRF token cookie (readable by JavaScript).
+// Uses SameSite=Lax so cross-site navigations (email links, etc.) still work;
+// the double-submit pattern provides CSRF protection for state-changing requests.
+func (h *Handler) setCSRFCookie(w http.ResponseWriter, csrfToken string, maxAge int) {
 	secure := true
 	if h.cfg != nil {
 		secure = h.cfg.CookieSecure
@@ -370,9 +372,9 @@ func (h *Handler) setCSRFCookie(w http.ResponseWriter, csrfToken string) {
 		Value:    csrfToken,
 		HttpOnly: false, // Must be readable by JavaScript
 		Secure:   secure,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
-		MaxAge:   3600, // 1 hour
+		MaxAge:   maxAge,
 	})
 }
 
@@ -388,7 +390,7 @@ func (h *Handler) clearCSRFCookie(w http.ResponseWriter) {
 		Value:    "",
 		HttpOnly: false,
 		Secure:   secure,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 		MaxAge:   -1, // Delete cookie
 	})

@@ -14,6 +14,9 @@ const (
 	csrfCookieName    = "DIEGO_CSRF"
 	csrfHeaderName    = "X-CSRF-Token"
 	sessionCookieName = "DIEGO_SESSION"
+
+	// base64url encoding of 32 bytes produces 44 characters (with padding)
+	csrfTokenLength = 44
 )
 
 // CSRF returns middleware that validates CSRF tokens for state-changing requests.
@@ -54,6 +57,13 @@ func CSRF() func(http.HandlerFunc) http.HandlerFunc {
 			csrfHeader := r.Header.Get(csrfHeaderName)
 			if csrfHeader == "" {
 				slog.Debug("CSRF rejected: missing header", "path", r.URL.Path)
+				writeCSRFError(w)
+				return
+			}
+
+			// Validate token lengths before comparison
+			if len(csrfCookie.Value) != csrfTokenLength || len(csrfHeader) != csrfTokenLength {
+				slog.Debug("CSRF rejected: invalid token length", "path", r.URL.Path)
 				writeCSRFError(w)
 				return
 			}
