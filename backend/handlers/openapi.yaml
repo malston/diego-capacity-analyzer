@@ -122,6 +122,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
           $ref: "#/components/responses/CSRFError"
+        "429":
+          $ref: "#/components/responses/RateLimitError"
 
   /api/v1/infrastructure/state:
     post:
@@ -153,6 +155,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
           $ref: "#/components/responses/CSRFError"
+        "429":
+          $ref: "#/components/responses/RateLimitError"
 
   /api/v1/infrastructure/status:
     get:
@@ -199,6 +203,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
           $ref: "#/components/responses/CSRFError"
+        "429":
+          $ref: "#/components/responses/RateLimitError"
 
   /api/v1/infrastructure/apps:
     get:
@@ -257,6 +263,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
           $ref: "#/components/responses/CSRFError"
+        "429":
+          $ref: "#/components/responses/RateLimitError"
 
   /api/v1/bottleneck:
     get:
@@ -327,6 +335,29 @@ components:
               error:
                 type: string
                 example: "CSRF token missing or invalid"
+    RateLimitError:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          description: Seconds until the rate limit window resets
+          schema:
+            type: integer
+            example: 45
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - error
+              - retry_after
+            properties:
+              error:
+                type: string
+                example: "Rate limit exceeded"
+              retry_after:
+                type: integer
+                description: Seconds until the rate limit window resets
+                example: 45
 
   parameters:
     CSRFToken:
