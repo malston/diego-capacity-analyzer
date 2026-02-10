@@ -201,6 +201,52 @@ func TestRateLimit_E2E_SeparateIPQuotas(t *testing.T) {
 	}
 }
 
+// TestRateLimit_E2E_UserIdentityQuotas tests that UserOrIP keys by user ID
+// when user claims are present, and different users get separate quotas.
+func TestRateLimit_E2E_UserIdentityQuotas(t *testing.T) {
+	rl := middleware.NewRateLimiter(2, time.Minute)
+
+	handler := middleware.Chain(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		},
+		middleware.RateLimit(rl, middleware.UserOrIP),
+	)
+
+	// User A: exhaust quota (2 requests)
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest("POST", "/api/v1/infrastructure/manual", strings.NewReader(`{}`))
+		req = middleware.WithUserClaims(req, &middleware.UserClaims{Username: "alice", UserID: "user-aaa"})
+		rr := httptest.NewRecorder()
+		handler(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("User A request %d should succeed, got %d", i+1, rr.Code)
+		}
+	}
+
+	// User A: 3rd request should be rate limited
+	req := httptest.NewRequest("POST", "/api/v1/infrastructure/manual", strings.NewReader(`{}`))
+	req = middleware.WithUserClaims(req, &middleware.UserClaims{Username: "alice", UserID: "user-aaa"})
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+
+	if rr.Code != http.StatusTooManyRequests {
+		t.Fatalf("User A 3rd request should be 429, got %d", rr.Code)
+	}
+
+	// User B: should have a separate quota
+	req = httptest.NewRequest("POST", "/api/v1/infrastructure/manual", strings.NewReader(`{}`))
+	req = middleware.WithUserClaims(req, &middleware.UserClaims{Username: "bob", UserID: "user-bbb"})
+	rr = httptest.NewRecorder()
+	handler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("User B first request should succeed (separate quota), got %d", rr.Code)
+	}
+}
+
 // TestRateLimit_E2E_WriteEndpoint tests that write endpoints use user-based rate limiting.
 func TestRateLimit_E2E_WriteEndpoint(t *testing.T) {
 	rl := middleware.NewRateLimiter(2, time.Minute)

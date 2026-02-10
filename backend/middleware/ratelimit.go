@@ -24,10 +24,11 @@ type counter struct {
 // RateLimiter enforces a maximum number of requests per time window.
 // Each unique key (IP, user, session) gets an independent counter.
 type RateLimiter struct {
-	mu      sync.Mutex
-	windows map[string]*counter
-	limit   int
-	window  time.Duration
+	mu           sync.Mutex
+	windows      map[string]*counter
+	limit        int
+	window       time.Duration
+	sweepCounter int // tracks new windows created; triggers sweep every 100
 }
 
 // NewRateLimiter creates a rate limiter that allows limit requests per window.
@@ -63,8 +64,10 @@ func (rl *RateLimiter) Allow(key string) (bool, time.Duration) {
 
 		// Periodic sweep: clean up all expired entries every 100 new windows.
 		// This bounds memory to at most active keys + 100 stale entries.
-		if len(rl.windows)%100 == 0 {
+		rl.sweepCounter++
+		if rl.sweepCounter >= 100 {
 			rl.sweep(now)
+			rl.sweepCounter = 0
 		}
 
 		return true, 0

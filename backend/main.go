@@ -174,27 +174,20 @@ func main() {
 
 		// Build middleware chain based on route properties
 		// Order: CORS -> CSRF -> Auth (if protected) -> RateLimit (if not exempt) -> LogRequest -> Handler
-		var handler http.HandlerFunc
-		if route.RateLimit == "none" {
-			// Exempt routes: no rate limiting
-			if route.Public {
-				handler = middleware.Chain(route.Handler, corsMiddleware, middleware.CSRF(), middleware.LogRequest)
-			} else {
-				handler = middleware.Chain(route.Handler, corsMiddleware, middleware.CSRF(), middleware.Auth(authCfg), middleware.LogRequest)
-			}
-		} else {
-			// Rate-limited routes
+		mws := []func(http.HandlerFunc) http.HandlerFunc{corsMiddleware, middleware.CSRF()}
+		if !route.Public {
+			mws = append(mws, middleware.Auth(authCfg))
+		}
+		if route.RateLimit != "none" {
 			rlMiddleware, ok := rateLimiters[route.RateLimit]
 			if !ok {
 				slog.Error("Unknown rate limit tier", "tier", route.RateLimit, "path", route.Path)
 				os.Exit(1)
 			}
-			if route.Public {
-				handler = middleware.Chain(route.Handler, corsMiddleware, middleware.CSRF(), rlMiddleware, middleware.LogRequest)
-			} else {
-				handler = middleware.Chain(route.Handler, corsMiddleware, middleware.CSRF(), middleware.Auth(authCfg), rlMiddleware, middleware.LogRequest)
-			}
+			mws = append(mws, rlMiddleware)
 		}
+		mws = append(mws, middleware.LogRequest)
+		handler := middleware.Chain(route.Handler, mws...)
 		mux.HandleFunc(pattern, handler)
 
 		// Backward compatibility: also register without /v1/

@@ -162,3 +162,8 @@ func GetUserClaims(r *http.Request) *UserClaims {
 	}
 	return claims
 }
+
+// WithUserClaims returns a new request with user claims stored in its context.
+func WithUserClaims(r *http.Request, claims *UserClaims) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), userClaimsKey, claims))
+}

@@ -146,6 +146,33 @@ func TestRateLimiter_ExpiredEntriesCleanedUp(t *testing.T) {
 	}
 }
 
+func TestRateLimiter_SweepCounterTriggersAt100(t *testing.T) {
+	rl := NewRateLimiter(1, 10*time.Millisecond)
+
+	// Create 99 expired entries
+	for i := 0; i < 99; i++ {
+		rl.Allow(fmt.Sprintf("stale-%d", i))
+	}
+
+	// Wait for all windows to expire
+	time.Sleep(20 * time.Millisecond)
+
+	// 99 new windows have been created; sweepCounter == 99.
+	// Next new window (the 100th) should trigger a sweep.
+	rl.Allow("trigger-key")
+
+	rl.mu.Lock()
+	mapLen := len(rl.windows)
+	rl.mu.Unlock()
+
+	// After sweep, only the fresh "trigger-key" entry should remain
+	// (all 99 stale entries expired and were swept, plus "trigger-key"
+	// replaced its own expired entry via lazy delete before the sweep).
+	if mapLen != 1 {
+		t.Errorf("Expected 1 entry after sweep, got %d", mapLen)
+	}
+}
+
 func TestRateLimiter_ConcurrentMultiKey(t *testing.T) {
 	rl := NewRateLimiter(5, time.Minute)
 	keys := []string{"key-a", "key-b", "key-c", "key-d"}
@@ -420,4 +447,24 @@ func TestRateLimitMiddleware_ContentTypeJSON(t *testing.T) {
 	if ct != "application/json" {
 		t.Errorf("Expected Content-Type 'application/json', got %q", ct)
 	}
+}
+
+// --- Benchmarks ---
+
+func BenchmarkRateLimiter_SingleKey(b *testing.B) {
+	rl := NewRateLimiter(1000000, time.Minute)
+	for b.Loop() {
+		rl.Allow("bench-key")
+	}
+}
+
+func BenchmarkRateLimiter_Concurrent(b *testing.B) {
+	rl := NewRateLimiter(1000000, time.Minute)
+	b.RunParallel(func(pb *testing.PB) {
+		i := 0
+		for pb.Next() {
+			rl.Allow(fmt.Sprintf("key-%d", i%1000))
+			i++
+		}
+	})
 }
