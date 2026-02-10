@@ -184,7 +184,11 @@ func main() {
 			}
 		} else {
 			// Rate-limited routes
-			rlMiddleware := rateLimiters[route.RateLimit]
+			rlMiddleware, ok := rateLimiters[route.RateLimit]
+			if !ok {
+				slog.Error("Unknown rate limit tier", "tier", route.RateLimit, "path", route.Path)
+				os.Exit(1)
+			}
 			if route.Public {
 				handler = middleware.Chain(route.Handler, corsMiddleware, middleware.CSRF(), rlMiddleware, middleware.LogRequest)
 			} else {

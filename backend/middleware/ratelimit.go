@@ -48,8 +48,10 @@ func (rl *RateLimiter) Allow(key string) (bool, time.Duration) {
 	now := time.Now()
 	c, exists := rl.windows[key]
 
-	// Start a new window if none exists or the current one expired
-	if !exists || now.After(c.expiresAt) {
+	// Start a new window if none exists or the current one expired.
+	// Use !now.Before (>=) so the boundary instant starts a new window
+	// rather than returning retryAfter==0 while still denying the request.
+	if !exists || !now.Before(c.expiresAt) {
 		// Delete expired entry to prevent unbounded map growth
 		if exists {
 			delete(rl.windows, key)
@@ -83,7 +85,7 @@ func (rl *RateLimiter) Allow(key string) (bool, time.Duration) {
 // Must be called while holding rl.mu.
 func (rl *RateLimiter) sweep(now time.Time) {
 	for k, c := range rl.windows {
-		if now.After(c.expiresAt) {
+		if !now.Before(c.expiresAt) {
 			delete(rl.windows, k)
 		}
 	}
@@ -96,10 +98,12 @@ func (rl *RateLimiter) sweep(now time.Time) {
 // header to bypass IP-based rate limits.
 func ClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// Take the leftmost (client-facing) IP
+		// Take the leftmost (client-facing) IP. CF gorouter appends the real
+		// client IP, so leftmost is correct for deployments behind gorouter.
+		// Validate with net.ParseIP to reject garbage values from spoofed headers.
 		parts := strings.SplitN(xff, ",", 2)
 		ip := strings.TrimSpace(parts[0])
-		if ip != "" {
+		if ip != "" && net.ParseIP(ip) != nil {
 			return "ip:" + ip
 		}
 	}
@@ -138,8 +142,8 @@ func UserOrIP(r *http.Request) string {
 func RateLimit(limiter *RateLimiter, keyFunc func(*http.Request) string) func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			// Disabled mode
-			if limiter == nil {
+			// Disabled mode: nil limiter or nil keyFunc
+			if limiter == nil || keyFunc == nil {
 				next(w, r)
 				return
 			}

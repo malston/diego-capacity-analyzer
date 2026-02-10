@@ -74,8 +74,8 @@ func TestRateLimiter_WindowReset(t *testing.T) {
 		t.Fatal("Second request should be rejected")
 	}
 
-	// Wait for window to expire
-	time.Sleep(60 * time.Millisecond)
+	// Wait for window to expire (2x margin to avoid CI flakiness)
+	time.Sleep(100 * time.Millisecond)
 
 	allowed, _ = rl.Allow("test-key")
 	if !allowed {
