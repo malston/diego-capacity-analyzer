@@ -5,6 +5,7 @@ package handlers
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -47,12 +48,16 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	// Calculate token expiry
 	expiry := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 
+	// Extract scopes from access token for role resolution
+	scopes := extractScopesFromToken(tokenResp.AccessToken)
+
 	// Create session (stores tokens server-side)
 	sessionID, err := h.sessionService.Create(
 		req.Username,
 		tokenResp.UserID,
 		tokenResp.AccessToken,
 		tokenResp.RefreshToken,
+		scopes,
 		expiry,
 	)
 	if err != nil {
@@ -301,6 +306,26 @@ func (h *Handler) getUAAURL(client *http.Client) (string, error) {
 	}
 
 	return uaaURL, nil
+}
+
+// extractScopesFromToken parses the scope claim from a JWT payload.
+// The token is not verified here because it was just received from UAA over TLS.
+func extractScopesFromToken(accessToken string) []string {
+	parts := strings.Split(accessToken, ".")
+	if len(parts) != 3 {
+		return nil
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil
+	}
+	var claims struct {
+		Scope []string `json:"scope"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return nil
+	}
+	return claims.Scope
 }
 
 // getSessionFromCookie retrieves the session from the request cookie

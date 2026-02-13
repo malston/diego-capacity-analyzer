@@ -32,6 +32,7 @@ type Session struct {
 	ID           string    `json:"id"`
 	Username     string    `json:"username"`
 	UserID       string    `json:"user_id"`
+	Scopes       []string  `json:"scopes"`
 	AccessToken  string    `json:"-"` // Never expose to client
 	RefreshToken string    `json:"-"` // Never expose to client
 	CSRFToken    string    `json:"-"` // Never expose to client

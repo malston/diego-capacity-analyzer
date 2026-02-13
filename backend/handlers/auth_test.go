@@ -250,7 +250,7 @@ func TestMe_Authenticated(t *testing.T) {
 	sessionSvc := services.NewSessionService(c)
 
 	// Create a session
-	sessionID, err := sessionSvc.Create("testuser", "user-123", "access", "refresh", time.Now().Add(time.Hour))
+	sessionID, err := sessionSvc.Create("testuser", "user-123", "access", "refresh", nil, time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
 	}
@@ -348,7 +348,7 @@ func TestLogout_Success(t *testing.T) {
 	sessionSvc := services.NewSessionService(c)
 
 	// Create a session
-	sessionID, err := sessionSvc.Create("testuser", "user-123", "access", "refresh", time.Now().Add(time.Hour))
+	sessionID, err := sessionSvc.Create("testuser", "user-123", "access", "refresh", nil, time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
 	}
@@ -469,6 +469,7 @@ func TestRefresh_TokensUpdated(t *testing.T) {
 		"user-123",
 		"old-access-token",
 		knownRefreshToken,             // Must match what mock UAA expects
+		nil,                           // scopes
 		time.Now().Add(2*time.Minute), // Expires in 2 min, within 5-min threshold
 	)
 	if err != nil {
@@ -533,6 +534,7 @@ func TestRefresh_NotNeeded(t *testing.T) {
 		"user-123",
 		"valid-access-token",
 		"valid-refresh-token",
+		nil,                            // scopes
 		time.Now().Add(30*time.Minute), // Expires in 30 min, no refresh needed
 	)
 	if err != nil {
@@ -580,6 +582,7 @@ func TestRefresh_InvalidRefreshToken(t *testing.T) {
 		"user-123",
 		"old-access-token",
 		"invalid-refresh-token",       // Won't be accepted by mock UAA
+		nil,                           // scopes
 		time.Now().Add(2*time.Minute), // Expires soon, triggers refresh
 	)
 	if err != nil {
@@ -706,7 +709,7 @@ func TestLogout_ClearsCSRFCookie(t *testing.T) {
 	sessionSvc := services.NewSessionService(c)
 
 	// Create a session
-	sessionID, err := sessionSvc.Create("testuser", "user-123", "access", "refresh", time.Now().Add(time.Hour))
+	sessionID, err := sessionSvc.Create("testuser", "user-123", "access", "refresh", nil, time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
 	}

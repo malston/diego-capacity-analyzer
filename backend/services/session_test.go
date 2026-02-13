@@ -27,7 +27,7 @@ func TestSessionService_Create(t *testing.T) {
 	svc := NewSessionService(c)
 
 	expiry := time.Now().Add(time.Hour)
-	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", expiry)
+	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", nil, expiry)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestSessionService_Create_UniqueIDs(t *testing.T) {
 
 	// Create 100 sessions and verify all IDs are unique
 	for i := 0; i < 100; i++ {
-		sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", expiry)
+		sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
 		if err != nil {
 			t.Fatalf("Create failed at iteration %d: %v", i, err)
 		}
@@ -73,7 +73,7 @@ func TestSessionService_Get(t *testing.T) {
 	svc := NewSessionService(c)
 
 	expiry := time.Now().Add(time.Hour)
-	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", expiry)
+	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", nil, expiry)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestSessionService_Delete(t *testing.T) {
 	svc := NewSessionService(c)
 
 	expiry := time.Now().Add(time.Hour)
-	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", expiry)
+	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestSessionService_UpdateTokens(t *testing.T) {
 	svc := NewSessionService(c)
 
 	expiry := time.Now().Add(time.Hour)
-	sessionID, err := svc.Create("testuser", "user-123", "old-access", "old-refresh", expiry)
+	sessionID, err := svc.Create("testuser", "user-123", "old-access", "old-refresh", nil, expiry)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -228,8 +228,8 @@ func TestSessionService_SessionIDNotPredictable(t *testing.T) {
 	expiry := time.Now().Add(time.Hour)
 
 	// Create two sessions with same data
-	id1, _ := svc.Create("testuser", "user-123", "access", "refresh", expiry)
-	id2, _ := svc.Create("testuser", "user-123", "access", "refresh", expiry)
+	id1, _ := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
+	id2, _ := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
 
 	// Session IDs should be different (not derived from input)
 	if id1 == id2 {
@@ -244,7 +244,7 @@ func TestSessionService_ConcurrentAccess(t *testing.T) {
 	expiry := time.Now().Add(time.Hour)
 
 	// Create a session
-	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", expiry)
+	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -271,7 +271,7 @@ func TestSessionService_Create_GeneratesCSRFToken(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	svc := NewSessionService(c)
 
-	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", time.Now().Add(time.Hour))
+	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", nil, time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -300,7 +300,7 @@ func TestSessionService_Create_UniqueCSRFTokens(t *testing.T) {
 
 	// Create 100 sessions and verify all CSRF tokens are unique
 	for i := 0; i < 100; i++ {
-		sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", expiry)
+		sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
 		if err != nil {
 			t.Fatalf("Create failed at iteration %d: %v", i, err)
 		}
@@ -319,7 +319,7 @@ func TestSessionService_GetCSRFToken(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	svc := NewSessionService(c)
 
-	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", time.Now().Add(time.Hour))
+	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", nil, time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}

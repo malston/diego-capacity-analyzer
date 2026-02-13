@@ -116,6 +116,8 @@ func main() {
 		return &middleware.UserClaims{
 			Username: session.Username,
 			UserID:   session.UserID,
+			Scopes:   session.Scopes,
+			Role:     middleware.ResolveRole(session.Scopes),
 		}
 	}
 	authCfg := middleware.AuthConfig{
