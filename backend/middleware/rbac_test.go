@@ -86,6 +86,22 @@ func TestRequireRole_NoClaims_OperatorRequired_Returns403(t *testing.T) {
 	}
 }
 
+func TestRequireRole_UnknownRole_FailsClosed(t *testing.T) {
+	handler := RequireRole(RoleViewer)(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("Handler should not be called for unknown role")
+	})
+
+	claims := &UserClaims{Username: "mystery-user", Role: "superadmin"}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/dashboard", nil)
+	req = req.WithContext(context.WithValue(req.Context(), userClaimsKey, claims))
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("Status = %d, want %d; unknown roles should resolve to level 0 (fail-closed)", rec.Code, http.StatusForbidden)
+	}
+}
+
 func TestRequireRole_OperatorClaims_ViewerRequired_Passes(t *testing.T) {
 	handler := RequireRole(RoleViewer)(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

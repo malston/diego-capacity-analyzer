@@ -9,7 +9,7 @@ import (
 )
 
 // roleHierarchy defines the privilege level for each role.
-// Higher value means more privilege.
+// Higher value means more privilege. Unknown roles resolve to 0 (fail-closed).
 var roleHierarchy = map[string]int{
 	RoleViewer:   1,
 	RoleOperator: 2,
