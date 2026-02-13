@@ -4,22 +4,28 @@
 package middleware
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 )
 
 // roleHierarchy defines the privilege level for each role.
-// Higher value means more privilege. Unknown roles resolve to 0 (fail-closed).
+// Higher value means more privilege. Unknown caller roles resolve to 0,
+// which denies access to any protected endpoint (fail-closed).
 var roleHierarchy = map[string]int{
 	RoleViewer:   1,
 	RoleOperator: 2,
 }
 
 // RequireRole returns middleware that enforces a minimum role.
+// Panics if requiredRole is not in the role hierarchy (catches config errors at startup).
 // Anonymous requests (no UserClaims in context) are treated as viewer.
 // Returns 403 Forbidden if the caller's role is insufficient.
 func RequireRole(requiredRole string) func(http.HandlerFunc) http.HandlerFunc {
-	requiredLevel := roleHierarchy[requiredRole]
+	requiredLevel, ok := roleHierarchy[requiredRole]
+	if !ok {
+		panic(fmt.Sprintf("RequireRole: unknown role %q; valid roles: %v", requiredRole, []string{RoleViewer, RoleOperator}))
+	}
 
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {

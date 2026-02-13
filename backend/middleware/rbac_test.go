@@ -102,6 +102,18 @@ func TestRequireRole_UnknownRole_FailsClosed(t *testing.T) {
 	}
 }
 
+func TestRequireRole_UnknownRequiredRole_Panics(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("RequireRole should panic for unknown required role")
+		}
+	}()
+
+	RequireRole("typo-admin")
+	t.Fatal("Should not reach here")
+}
+
 func TestRequireRole_OperatorClaims_ViewerRequired_Passes(t *testing.T) {
 	handler := RequireRole(RoleViewer)(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
