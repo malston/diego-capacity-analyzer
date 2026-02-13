@@ -1,0 +1,47 @@
+// ABOUTME: Role-based access control middleware for API endpoints
+// ABOUTME: Gates endpoints by required role derived from JWT scopes
+
+package middleware
+
+import (
+	"log/slog"
+	"net/http"
+)
+
+// roleHierarchy defines the privilege level for each role.
+// Higher value means more privilege.
+var roleHierarchy = map[string]int{
+	RoleViewer:   1,
+	RoleOperator: 2,
+}
+
+// RequireRole returns middleware that enforces a minimum role.
+// Anonymous requests (no UserClaims in context) are treated as viewer.
+// Returns 403 Forbidden if the caller's role is insufficient.
+func RequireRole(requiredRole string) func(http.HandlerFunc) http.HandlerFunc {
+	requiredLevel := roleHierarchy[requiredRole]
+
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			// Determine caller's role
+			callerRole := RoleViewer // default for anonymous
+			claims := GetUserClaims(r)
+			if claims != nil && claims.Role != "" {
+				callerRole = claims.Role
+			}
+
+			callerLevel := roleHierarchy[callerRole]
+			if callerLevel < requiredLevel {
+				slog.Debug("RBAC rejected: insufficient role",
+					"path", r.URL.Path,
+					"required", requiredRole,
+					"actual", callerRole,
+				)
+				http.Error(w, "Insufficient permissions", http.StatusForbidden)
+				return
+			}
+
+			next(w, r)
+		}
+	}
+}
