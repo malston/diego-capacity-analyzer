@@ -75,6 +75,80 @@ The app uses the OAuth2 **password grant** flow to authenticate with Cloud Found
 - **Session Management**: Server-side session storage
 - **Rate Limiting**: Protect against brute force attacks
 
+## Role-Based Access Control (RBAC)
+
+The backend enforces role-based authorization on API endpoints. Roles are derived from CF UAA JWT scopes.
+
+### Roles
+
+| Role | Description |
+|------|-------------|
+| **viewer** | Read-only access to dashboards, metrics, and calculations. Default for all authenticated users. |
+| **operator** | Full access including state-mutating operations (manual infrastructure input, infrastructure state changes). |
+
+Operator inherits all viewer permissions.
+
+### UAA Scope Mapping
+
+| UAA Scope | Application Role |
+|-----------|-----------------|
+| `diego-analyzer.operator` | operator |
+| `diego-analyzer.viewer` | viewer |
+| (no matching scope) | viewer (default) |
+
+If a token contains both scopes, operator takes precedence.
+
+### Protected Endpoints
+
+Only two endpoints require the operator role:
+
+| Endpoint | Method | Required Role |
+|----------|--------|---------------|
+| `/api/v1/infrastructure/manual` | POST | operator |
+| `/api/v1/infrastructure/state` | POST | operator |
+
+All other authenticated endpoints are accessible to any role (viewer or operator).
+
+### UAA Group Setup
+
+To configure RBAC, create the UAA groups and assign users:
+
+```bash
+# Target your UAA instance
+uaac target https://login.sys.example.com --skip-ssl-validation
+
+# Authenticate as admin
+uaac token client get admin -s <admin-client-secret>
+
+# Create the groups
+uaac group add diego-analyzer.viewer
+uaac group add diego-analyzer.operator
+
+# Assign users to roles
+uaac member add diego-analyzer.viewer <username>
+uaac member add diego-analyzer.operator <username>
+```
+
+Ensure the `cf` client (or your custom OAuth client) includes these scopes in its allowed scope list. For the default `cf` client, UAA group membership is automatically reflected in token scopes.
+
+### Auth Mode Behavior
+
+RBAC enforcement depends on the `AUTH_MODE` environment variable:
+
+| AUTH_MODE | RBAC Behavior |
+|-----------|---------------|
+| `disabled` | RBAC is bypassed; all requests pass through |
+| `optional` | Anonymous requests are treated as viewer; authenticated users get their resolved role |
+| `required` | All requests must authenticate; role is resolved from token scopes |
+
+### Default Behavior
+
+If the UAA groups (`diego-analyzer.viewer`, `diego-analyzer.operator`) are not created, all authenticated users default to the **viewer** role. This means:
+
+- All read-only endpoints work as before
+- The two operator endpoints (`infrastructure/manual` and `infrastructure/state`) return **403 Forbidden**
+- To enable operator access, create the groups and assign users as shown above
+
 ## Authentication Service API
 
 ### cfAuth Service
