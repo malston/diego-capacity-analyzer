@@ -7,26 +7,30 @@
 ## Summary
 
 Add role-based access control to differentiate viewers (read-only) from
-operators (read + mutate). Roles are derived from CF UAA group membership
-via JWT scopes.
+operators (read + mutate). Roles are derived from OAuth2 JWT `scope`
+claims issued by CF UAA (or another IdP). UAA groups are one mechanism
+for granting those scopes to users; the application itself looks only at
+scopes present in the token.
 
 ## Role Model
 
-Two application roles mapped from UAA groups:
+Two application roles mapped from OAuth scopes (typically granted via
+UAA groups):
 
 | Role     | UAA Group                 | JWT Scope                 | Capabilities                                           |
 | -------- | ------------------------- | ------------------------- | ------------------------------------------------------ |
 | viewer   | `diego-analyzer.viewer`   | `diego-analyzer.viewer`   | Read all data, run calculations                        |
 | operator | `diego-analyzer.operator` | `diego-analyzer.operator` | Everything viewer can do + mutate infrastructure state |
 
-Operator is a superset of viewer. Users need only one group assignment.
+Operator is a superset of viewer. Users need only one of the role scopes
+(usually via a single group assignment in UAA).
 
 ### Role Resolution Rules
 
 - Token has `diego-analyzer.operator` scope: operator
 - Token has `diego-analyzer.viewer` scope: viewer
 - Token has both: operator (highest privilege wins)
-- Token has neither: viewer (safe default for authenticated users without group assignment)
+- Token has neither: viewer (safe default for authenticated users without the role scopes)
 - No token, auth disabled: no RBAC checks
 - No token, auth optional: viewer
 
