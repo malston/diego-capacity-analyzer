@@ -4,6 +4,7 @@
 package handlers
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,84 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 	"github.com/markalston/diego-capacity-analyzer/backend/services"
 )
+
+// buildTestJWT creates a minimal JWT with the given payload for testing extractScopesFromToken.
+// The signature is a placeholder since extractScopesFromToken does not verify it.
+func buildTestJWT(payload string) string {
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none"}`))
+	body := base64.RawURLEncoding.EncodeToString([]byte(payload))
+	return header + "." + body + ".sig"
+}
+
+func TestExtractScopesFromToken(t *testing.T) {
+	tests := []struct {
+		name  string
+		token string
+		want  []string
+	}{
+		{
+			name:  "valid token with scopes",
+			token: buildTestJWT(`{"scope":["openid","diego-analyzer.operator"]}`),
+			want:  []string{"openid", "diego-analyzer.operator"},
+		},
+		{
+			name:  "valid token without scope claim",
+			token: buildTestJWT(`{"user_name":"admin"}`),
+			want:  nil,
+		},
+		{
+			name:  "valid token with empty scopes",
+			token: buildTestJWT(`{"scope":[]}`),
+			want:  []string{},
+		},
+		{
+			name:  "not a JWT (no dots)",
+			token: "plaintext-token",
+			want:  nil,
+		},
+		{
+			name:  "JWT with only two parts",
+			token: "header.payload",
+			want:  nil,
+		},
+		{
+			name:  "empty string",
+			token: "",
+			want:  nil,
+		},
+		{
+			name:  "invalid base64 in payload",
+			token: "header.!!!invalid-base64!!!.sig",
+			want:  nil,
+		},
+		{
+			name:  "invalid JSON in payload",
+			token: "header." + base64.RawURLEncoding.EncodeToString([]byte("not json")) + ".sig",
+			want:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractScopesFromToken(tt.token)
+			if tt.want == nil {
+				if got != nil {
+					t.Errorf("extractScopesFromToken() = %v, want nil", got)
+				}
+				return
+			}
+			if len(got) != len(tt.want) {
+				t.Errorf("extractScopesFromToken() = %v, want %v", got, tt.want)
+				return
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Errorf("extractScopesFromToken()[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
 
 // setupMockUAAServerWithRefresh creates a mock UAA server that handles both password and refresh_token grants
 func setupMockUAAServerWithRefresh(validUser, validPass, validRefreshToken string) *httptest.Server {

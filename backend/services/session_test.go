@@ -213,6 +213,88 @@ func TestSessionService_UpdateTokens(t *testing.T) {
 	}
 }
 
+func TestSessionService_UpdateTokens_PromotesToOperator(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	svc := NewSessionService(c)
+
+	expiry := time.Now().Add(time.Hour)
+	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", []string{"diego-analyzer.viewer"}, expiry)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	newScopes := []string{"diego-analyzer.viewer", "diego-analyzer.operator"}
+	err = svc.UpdateTokens(sessionID, "new-access", "new-refresh", newScopes, time.Now().Add(2*time.Hour))
+	if err != nil {
+		t.Fatalf("UpdateTokens failed: %v", err)
+	}
+
+	session, _ := svc.Get(sessionID)
+	if len(session.Scopes) != 2 {
+		t.Fatalf("Scopes length = %d, want 2", len(session.Scopes))
+	}
+	if session.Scopes[1] != "diego-analyzer.operator" {
+		t.Errorf("Scopes = %v, want operator scope present", session.Scopes)
+	}
+}
+
+func TestSessionService_UpdateTokens_ScopesBecomesNil(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	svc := NewSessionService(c)
+
+	expiry := time.Now().Add(time.Hour)
+	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", []string{"diego-analyzer.operator"}, expiry)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Simulate a refreshed token where scope extraction fails (returns nil)
+	err = svc.UpdateTokens(sessionID, "new-access", "new-refresh", nil, time.Now().Add(2*time.Hour))
+	if err != nil {
+		t.Fatalf("UpdateTokens failed: %v", err)
+	}
+
+	session, _ := svc.Get(sessionID)
+	if session.Scopes != nil {
+		t.Errorf("Scopes = %v, want nil", session.Scopes)
+	}
+}
+
+func TestSessionService_UpdateTokens_PreservesSessionFields(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	svc := NewSessionService(c)
+
+	expiry := time.Now().Add(time.Hour)
+	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", []string{"diego-analyzer.operator"}, expiry)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Capture original session fields
+	original, _ := svc.Get(sessionID)
+	originalCSRF := original.CSRFToken
+	originalCreatedAt := original.CreatedAt
+
+	err = svc.UpdateTokens(sessionID, "new-access", "new-refresh", []string{"diego-analyzer.viewer"}, time.Now().Add(2*time.Hour))
+	if err != nil {
+		t.Fatalf("UpdateTokens failed: %v", err)
+	}
+
+	updated, _ := svc.Get(sessionID)
+	if updated.Username != "testuser" {
+		t.Errorf("Username = %q, want %q", updated.Username, "testuser")
+	}
+	if updated.UserID != "user-123" {
+		t.Errorf("UserID = %q, want %q", updated.UserID, "user-123")
+	}
+	if updated.CSRFToken != originalCSRF {
+		t.Errorf("CSRFToken changed from %q to %q", originalCSRF, updated.CSRFToken)
+	}
+	if !updated.CreatedAt.Equal(originalCreatedAt) {
+		t.Errorf("CreatedAt changed from %v to %v", originalCreatedAt, updated.CreatedAt)
+	}
+}
+
 func TestSessionService_UpdateTokens_NotFound(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	svc := NewSessionService(c)
