@@ -13,6 +13,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"hash"
 	"net/http"
 	"net/http/httptest"
@@ -634,8 +635,13 @@ func TestVerifyJWT_UnknownKeyID(t *testing.T) {
 		t.Fatal("expected error for unknown key ID, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "unknown-key-id") || !strings.Contains(err.Error(), "key") {
-		t.Errorf("expected error to mention unknown key ID, got: %v", err)
+	if !errors.Is(err, ErrUnknownKeyID) {
+		t.Errorf("expected error to wrap ErrUnknownKeyID, got: %v", err)
+	}
+
+	// The error message should still include the specific key ID for debugging
+	if !strings.Contains(err.Error(), "unknown-key-id") {
+		t.Errorf("expected error to mention the specific key ID, got: %v", err)
 	}
 }
 
