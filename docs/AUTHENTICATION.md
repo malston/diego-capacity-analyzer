@@ -149,6 +149,12 @@ If the UAA groups (`diego-analyzer.viewer`, `diego-analyzer.operator`) are not c
 - The two operator endpoints (`infrastructure/manual` and `infrastructure/state`) return **403 Forbidden**
 - To enable operator access, create the groups and assign users as shown above
 
+### Session Role Lifecycle
+
+User roles are resolved at login time from the JWT `scope` claim and persist for the session lifetime. If a user's UAA group membership changes (e.g., operator access is revoked or granted), the change does not take effect until the user logs out and logs back in. Token refresh updates the access and refresh tokens but does not re-resolve roles from the refreshed token's scopes.
+
+To force an immediate role change for a user, invalidate their session (restart the backend or wait for session expiry).
+
 ## Authentication Service API
 
 ### cfAuth Service

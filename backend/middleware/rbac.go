@@ -32,10 +32,16 @@ func RequireRole(requiredRole string) func(http.HandlerFunc) http.HandlerFunc {
 
 			callerLevel := roleHierarchy[callerRole]
 			if callerLevel < requiredLevel {
-				slog.Debug("RBAC rejected: insufficient role",
+				username := ""
+				if claims != nil {
+					username = claims.Username
+				}
+				slog.Warn("RBAC authorization denied",
 					"path", r.URL.Path,
-					"required", requiredRole,
-					"actual", callerRole,
+					"method", r.Method,
+					"required_role", requiredRole,
+					"user_role", callerRole,
+					"username", username,
 				)
 				http.Error(w, "Insufficient permissions", http.StatusForbidden)
 				return

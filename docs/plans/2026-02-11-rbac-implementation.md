@@ -1,7 +1,5 @@
 # RBAC Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add role-based authorization (viewer/operator) derived from CF UAA scopes to API endpoints.
 
 **Architecture:** JWT `scope` claim flows through existing auth pipeline into `UserClaims`. A `RequireRole` middleware gates state-mutating endpoints. Only 2 of 17 routes require operator role; everything else is viewer-accessible.
