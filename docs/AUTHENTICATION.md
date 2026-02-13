@@ -129,7 +129,7 @@ uaac member add diego-analyzer.viewer <username>
 uaac member add diego-analyzer.operator <username>
 ```
 
-Ensure the `cf` client (or your custom OAuth client) includes these scopes in its allowed scope list. For the default `cf` client, UAA group membership is automatically reflected in token scopes.
+Ensure that corresponding OAuth scopes (`diego-analyzer.viewer`, `diego-analyzer.operator`) are defined in UAA **and** that the `cf` client (or your custom OAuth client) is granted these scopes so they appear in the JWT `scope` claim. Merely creating UAA groups and assigning members is not sufficient unless UAA is explicitly configured to map those groups to scopes included in issued tokens.
 
 ### Auth Mode Behavior
 
