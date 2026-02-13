@@ -154,6 +154,54 @@ func TestRBAC_ViewerEndpoint_WithViewerToken_Returns200(t *testing.T) {
 	}
 }
 
+func TestRBAC_NonGatedPOST_WithViewerToken_Returns200(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("failed to generate RSA key: %v", err)
+	}
+
+	keyID := "rbac-test-key"
+	jwksClient := &services.JWKSClient{}
+	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
+		keyID: &privateKey.PublicKey,
+	})
+
+	authCfg := middleware.AuthConfig{
+		Mode:       middleware.AuthModeRequired,
+		JWKSClient: jwksClient,
+	}
+
+	var handlerCalled bool
+	// No RequireRole -- /scenario/compare has no Role set in the route table
+	handler := middleware.Chain(
+		func(w http.ResponseWriter, r *http.Request) {
+			handlerCalled = true
+			w.WriteHeader(http.StatusOK)
+		},
+		middleware.Auth(authCfg),
+	)
+
+	token := createTestJWT(t, privateKey, keyID, jwtClaims{
+		UserName: "viewer-user",
+		UserID:   "view-id",
+		Exp:      time.Now().Add(time.Hour).Unix(),
+		Iat:      time.Now().Unix(),
+		Scope:    []string{"openid", "diego-analyzer.viewer"},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenario/compare", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !handlerCalled {
+		t.Error("Handler should be called for viewer accessing non-gated POST endpoint")
+	}
+}
+
 func TestRBAC_OperatorEndpoint_AuthDisabled_NoRBACCheck(t *testing.T) {
 	authCfg := middleware.AuthConfig{
 		Mode: middleware.AuthModeDisabled,
