@@ -10,6 +10,7 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -36,6 +37,9 @@ type jwkKey struct {
 	Alg string `json:"alg"` // Algorithm (e.g., "RS256")
 	Use string `json:"use"` // Key use (e.g., "sig" for signature)
 }
+
+// ErrUnknownKeyID indicates a JWT references a key ID not present in the JWKS key set.
+var ErrUnknownKeyID = errors.New("unknown key ID")
 
 // parseJWKS parses a JWKS JSON response and returns a map of key ID to RSA public key.
 // Non-RSA keys are silently skipped.
@@ -167,7 +171,7 @@ func verifyJWT(token string, keys map[string]*rsa.PublicKey) (*JWTClaims, error)
 	// Look up public key by kid
 	publicKey, ok := keys[header.Kid]
 	if !ok {
-		return nil, fmt.Errorf("unknown key ID %q: key not found in JWKS", header.Kid)
+		return nil, fmt.Errorf("%w: %q not found in JWKS", ErrUnknownKeyID, header.Kid)
 	}
 
 	// Decode signature
@@ -350,8 +354,7 @@ func (c *JWKSClient) VerifyAndParse(token string) (*JWTClaims, error) {
 	c.mu.RUnlock()
 
 	if err != nil {
-		// Check if the error is about unknown key ID
-		if strings.Contains(err.Error(), "unknown key ID") {
+		if errors.Is(err, ErrUnknownKeyID) {
 			// Refresh keys using singleflight
 			_, _, _ = c.sfGroup.Do("refresh", func() (interface{}, error) {
 				return nil, c.refresh()
