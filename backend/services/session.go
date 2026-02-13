@@ -88,8 +88,8 @@ func (s *SessionService) NeedsRefresh(session *models.Session) bool {
 	return time.Until(session.TokenExpiry) <= 5*time.Minute
 }
 
-// UpdateTokens updates the tokens for an existing session
-func (s *SessionService) UpdateTokens(sessionID, accessToken, refreshToken string, tokenExpiry time.Time) error {
+// UpdateTokens updates the tokens and scopes for an existing session
+func (s *SessionService) UpdateTokens(sessionID, accessToken, refreshToken string, scopes []string, tokenExpiry time.Time) error {
 	session, err := s.Get(sessionID)
 	if err != nil {
 		return err
@@ -97,6 +97,7 @@ func (s *SessionService) UpdateTokens(sessionID, accessToken, refreshToken strin
 
 	session.AccessToken = accessToken
 	session.RefreshToken = refreshToken
+	session.Scopes = scopes
 	session.TokenExpiry = tokenExpiry
 
 	// Update cache with new TTL

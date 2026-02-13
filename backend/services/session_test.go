@@ -181,13 +181,15 @@ func TestSessionService_UpdateTokens(t *testing.T) {
 	svc := NewSessionService(c)
 
 	expiry := time.Now().Add(time.Hour)
-	sessionID, err := svc.Create("testuser", "user-123", "old-access", "old-refresh", nil, expiry)
+	originalScopes := []string{"openid", "diego-analyzer.operator"}
+	sessionID, err := svc.Create("testuser", "user-123", "old-access", "old-refresh", originalScopes, expiry)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
 	newExpiry := time.Now().Add(2 * time.Hour)
-	err = svc.UpdateTokens(sessionID, "new-access", "new-refresh", newExpiry)
+	newScopes := []string{"openid", "diego-analyzer.viewer"}
+	err = svc.UpdateTokens(sessionID, "new-access", "new-refresh", newScopes, newExpiry)
 	if err != nil {
 		t.Fatalf("UpdateTokens failed: %v", err)
 	}
@@ -206,13 +208,16 @@ func TestSessionService_UpdateTokens(t *testing.T) {
 	if !session.TokenExpiry.Equal(newExpiry) {
 		t.Errorf("TokenExpiry = %v, want %v", session.TokenExpiry, newExpiry)
 	}
+	if len(session.Scopes) != 2 || session.Scopes[0] != "openid" || session.Scopes[1] != "diego-analyzer.viewer" {
+		t.Errorf("Scopes = %v, want %v", session.Scopes, newScopes)
+	}
 }
 
 func TestSessionService_UpdateTokens_NotFound(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	svc := NewSessionService(c)
 
-	err := svc.UpdateTokens("nonexistent", "access", "refresh", time.Now().Add(time.Hour))
+	err := svc.UpdateTokens("nonexistent", "access", "refresh", nil, time.Now().Add(time.Hour))
 	if err == nil {
 		t.Error("UpdateTokens should return error for nonexistent session")
 	}

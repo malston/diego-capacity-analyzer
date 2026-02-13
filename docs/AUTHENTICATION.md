@@ -187,7 +187,7 @@ If the UAA groups (`diego-analyzer.viewer`, `diego-analyzer.operator`) are not c
 
 ### Session Role Lifecycle
 
-User roles are resolved at login time from the JWT `scope` claim and persist for the session lifetime. If a user's UAA group membership changes (e.g., operator access is revoked or granted), the change does not take effect until the user logs out and logs back in. Token refresh updates the access and refresh tokens but does not re-resolve roles from the refreshed token's scopes.
+User roles are resolved from the JWT `scope` claim at login and on each token refresh. If a user's UAA group membership changes (e.g., operator access is revoked or granted), the new role takes effect after the next token refresh or re-login.
 
 To force an immediate role change for a user, invalidate their session (restart the backend or wait for session expiry).
 

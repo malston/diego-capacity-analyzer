@@ -149,8 +149,11 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	// Calculate new token expiry
 	expiry := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 
-	// Update session with new tokens (use session.ID, not re-reading cookie)
-	if err := h.sessionService.UpdateTokens(session.ID, tokenResp.AccessToken, tokenResp.RefreshToken, expiry); err != nil {
+	// Extract scopes from refreshed token so role changes take effect
+	scopes := extractScopesFromToken(tokenResp.AccessToken)
+
+	// Update session with new tokens and scopes (use session.ID, not re-reading cookie)
+	if err := h.sessionService.UpdateTokens(session.ID, tokenResp.AccessToken, tokenResp.RefreshToken, scopes, expiry); err != nil {
 		slog.Error("Failed to update session tokens", "error", err)
 		h.writeError(w, "Failed to update session", http.StatusInternalServerError)
 		return
