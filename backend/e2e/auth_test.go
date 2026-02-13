@@ -28,12 +28,13 @@ type jwtHeader struct {
 
 // jwtClaims represents the payload/claims portion of a JWT for test token creation
 type jwtClaims struct {
-	Sub      string `json:"sub,omitempty"`
-	UserName string `json:"user_name,omitempty"`
-	UserID   string `json:"user_id,omitempty"`
-	ClientID string `json:"client_id,omitempty"`
-	Exp      int64  `json:"exp,omitempty"`
-	Iat      int64  `json:"iat,omitempty"`
+	Sub      string   `json:"sub,omitempty"`
+	UserName string   `json:"user_name,omitempty"`
+	UserID   string   `json:"user_id,omitempty"`
+	ClientID string   `json:"client_id,omitempty"`
+	Exp      int64    `json:"exp,omitempty"`
+	Iat      int64    `json:"iat,omitempty"`
+	Scope    []string `json:"scope,omitempty"`
 }
 
 // createTestJWT creates a signed JWT for testing with the given private key

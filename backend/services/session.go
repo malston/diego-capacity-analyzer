@@ -25,7 +25,7 @@ func NewSessionService(c *cache.Cache) *SessionService {
 
 // Create generates a new session and stores it in the cache
 // Returns the cryptographically secure session ID
-func (s *SessionService) Create(username, userID, accessToken, refreshToken string, tokenExpiry time.Time) (string, error) {
+func (s *SessionService) Create(username, userID, accessToken, refreshToken string, scopes []string, tokenExpiry time.Time) (string, error) {
 	// Generate 32 bytes of cryptographically secure random data for session ID
 	sessionIDBytes := make([]byte, 32)
 	if _, err := rand.Read(sessionIDBytes); err != nil {
@@ -44,6 +44,7 @@ func (s *SessionService) Create(username, userID, accessToken, refreshToken stri
 		ID:           sessionID,
 		Username:     username,
 		UserID:       userID,
+		Scopes:       scopes,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		CSRFToken:    csrfToken,
@@ -87,8 +88,8 @@ func (s *SessionService) NeedsRefresh(session *models.Session) bool {
 	return time.Until(session.TokenExpiry) <= 5*time.Minute
 }
 
-// UpdateTokens updates the tokens for an existing session
-func (s *SessionService) UpdateTokens(sessionID, accessToken, refreshToken string, tokenExpiry time.Time) error {
+// UpdateTokens updates the tokens and scopes for an existing session
+func (s *SessionService) UpdateTokens(sessionID, accessToken, refreshToken string, scopes []string, tokenExpiry time.Time) error {
 	session, err := s.Get(sessionID)
 	if err != nil {
 		return err
@@ -96,6 +97,7 @@ func (s *SessionService) UpdateTokens(sessionID, accessToken, refreshToken strin
 
 	session.AccessToken = accessToken
 	session.RefreshToken = refreshToken
+	session.Scopes = scopes
 	session.TokenExpiry = tokenExpiry
 
 	// Update cache with new TTL

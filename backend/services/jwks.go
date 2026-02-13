@@ -96,6 +96,7 @@ func parseRSAPublicKey(nB64, eB64 string) (*rsa.PublicKey, error) {
 type JWTClaims struct {
 	Username string
 	UserID   string
+	Scopes   []string
 }
 
 // jwtHeaderForVerification represents the header portion of a JWT for parsing
@@ -107,13 +108,14 @@ type jwtHeaderForVerification struct {
 
 // jwtClaimsForVerification represents the claims portion of a JWT for parsing
 type jwtClaimsForVerification struct {
-	Sub      string `json:"sub"`
-	UserName string `json:"user_name"`
-	UserID   string `json:"user_id"`
-	ClientID string `json:"client_id"`
-	Exp      int64  `json:"exp"`
-	Nbf      int64  `json:"nbf"`
-	Iat      int64  `json:"iat"`
+	Sub      string   `json:"sub"`
+	UserName string   `json:"user_name"`
+	UserID   string   `json:"user_id"`
+	ClientID string   `json:"client_id"`
+	Exp      int64    `json:"exp"`
+	Nbf      int64    `json:"nbf"`
+	Iat      int64    `json:"iat"`
+	Scope    []string `json:"scope"`
 }
 
 // supportedAlgorithms defines the only allowed signing algorithms (RS256/RS384/RS512)
@@ -228,6 +230,7 @@ func verifyJWT(token string, keys map[string]*rsa.PublicKey) (*JWTClaims, error)
 	return &JWTClaims{
 		Username: username,
 		UserID:   userID,
+		Scopes:   claims.Scope,
 	}, nil
 }
 

@@ -1,272 +1,252 @@
-# CF API Authentication - Setup Guide
+# Authentication
 
-This document explains how to set up and use the Cloud Foundry API authentication in the TAS Capacity Analyzer.
+## Overview
 
-## Quick Start
+Diego Capacity Analyzer uses a Backend-For-Frontend (BFF) OAuth pattern. The frontend never handles OAuth tokens directly. Instead:
 
-### 1. Configure Environment Variables
+1. The backend authenticates with CF UAA on behalf of the user
+2. Tokens are stored in server-side sessions (never exposed to JavaScript)
+3. The browser receives httpOnly session cookies
+4. CSRF protection uses a double-submit cookie pattern
 
-Copy the example environment file and configure it:
-
-```bash
-cp .env.example .env
+```text
+Browser ──── httpOnly cookies ────> Backend ──── OAuth tokens ────> CF UAA
+       <──── session + CSRF ───────        <──── access/refresh ───
 ```
 
-Edit `.env` with your CF environment details:
+## Configuration
 
-```env
-VITE_CF_API_URL=https://api.sys.YOUR-DOMAIN.com
-VITE_CF_UAA_URL=https://login.sys.YOUR-DOMAIN.com
-```
+Authentication-related environment variables:
 
-### 2. Install Dependencies
-
-```bash
-npm install
-```
-
-### 3. Run the Application
-
-```bash
-npm run dev
-```
-
-The app will open at `http://localhost:3000` and show the login screen.
-
-### 4. Login
-
-Enter your Cloud Foundry credentials:
-- **Username**: Your CF username (usually an email)
-- **Password**: Your CF password
-
-The app will authenticate with CF UAA and store the access token in your browser session.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTH_MODE` | `optional` | `disabled`, `optional`, or `required` |
+| `COOKIE_SECURE` | `true` | Set `false` for local dev (HTTP without TLS) |
+| `CORS_ALLOWED_ORIGINS` | (empty) | Comma-separated list of allowed origins |
+| `CF_API_URL` | (required) | Cloud Foundry API URL |
+| `CF_USERNAME` | (required) | CF admin username for backend API access |
+| `CF_PASSWORD` | (required) | CF admin password |
+| `CF_SKIP_SSL_VALIDATION` | `false` | Skip TLS verification for CF/UAA endpoints |
 
 ## How Authentication Works
 
-### OAuth2 Flow
+### OAuth2 Flow (BFF)
 
-The app uses the OAuth2 **password grant** flow to authenticate with Cloud Foundry UAA:
+1. User submits credentials to the frontend login form
+2. Frontend POSTs to `/api/v1/auth/login` with `{ username, password }`
+3. Backend discovers the UAA endpoint from CF API (`/v3/info`)
+4. Backend exchanges credentials with CF UAA using the OAuth2 password grant
+5. Backend stores access token, refresh token, and scopes in a server-side session
+6. Backend sets an httpOnly session cookie (`DIEGO_SESSION`) and a CSRF cookie (`DIEGO_CSRF`)
+7. Frontend receives a success response containing only the username -- no tokens
 
-1. User enters credentials in the login form
-2. App sends credentials to CF UAA `/oauth/token` endpoint
-3. UAA validates credentials and returns an access token
-4. Access token is stored in browser `sessionStorage`
-5. Token is used for all subsequent CF API calls
-6. Token automatically refreshes when it expires
+### Session Management
 
-### Token Management
+| Cookie | Flags | Purpose |
+|--------|-------|---------|
+| `DIEGO_SESSION` | `HttpOnly`, `Secure`, `SameSite=Strict` | Session identifier (opaque, 32 random bytes) |
+| `DIEGO_CSRF` | `Secure`, `SameSite=Lax` | CSRF token readable by JavaScript |
 
-- **Access Token**: Valid for ~12 hours (configurable in CF)
-- **Refresh Token**: Used to get a new access token without re-login
-- **Storage**: Tokens stored in browser `sessionStorage` (cleared on tab close)
-- **Auto-Refresh**: Tokens automatically refresh 60 seconds before expiry
+- Sessions are stored in the backend's in-memory cache with a TTL matching the token lifetime (plus a 10-minute buffer for refresh)
+- The browser sends cookies automatically on every request (`credentials: "include"`)
+- Session IDs and CSRF tokens are cryptographically random (32 bytes, base64url-encoded)
 
-### Security Considerations
+### Token Refresh
 
-**Current Implementation (Client-Side Auth)**:
-- ✅ Suitable for internal tools and demos
-- ✅ No backend required
-- ❌ Credentials flow through browser
-- ❌ Token visible in browser storage
+- The backend checks whether the access token expires within 5 minutes
+- `POST /api/v1/auth/refresh` triggers a `refresh_token` grant with CF UAA
+- The session is updated with the new access and refresh tokens; cookies remain unchanged
+- If the refresh fails, the session is deleted and the user must log in again
 
-**For Production Use**, consider:
-- **Backend Proxy**: Add a backend service to handle authentication
-- **Authorization Code Flow**: More secure OAuth2 flow
-- **Session Management**: Server-side session storage
-- **Rate Limiting**: Protect against brute force attacks
+### CSRF Protection
 
-## Authentication Service API
+The backend enforces CSRF protection using the double-submit cookie pattern:
 
-### cfAuth Service
+- On login, the backend sets a `DIEGO_CSRF` cookie with a random token
+- For state-changing requests (`POST`, `PUT`, `DELETE`), the `DIEGO_CSRF` cookie value must match the `X-CSRF-Token` request header
+- Comparison uses constant-time comparison (`crypto/subtle`) to prevent timing attacks
+- CSRF validation is skipped for:
+  - Safe methods: `GET`, `HEAD`, `OPTIONS`
+  - Bearer token authentication (via `Authorization` header)
+  - Requests without a session cookie (not session-authenticated)
 
-Located in `src/services/cfAuth.js`
+## Auth Endpoints
 
-```javascript
-import { cfAuth } from './services/cfAuth';
+All auth endpoints use the `/api/v1/auth/` prefix.
 
-// Login
-await cfAuth.login(username, password);
+| Endpoint | Method | Description | Rate Limit |
+|----------|--------|-------------|------------|
+| `/api/v1/auth/login` | `POST` | Authenticate and create session | 5/min |
+| `/api/v1/auth/logout` | `POST` | Destroy session and clear cookies | 5/min |
+| `/api/v1/auth/me` | `GET` | Check authentication status | None |
+| `/api/v1/auth/refresh` | `POST` | Refresh access token | 10/min |
 
-// Check if authenticated
-const isAuth = cfAuth.isAuthenticated();
-
-// Get current token (auto-refreshes if needed)
-const token = await cfAuth.getToken();
-
-// Get user info from token
-const user = cfAuth.getUserInfo();
-
-// Logout
-cfAuth.logout();
+**Login request:**
+```json
+{ "username": "admin", "password": "..." }
 ```
 
-### cfApi Service
-
-Located in `src/services/cfApi.js`
-
-```javascript
-import { cfApi } from './services/cfApi';
-
-// Get all applications
-const apps = await cfApi.getApplications();
-
-// Get apps with isolation segment names
-const appsWithSegments = await cfApi.getAppsWithSegments();
-
-// Get isolation segments
-const segments = await cfApi.getIsolationSegments();
-
-// Get CF info (no auth required)
-const info = await cfApi.getInfo();
+**Login response (success):**
+```json
+{ "success": true, "username": "admin", "user_id": "..." }
 ```
 
-## React Components
-
-### AuthProvider Context
-
-Wrap your app with `AuthProvider` to enable authentication:
-
-```javascript
-import { AuthProvider } from './contexts/AuthContext';
-
-function App() {
-  return (
-    <AuthProvider>
-      <YourComponents />
-    </AuthProvider>
-  );
-}
+**Login response (failure):**
+```json
+{ "success": false, "error": "Invalid credentials" }
 ```
 
-### useAuth Hook
+**Me response (authenticated):**
+```json
+{ "authenticated": true, "username": "admin", "user_id": "..." }
+```
 
-Access authentication state in components:
+**Me response (not authenticated):**
+```json
+{ "authenticated": false }
+```
+
+## Role-Based Access Control (RBAC)
+
+The backend enforces role-based authorization on API endpoints. Roles are derived from CF UAA JWT scopes.
+
+### Roles
+
+| Role | Description |
+|------|-------------|
+| **viewer** | Read-only access to dashboards, metrics, and calculations. Default for all authenticated users. |
+| **operator** | Full access including state-mutating operations (manual infrastructure input, infrastructure state changes). |
+
+Operator inherits all viewer permissions.
+
+### UAA Scope Mapping
+
+| UAA Scope | Application Role |
+|-----------|-----------------|
+| `diego-analyzer.operator` | operator |
+| `diego-analyzer.viewer` | viewer |
+| (no matching scope) | viewer (default) |
+
+If a token contains both scopes, operator takes precedence.
+
+### Protected Endpoints
+
+Only two endpoints require the operator role:
+
+| Endpoint | Method | Required Role |
+|----------|--------|---------------|
+| `/api/v1/infrastructure/manual` | POST | operator |
+| `/api/v1/infrastructure/state` | POST | operator |
+
+All other authenticated endpoints are accessible to any role (viewer or operator).
+
+### UAA Group Setup
+
+To configure RBAC, create the UAA groups and assign users:
+
+```bash
+# Target your UAA instance
+uaac target https://login.sys.example.com --skip-ssl-validation
+
+# Authenticate as admin
+uaac token client get admin -s <admin-client-secret>
+
+# Create the groups
+uaac group add diego-analyzer.viewer
+uaac group add diego-analyzer.operator
+
+# Assign users to roles
+uaac member add diego-analyzer.viewer <username>
+uaac member add diego-analyzer.operator <username>
+```
+
+The application authorizes based on the JWT `scope` claim, not UAA group membership directly. For scopes to appear in issued tokens, two conditions must be met:
+
+1. **UAA groups exist** and the user is a member (commands above)
+2. **The OAuth client includes these scopes** in its allowed scope list
+
+For the default `cf` client, UAA group membership is automatically reflected in token scopes. For custom OAuth clients, you must explicitly add `diego-analyzer.viewer` and `diego-analyzer.operator` to the client's `scope` and `authorities` configuration. If groups exist but scopes don't appear in tokens, the client configuration is the most likely cause.
+
+### Auth Mode Behavior
+
+RBAC enforcement depends on the `AUTH_MODE` environment variable:
+
+| AUTH_MODE | RBAC Behavior |
+|-----------|---------------|
+| `disabled` | RBAC is bypassed; all requests pass through |
+| `optional` | Anonymous requests are treated as viewer; authenticated users get their resolved role |
+| `required` | All requests must authenticate; role is resolved from token scopes |
+
+### Default Behavior
+
+If the UAA groups (`diego-analyzer.viewer`, `diego-analyzer.operator`) are not created, all authenticated users default to the **viewer** role. This means:
+
+- All read-only endpoints work as before
+- The two operator endpoints (`infrastructure/manual` and `infrastructure/state`) return **403 Forbidden**
+- To enable operator access, create the groups and assign users as shown above
+
+### Session Role Lifecycle
+
+User roles are resolved from the JWT `scope` claim at login and on each token refresh. If a user's UAA group membership changes (e.g., operator access is revoked or granted), the new role takes effect after the next token refresh or re-login.
+
+To force an immediate role change for a user, invalidate their session (restart the backend or wait for session expiry).
+
+## Frontend Integration
+
+### AuthContext
+
+The `AuthProvider` component (`contexts/AuthContext.jsx`) wraps the app and provides authentication state via the `useAuth()` hook:
 
 ```javascript
-import { useAuth } from './contexts/AuthContext';
-
-function MyComponent() {
-  const { isAuthenticated, user, login, logout, loading, error } = useAuth();
-  
-  if (loading) return <Loading />;
-  if (!isAuthenticated) return <Login />;
-  
-  return <div>Hello {user.username}</div>;
-}
+const { isAuthenticated, user, loading, error, login, logout } = useAuth();
 ```
+
+On mount, `AuthProvider` calls `GET /api/v1/auth/me` to check for an existing session.
+
+### CSRF in Frontend
+
+`utils/csrf.js` provides two functions for CSRF token handling:
+
+- `getCSRFToken()` -- reads the `DIEGO_CSRF` cookie value
+- `withCSRFToken(headers)` -- returns a copy of `headers` with `X-CSRF-Token` added
+
+All state-changing API calls (POST, PUT, DELETE) must include the CSRF token:
+
+```javascript
+fetch("/api/v1/infrastructure/manual", {
+  method: "POST",
+  credentials: "include",
+  headers: withCSRFToken({ "Content-Type": "application/json" }),
+  body: JSON.stringify(data),
+});
+```
+
+## Auth Modes
+
+| Mode | Unauthenticated Requests | Authenticated Requests |
+|------|--------------------------|------------------------|
+| `disabled` | Allowed, no auth checks | Auth headers ignored |
+| `optional` | Allowed as anonymous viewer | Validated; role resolved from token |
+| `required` | Rejected with 401 | Validated; role resolved from token |
+
+In `optional` mode, if a token is present but invalid, the request is rejected (not treated as anonymous).
 
 ## Troubleshooting
 
-### CORS Errors
+**CORS errors:** Set `CORS_ALLOWED_ORIGINS` to include your frontend's origin (e.g., `http://localhost:5173` for local dev).
 
-If you see CORS errors in the browser console:
+**401 Unauthorized:** Check that `CF_USERNAME` and `CF_PASSWORD` are correct and that `AUTH_MODE` is not set to `disabled` when authentication is expected.
 
-```
-Access to fetch at 'https://api.sys.example.com/v3/apps' from origin 'http://localhost:3000' has been blocked by CORS policy
-```
+**403 Forbidden:** The user's role lacks permission. Check the [RBAC section](#role-based-access-control-rbac) for required roles and UAA group setup.
 
-**Solutions**:
-1. **Use Backend Proxy**: The Go backend service handles CF API requests and adds CORS headers
-2. **Configure Cloud Controller**: Add `localhost:3000` to `cc.allowed_cors_domains` in the BOSH manifest
-3. **Deploy to CF**: Deploy frontend to CF so it's on the same domain as the API
+**CSRF validation failures:** Ensure the `DIEGO_CSRF` cookie is present in the browser and that the `X-CSRF-Token` header is included on POST/PUT/DELETE requests. Use `withCSRFToken()` from `utils/csrf.js`.
 
-### Authentication Failures
+**Login works locally but cookies not sent:** Set `COOKIE_SECURE=false` when running over HTTP (local dev without TLS).
 
-If authentication fails:
+## Security Properties
 
-1. **Check CF credentials**: Verify with `cf login`
-2. **Check API URLs**: Ensure VITE_CF_API_URL and VITE_CF_UAA_URL are correct
-3. **Check network**: Ensure you can reach the CF API from your machine
-4. **Check browser console**: Look for detailed error messages
-
-### Token Expiration
-
-If you see "Not authenticated" errors after being logged in:
-
-- Token may have expired
-- Refresh token may be invalid
-- Click "Refresh" or logout and login again
-
-### Missing Cell Data
-
-The CF API doesn't directly expose diego cell capacity information. To get cell data:
-
-1. **BOSH API**: Query BOSH director for VM information (requires BOSH credentials)
-2. **Healthwatch**: Use VMware Tanzu Healthwatch API
-3. **App Metrics**: Use CF App Metrics API
-4. **Custom Exporter**: Create a custom metrics exporter
-
-Example BOSH query (server-side):
-
-```javascript
-const cells = await cfApi.getDiegoCellsFromBOSH(
-  'https://bosh.example.com:25555',
-  boshToken,
-  'cf-deployment'
-);
-```
-
-## API Permissions
-
-### Required CF Scopes
-
-The user account needs these OAuth scopes:
-
-- `cloud_controller.read` - Read apps, spaces, orgs
-- `cloud_controller.admin` - Admin access (for cell data)
-
-### Check User Scopes
-
-```javascript
-const user = cfAuth.getUserInfo();
-console.log('User scopes:', user.scopes);
-```
-
-## Data Source Toggle
-
-The dashboard includes a toggle between mock data and live CF data:
-
-- **Mock Data Mode**: Uses fake data for demo purposes
-- **Live CF Data Mode**: Fetches real data from CF API
-
-Click the "Using Mock Data" / "Live CF Data" button to toggle.
-
-## Next Steps
-
-### Get Diego Cell Data
-
-Since CF API doesn't expose cell data, you have options:
-
-1. **Integrate with BOSH**: See `src/services/cfApi.js` → `getDiegoCellsFromBOSH()`
-2. **Use Healthwatch**: Query Healthwatch metrics API
-3. **Custom Metrics**: Create a custom metrics endpoint
-4. **Keep Mock Cells**: Use real app data with mock cell data
-
-### Add More Features
-
-- Historical data tracking
-- Cost estimation based on cloud provider
-- Email/Slack alerts for capacity thresholds
-- Export reports to PDF/Excel
-- Multi-foundation support
-
-### Deploy to Production
-
-See main README.md for deployment options.
-
-## Security Best Practices
-
-1. **Never commit .env files** to git
-2. **Use HTTPS** for all CF API communication
-3. **Rotate credentials** regularly
-4. **Limit user permissions** to read-only where possible
-5. **Consider backend proxy** for production deployments
-6. **Enable audit logging** for authentication events
-
-## Support
-
-For issues:
-- Check browser console for errors
-- Verify CF API connectivity with `cf login`
-- Review CF UAA logs for authentication failures
-- Open an issue in this repository
+- OAuth tokens are stored server-side and never exposed to JavaScript
+- Session cookies use `HttpOnly`, `Secure`, and `SameSite=Strict` flags
+- CSRF tokens use a double-submit cookie pattern with constant-time comparison
+- Auth endpoints are rate-limited (login/logout: 5/min, refresh: 10/min)
+- Session IDs and CSRF tokens are 32 bytes of cryptographic randomness

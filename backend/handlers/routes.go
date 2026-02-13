@@ -3,7 +3,11 @@
 
 package handlers
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
+)
 
 // Route defines an API endpoint with its HTTP method and handler.
 type Route struct {
@@ -12,6 +16,7 @@ type Route struct {
 	Handler   http.HandlerFunc // Handler function
 	Public    bool             // If true, no authentication required
 	RateLimit string           // Rate limit tier: "auth", "refresh", "write", "none", or "" (default)
+	Role      string           // Required role: "operator", "viewer", or "" (no RBAC check)
 }
 
 // Routes returns all API routes for registration.
@@ -30,8 +35,8 @@ func (h *Handler) Routes() []Route {
 
 		// Infrastructure
 		{Method: http.MethodGet, Path: "/api/v1/infrastructure", Handler: h.GetInfrastructure},
-		{Method: http.MethodPost, Path: "/api/v1/infrastructure/manual", Handler: h.SetManualInfrastructure, RateLimit: "write"},
-		{Method: http.MethodPost, Path: "/api/v1/infrastructure/state", Handler: h.SetInfrastructureState, RateLimit: "write"},
+		{Method: http.MethodPost, Path: "/api/v1/infrastructure/manual", Handler: h.SetManualInfrastructure, RateLimit: "write", Role: middleware.RoleOperator},
+		{Method: http.MethodPost, Path: "/api/v1/infrastructure/state", Handler: h.SetInfrastructureState, RateLimit: "write", Role: middleware.RoleOperator},
 		{Method: http.MethodGet, Path: "/api/v1/infrastructure/status", Handler: h.GetInfrastructureStatus},
 		{Method: http.MethodPost, Path: "/api/v1/infrastructure/planning", Handler: h.PlanInfrastructure, RateLimit: "write"},
 		{Method: http.MethodGet, Path: "/api/v1/infrastructure/apps", Handler: h.GetInfrastructureApps},

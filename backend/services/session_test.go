@@ -27,7 +27,7 @@ func TestSessionService_Create(t *testing.T) {
 	svc := NewSessionService(c)
 
 	expiry := time.Now().Add(time.Hour)
-	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", expiry)
+	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", nil, expiry)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestSessionService_Create_UniqueIDs(t *testing.T) {
 
 	// Create 100 sessions and verify all IDs are unique
 	for i := 0; i < 100; i++ {
-		sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", expiry)
+		sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
 		if err != nil {
 			t.Fatalf("Create failed at iteration %d: %v", i, err)
 		}
@@ -73,7 +73,7 @@ func TestSessionService_Get(t *testing.T) {
 	svc := NewSessionService(c)
 
 	expiry := time.Now().Add(time.Hour)
-	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", expiry)
+	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", nil, expiry)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestSessionService_Delete(t *testing.T) {
 	svc := NewSessionService(c)
 
 	expiry := time.Now().Add(time.Hour)
-	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", expiry)
+	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -181,13 +181,15 @@ func TestSessionService_UpdateTokens(t *testing.T) {
 	svc := NewSessionService(c)
 
 	expiry := time.Now().Add(time.Hour)
-	sessionID, err := svc.Create("testuser", "user-123", "old-access", "old-refresh", expiry)
+	originalScopes := []string{"openid", "diego-analyzer.operator"}
+	sessionID, err := svc.Create("testuser", "user-123", "old-access", "old-refresh", originalScopes, expiry)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
 	newExpiry := time.Now().Add(2 * time.Hour)
-	err = svc.UpdateTokens(sessionID, "new-access", "new-refresh", newExpiry)
+	newScopes := []string{"openid", "diego-analyzer.viewer"}
+	err = svc.UpdateTokens(sessionID, "new-access", "new-refresh", newScopes, newExpiry)
 	if err != nil {
 		t.Fatalf("UpdateTokens failed: %v", err)
 	}
@@ -206,13 +208,98 @@ func TestSessionService_UpdateTokens(t *testing.T) {
 	if !session.TokenExpiry.Equal(newExpiry) {
 		t.Errorf("TokenExpiry = %v, want %v", session.TokenExpiry, newExpiry)
 	}
+	if len(session.Scopes) != 2 || session.Scopes[0] != "openid" || session.Scopes[1] != "diego-analyzer.viewer" {
+		t.Errorf("Scopes = %v, want %v", session.Scopes, newScopes)
+	}
+}
+
+func TestSessionService_UpdateTokens_PromotesToOperator(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	svc := NewSessionService(c)
+
+	expiry := time.Now().Add(time.Hour)
+	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", []string{"diego-analyzer.viewer"}, expiry)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	newScopes := []string{"diego-analyzer.viewer", "diego-analyzer.operator"}
+	err = svc.UpdateTokens(sessionID, "new-access", "new-refresh", newScopes, time.Now().Add(2*time.Hour))
+	if err != nil {
+		t.Fatalf("UpdateTokens failed: %v", err)
+	}
+
+	session, _ := svc.Get(sessionID)
+	if len(session.Scopes) != 2 {
+		t.Fatalf("Scopes length = %d, want 2", len(session.Scopes))
+	}
+	if session.Scopes[1] != "diego-analyzer.operator" {
+		t.Errorf("Scopes = %v, want operator scope present", session.Scopes)
+	}
+}
+
+func TestSessionService_UpdateTokens_ScopesBecomesNil(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	svc := NewSessionService(c)
+
+	expiry := time.Now().Add(time.Hour)
+	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", []string{"diego-analyzer.operator"}, expiry)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Simulate a refreshed token where scope extraction fails (returns nil)
+	err = svc.UpdateTokens(sessionID, "new-access", "new-refresh", nil, time.Now().Add(2*time.Hour))
+	if err != nil {
+		t.Fatalf("UpdateTokens failed: %v", err)
+	}
+
+	session, _ := svc.Get(sessionID)
+	if session.Scopes != nil {
+		t.Errorf("Scopes = %v, want nil", session.Scopes)
+	}
+}
+
+func TestSessionService_UpdateTokens_PreservesSessionFields(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	svc := NewSessionService(c)
+
+	expiry := time.Now().Add(time.Hour)
+	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", []string{"diego-analyzer.operator"}, expiry)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Capture original session fields
+	original, _ := svc.Get(sessionID)
+	originalCSRF := original.CSRFToken
+	originalCreatedAt := original.CreatedAt
+
+	err = svc.UpdateTokens(sessionID, "new-access", "new-refresh", []string{"diego-analyzer.viewer"}, time.Now().Add(2*time.Hour))
+	if err != nil {
+		t.Fatalf("UpdateTokens failed: %v", err)
+	}
+
+	updated, _ := svc.Get(sessionID)
+	if updated.Username != "testuser" {
+		t.Errorf("Username = %q, want %q", updated.Username, "testuser")
+	}
+	if updated.UserID != "user-123" {
+		t.Errorf("UserID = %q, want %q", updated.UserID, "user-123")
+	}
+	if updated.CSRFToken != originalCSRF {
+		t.Errorf("CSRFToken changed from %q to %q", originalCSRF, updated.CSRFToken)
+	}
+	if !updated.CreatedAt.Equal(originalCreatedAt) {
+		t.Errorf("CreatedAt changed from %v to %v", originalCreatedAt, updated.CreatedAt)
+	}
 }
 
 func TestSessionService_UpdateTokens_NotFound(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	svc := NewSessionService(c)
 
-	err := svc.UpdateTokens("nonexistent", "access", "refresh", time.Now().Add(time.Hour))
+	err := svc.UpdateTokens("nonexistent", "access", "refresh", nil, time.Now().Add(time.Hour))
 	if err == nil {
 		t.Error("UpdateTokens should return error for nonexistent session")
 	}
@@ -228,8 +315,8 @@ func TestSessionService_SessionIDNotPredictable(t *testing.T) {
 	expiry := time.Now().Add(time.Hour)
 
 	// Create two sessions with same data
-	id1, _ := svc.Create("testuser", "user-123", "access", "refresh", expiry)
-	id2, _ := svc.Create("testuser", "user-123", "access", "refresh", expiry)
+	id1, _ := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
+	id2, _ := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
 
 	// Session IDs should be different (not derived from input)
 	if id1 == id2 {
@@ -244,7 +331,7 @@ func TestSessionService_ConcurrentAccess(t *testing.T) {
 	expiry := time.Now().Add(time.Hour)
 
 	// Create a session
-	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", expiry)
+	sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -271,7 +358,7 @@ func TestSessionService_Create_GeneratesCSRFToken(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	svc := NewSessionService(c)
 
-	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", time.Now().Add(time.Hour))
+	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", nil, time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -300,7 +387,7 @@ func TestSessionService_Create_UniqueCSRFTokens(t *testing.T) {
 
 	// Create 100 sessions and verify all CSRF tokens are unique
 	for i := 0; i < 100; i++ {
-		sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", expiry)
+		sessionID, err := svc.Create("testuser", "user-123", "access", "refresh", nil, expiry)
 		if err != nil {
 			t.Fatalf("Create failed at iteration %d: %v", i, err)
 		}
@@ -319,7 +406,7 @@ func TestSessionService_GetCSRFToken(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	svc := NewSessionService(c)
 
-	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", time.Now().Add(time.Hour))
+	sessionID, err := svc.Create("testuser", "user-123", "access-token", "refresh-token", nil, time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}

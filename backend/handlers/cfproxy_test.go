@@ -50,7 +50,7 @@ func TestCFProxyIsolationSegments(t *testing.T) {
 	h.SetSessionService(sessionSvc)
 
 	// Create a session with CF token
-	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", time.Now().Add(time.Hour))
+	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", nil, time.Now().Add(time.Hour))
 
 	t.Run("returns isolation segments with valid session", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/cf/isolation-segments", nil)
@@ -130,7 +130,7 @@ func TestCFProxyApps(t *testing.T) {
 	sessionSvc := services.NewSessionService(c)
 	h.SetSessionService(sessionSvc)
 
-	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", time.Now().Add(time.Hour))
+	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", nil, time.Now().Add(time.Hour))
 
 	t.Run("returns apps with valid session", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/cf/apps", nil)
@@ -184,7 +184,7 @@ func TestCFProxyAppProcesses(t *testing.T) {
 	sessionSvc := services.NewSessionService(c)
 	h.SetSessionService(sessionSvc)
 
-	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", time.Now().Add(time.Hour))
+	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", nil, time.Now().Add(time.Hour))
 
 	t.Run("returns app processes with valid session", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/cf/apps/app-123/processes", nil)
@@ -230,7 +230,7 @@ func TestCFProxyProcessStats(t *testing.T) {
 	sessionSvc := services.NewSessionService(c)
 	h.SetSessionService(sessionSvc)
 
-	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", time.Now().Add(time.Hour))
+	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", nil, time.Now().Add(time.Hour))
 
 	t.Run("returns process stats with valid session", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/cf/processes/proc-123/stats", nil)
@@ -274,7 +274,7 @@ func TestCFProxySpaces(t *testing.T) {
 	sessionSvc := services.NewSessionService(c)
 	h.SetSessionService(sessionSvc)
 
-	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", time.Now().Add(time.Hour))
+	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", nil, time.Now().Add(time.Hour))
 
 	t.Run("returns space with valid session", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/cf/spaces/space-123", nil)
@@ -318,7 +318,7 @@ func TestCFProxyIsolationSegmentByGUID(t *testing.T) {
 	sessionSvc := services.NewSessionService(c)
 	h.SetSessionService(sessionSvc)
 
-	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", time.Now().Add(time.Hour))
+	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", nil, time.Now().Add(time.Hour))
 
 	t.Run("returns isolation segment by GUID", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/cf/isolation-segments/seg-123", nil)
@@ -348,7 +348,7 @@ func TestCFProxyHandlesCFAPIErrors(t *testing.T) {
 	sessionSvc := services.NewSessionService(c)
 	h.SetSessionService(sessionSvc)
 
-	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", time.Now().Add(time.Hour))
+	sessionID, _ := sessionSvc.Create("testuser", "user-123", "test-cf-token", "test-refresh", nil, time.Now().Add(time.Hour))
 
 	t.Run("propagates CF API errors", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/cf/isolation-segments", nil)
@@ -382,7 +382,7 @@ func TestCFProxySessionTokenUsedCorrectly(t *testing.T) {
 	h.SetSessionService(sessionSvc)
 
 	// Create session with specific token
-	sessionID, _ := sessionSvc.Create("testuser", "user-123", "unique-cf-token-12345", "refresh", time.Now().Add(time.Hour))
+	sessionID, _ := sessionSvc.Create("testuser", "user-123", "unique-cf-token-12345", "refresh", nil, time.Now().Add(time.Hour))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/cf/isolation-segments", nil)
 	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: sessionID})
