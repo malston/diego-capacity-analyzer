@@ -175,10 +175,13 @@ func main() {
 		pattern := route.Method + " " + route.Path
 
 		// Build middleware chain based on route properties
-		// Order: CORS -> CSRF -> Auth (if protected) -> RateLimit (if not exempt) -> LogRequest -> Handler
+		// Order: CORS -> CSRF -> Auth (if protected) -> RBAC (if role required) -> RateLimit (if not exempt) -> LogRequest -> Handler
 		mws := []func(http.HandlerFunc) http.HandlerFunc{corsMiddleware, middleware.CSRF()}
 		if !route.Public {
 			mws = append(mws, middleware.Auth(authCfg))
+		}
+		if route.Role != "" && authCfg.Mode != middleware.AuthModeDisabled {
+			mws = append(mws, middleware.RequireRole(route.Role))
 		}
 		if route.RateLimit != "none" {
 			rlMiddleware, ok := rateLimiters[route.RateLimit]
