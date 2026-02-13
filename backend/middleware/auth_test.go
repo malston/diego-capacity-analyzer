@@ -857,6 +857,30 @@ func createSignedTestToken(t *testing.T, privateKey *rsa.PrivateKey, kid, userna
 	return headerB64 + "." + payloadB64 + "." + signatureB64
 }
 
+func TestResolveRole(t *testing.T) {
+	tests := []struct {
+		name   string
+		scopes []string
+		want   string
+	}{
+		{"operator scope", []string{"openid", "diego-analyzer.operator"}, "operator"},
+		{"viewer scope", []string{"openid", "diego-analyzer.viewer"}, "viewer"},
+		{"both scopes operator wins", []string{"diego-analyzer.viewer", "diego-analyzer.operator"}, "operator"},
+		{"no matching scopes defaults to viewer", []string{"openid", "cloud_controller.read"}, "viewer"},
+		{"empty scopes defaults to viewer", []string{}, "viewer"},
+		{"nil scopes defaults to viewer", nil, "viewer"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveRole(tt.scopes)
+			if got != tt.want {
+				t.Errorf("ResolveRole(%v) = %q, want %q", tt.scopes, got, tt.want)
+			}
+		})
+	}
+}
+
 // createSignedTestTokenWithNoIdentity creates a properly signed JWT without identity claims
 func createSignedTestTokenWithNoIdentity(t *testing.T, privateKey *rsa.PrivateKey, kid string, exp time.Time) string {
 	t.Helper()

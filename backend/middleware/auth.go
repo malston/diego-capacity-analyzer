@@ -55,6 +55,32 @@ func ValidateAuthMode(mode string) (AuthMode, error) {
 type UserClaims struct {
 	Username string
 	UserID   string
+	Scopes   []string
+	Role     string
+}
+
+const (
+	RoleViewer   = "viewer"
+	RoleOperator = "operator"
+
+	ScopeViewer   = "diego-analyzer.viewer"
+	ScopeOperator = "diego-analyzer.operator"
+)
+
+// ResolveRole determines the application role from JWT scopes.
+// Operator scope takes precedence. Defaults to viewer if no matching scope found.
+func ResolveRole(scopes []string) string {
+	for _, s := range scopes {
+		if s == ScopeOperator {
+			return RoleOperator
+		}
+	}
+	for _, s := range scopes {
+		if s == ScopeViewer {
+			return RoleViewer
+		}
+	}
+	return RoleViewer
 }
 
 // contextKey is a private type for context keys to avoid collisions
@@ -113,6 +139,8 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 				claims := &UserClaims{
 					Username: jwtClaims.Username,
 					UserID:   jwtClaims.UserID,
+					Scopes:   jwtClaims.Scopes,
+					Role:     ResolveRole(jwtClaims.Scopes),
 				}
 
 				slog.Debug("Auth: valid bearer token", "path", r.URL.Path, "user", claims.Username)
