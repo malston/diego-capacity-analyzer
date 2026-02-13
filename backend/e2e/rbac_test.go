@@ -15,7 +15,18 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/backend/services"
 )
 
-func TestRBAC_OperatorEndpoint_WithOperatorToken_Returns200(t *testing.T) {
+// rbacTestFixture holds shared RSA key and auth config for RBAC tests
+type rbacTestFixture struct {
+	privateKey *rsa.PrivateKey
+	keyID      string
+	authCfg    middleware.AuthConfig
+}
+
+// newRBACTestFixture generates an RSA key pair and configures a JWKSClient
+// with AuthModeRequired for RBAC integration testing.
+func newRBACTestFixture(t *testing.T) rbacTestFixture {
+	t.Helper()
+
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatalf("failed to generate RSA key: %v", err)
@@ -27,10 +38,27 @@ func TestRBAC_OperatorEndpoint_WithOperatorToken_Returns200(t *testing.T) {
 		keyID: &privateKey.PublicKey,
 	})
 
-	authCfg := middleware.AuthConfig{
-		Mode:       middleware.AuthModeRequired,
-		JWKSClient: jwksClient,
+	return rbacTestFixture{
+		privateKey: privateKey,
+		keyID:      keyID,
+		authCfg: middleware.AuthConfig{
+			Mode:       middleware.AuthModeRequired,
+			JWKSClient: jwksClient,
+		},
 	}
+}
+
+// bearerRequest creates a signed JWT and returns an httptest request with it set as a Bearer token.
+func (f rbacTestFixture) bearerRequest(t *testing.T, method, path string, claims jwtClaims) *http.Request {
+	t.Helper()
+	token := createTestJWT(t, f.privateKey, f.keyID, claims)
+	req := httptest.NewRequest(method, path, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	return req
+}
+
+func TestRBAC_OperatorEndpoint_WithOperatorToken_Returns200(t *testing.T) {
+	f := newRBACTestFixture(t)
 
 	var handlerCalled bool
 	handler := middleware.Chain(
@@ -38,20 +66,17 @@ func TestRBAC_OperatorEndpoint_WithOperatorToken_Returns200(t *testing.T) {
 			handlerCalled = true
 			w.WriteHeader(http.StatusOK)
 		},
-		middleware.Auth(authCfg),
+		middleware.Auth(f.authCfg),
 		middleware.RequireRole(middleware.RoleOperator),
 	)
 
-	token := createTestJWT(t, privateKey, keyID, jwtClaims{
+	req := f.bearerRequest(t, http.MethodPost, "/api/v1/infrastructure/manual", jwtClaims{
 		UserName: "operator-user",
 		UserID:   "op-id",
 		Exp:      time.Now().Add(time.Hour).Unix(),
 		Iat:      time.Now().Unix(),
 		Scope:    []string{"openid", "diego-analyzer.operator"},
 	})
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/infrastructure/manual", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	handler(rec, req)
 
@@ -64,40 +89,23 @@ func TestRBAC_OperatorEndpoint_WithOperatorToken_Returns200(t *testing.T) {
 }
 
 func TestRBAC_OperatorEndpoint_WithViewerToken_Returns403(t *testing.T) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("failed to generate RSA key: %v", err)
-	}
-
-	keyID := "rbac-test-key"
-	jwksClient := &services.JWKSClient{}
-	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
-		keyID: &privateKey.PublicKey,
-	})
-
-	authCfg := middleware.AuthConfig{
-		Mode:       middleware.AuthModeRequired,
-		JWKSClient: jwksClient,
-	}
+	f := newRBACTestFixture(t)
 
 	handler := middleware.Chain(
 		func(w http.ResponseWriter, r *http.Request) {
 			t.Error("Handler should not be called for viewer accessing operator endpoint")
 		},
-		middleware.Auth(authCfg),
+		middleware.Auth(f.authCfg),
 		middleware.RequireRole(middleware.RoleOperator),
 	)
 
-	token := createTestJWT(t, privateKey, keyID, jwtClaims{
+	req := f.bearerRequest(t, http.MethodPost, "/api/v1/infrastructure/manual", jwtClaims{
 		UserName: "viewer-user",
 		UserID:   "view-id",
 		Exp:      time.Now().Add(time.Hour).Unix(),
 		Iat:      time.Now().Unix(),
 		Scope:    []string{"openid", "diego-analyzer.viewer"},
 	})
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/infrastructure/manual", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	handler(rec, req)
 
@@ -107,21 +115,7 @@ func TestRBAC_OperatorEndpoint_WithViewerToken_Returns403(t *testing.T) {
 }
 
 func TestRBAC_ViewerEndpoint_WithViewerToken_Returns200(t *testing.T) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("failed to generate RSA key: %v", err)
-	}
-
-	keyID := "rbac-test-key"
-	jwksClient := &services.JWKSClient{}
-	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
-		keyID: &privateKey.PublicKey,
-	})
-
-	authCfg := middleware.AuthConfig{
-		Mode:       middleware.AuthModeRequired,
-		JWKSClient: jwksClient,
-	}
+	f := newRBACTestFixture(t)
 
 	var handlerCalled bool
 	// No RequireRole middleware -- viewer endpoints have no Role set
@@ -130,19 +124,16 @@ func TestRBAC_ViewerEndpoint_WithViewerToken_Returns200(t *testing.T) {
 			handlerCalled = true
 			w.WriteHeader(http.StatusOK)
 		},
-		middleware.Auth(authCfg),
+		middleware.Auth(f.authCfg),
 	)
 
-	token := createTestJWT(t, privateKey, keyID, jwtClaims{
+	req := f.bearerRequest(t, http.MethodGet, "/api/v1/dashboard", jwtClaims{
 		UserName: "viewer-user",
 		UserID:   "view-id",
 		Exp:      time.Now().Add(time.Hour).Unix(),
 		Iat:      time.Now().Unix(),
 		Scope:    []string{"openid", "diego-analyzer.viewer"},
 	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/dashboard", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	handler(rec, req)
 
@@ -155,21 +146,7 @@ func TestRBAC_ViewerEndpoint_WithViewerToken_Returns200(t *testing.T) {
 }
 
 func TestRBAC_NonGatedPOST_WithViewerToken_Returns200(t *testing.T) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("failed to generate RSA key: %v", err)
-	}
-
-	keyID := "rbac-test-key"
-	jwksClient := &services.JWKSClient{}
-	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
-		keyID: &privateKey.PublicKey,
-	})
-
-	authCfg := middleware.AuthConfig{
-		Mode:       middleware.AuthModeRequired,
-		JWKSClient: jwksClient,
-	}
+	f := newRBACTestFixture(t)
 
 	var handlerCalled bool
 	// No RequireRole -- /scenario/compare has no Role set in the route table
@@ -178,19 +155,16 @@ func TestRBAC_NonGatedPOST_WithViewerToken_Returns200(t *testing.T) {
 			handlerCalled = true
 			w.WriteHeader(http.StatusOK)
 		},
-		middleware.Auth(authCfg),
+		middleware.Auth(f.authCfg),
 	)
 
-	token := createTestJWT(t, privateKey, keyID, jwtClaims{
+	req := f.bearerRequest(t, http.MethodPost, "/api/v1/scenario/compare", jwtClaims{
 		UserName: "viewer-user",
 		UserID:   "view-id",
 		Exp:      time.Now().Add(time.Hour).Unix(),
 		Iat:      time.Now().Unix(),
 		Scope:    []string{"openid", "diego-analyzer.viewer"},
 	})
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenario/compare", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	handler(rec, req)
 
@@ -231,41 +205,24 @@ func TestRBAC_OperatorEndpoint_AuthDisabled_NoRBACCheck(t *testing.T) {
 }
 
 func TestRBAC_OperatorEndpoint_NoScopesDefaultsViewer_Returns403(t *testing.T) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("failed to generate RSA key: %v", err)
-	}
-
-	keyID := "rbac-test-key"
-	jwksClient := &services.JWKSClient{}
-	jwksClient.SetKeysForTesting(map[string]*rsa.PublicKey{
-		keyID: &privateKey.PublicKey,
-	})
-
-	authCfg := middleware.AuthConfig{
-		Mode:       middleware.AuthModeRequired,
-		JWKSClient: jwksClient,
-	}
+	f := newRBACTestFixture(t)
 
 	handler := middleware.Chain(
 		func(w http.ResponseWriter, r *http.Request) {
 			t.Error("Handler should not be called for user without scopes on operator endpoint")
 		},
-		middleware.Auth(authCfg),
+		middleware.Auth(f.authCfg),
 		middleware.RequireRole(middleware.RoleOperator),
 	)
 
 	// Token with no diego-analyzer scopes -- defaults to viewer
-	token := createTestJWT(t, privateKey, keyID, jwtClaims{
+	req := f.bearerRequest(t, http.MethodPost, "/api/v1/infrastructure/manual", jwtClaims{
 		UserName: "no-scope-user",
 		UserID:   "ns-id",
 		Exp:      time.Now().Add(time.Hour).Unix(),
 		Iat:      time.Now().Unix(),
 		Scope:    []string{"openid", "cloud_controller.read"},
 	})
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/infrastructure/manual", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	handler(rec, req)
 
