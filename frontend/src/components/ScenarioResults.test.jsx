@@ -2,7 +2,7 @@
 // ABOUTME: Verifies gauge renders when CPU selected and hides when not selected
 
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import ScenarioResults from "./ScenarioResults";
 
 describe("ScenarioResults CPU Gauge", () => {
@@ -512,13 +512,9 @@ describe("ScenarioResults Metric Grouping", () => {
     );
 
     const infraSection = screen.getByTestId("section-infrastructure-headroom");
-    const n1Label = screen.getByText((content, element) => {
-      return (
-        element.textContent.includes("Capacity") &&
-        element.textContent.includes("HA 25%")
-      );
-    });
-    expect(infraSection).toContainElement(n1Label);
+    // N-1 gauge header contains the limiting constraint label
+    const { getByText } = within(infraSection);
+    expect(getByText(/Capacity.*HA 25%/)).toBeInTheDocument();
   });
 
   it("places Memory Utilization gauge inside Current Utilization section", () => {
