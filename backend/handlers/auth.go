@@ -86,8 +86,17 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Me returns the current user's authentication status
+// Me returns the current user's authentication status.
+// When auth is disabled, returns an anonymous authenticated user.
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
+	if h.cfg.AuthMode == "disabled" {
+		h.writeJSON(w, http.StatusOK, models.UserInfoResponse{
+			Authenticated: true,
+			Username:      "demo",
+		})
+		return
+	}
+
 	session := h.getSessionFromCookie(r)
 	if session == nil {
 		h.writeJSON(w, http.StatusOK, models.UserInfoResponse{

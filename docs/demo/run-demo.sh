@@ -95,10 +95,10 @@ start_backend() {
         return 0
     fi
 
-    log_info "Starting backend on port $port..."
+    log_info "Starting backend on port $port (auth disabled for demo)..."
     cd "$PROJECT_ROOT/backend"
     go build -o capacity-backend . || { log_error "Backend build failed"; exit 1; }
-    ./capacity-backend &
+    AUTH_MODE=disabled ./capacity-backend &
     BACKEND_PID=$!
     cd "$PROJECT_ROOT"
     sleep 2
@@ -229,6 +229,8 @@ if [[ "${1:-}" == "-h" ]] || [[ "${1:-}" == "--help" ]]; then
 Usage: ./run-demo.sh [options]
 
 Starts the Diego Capacity Analyzer in demo mode.
+Authentication is disabled (AUTH_MODE=disabled) so all features
+work without credentials.
 
 Environment variables:
   BACKEND_PORT   Backend server port (default: 8080)
