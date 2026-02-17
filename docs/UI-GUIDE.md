@@ -152,10 +152,6 @@ For more details, see [Configure Advanced Features](https://techdocs.broadcom.co
 
 Answers: **"Will my workload fit if I change my cell configuration?"**
 
-![Scenario Results Demo](images/tas-scenario-results.gif)
-
-_Running capacity analysis through the wizard to see detailed scenario results with gauges and metrics._
-
 ---
 
 ## Loading Infrastructure Data
@@ -273,7 +269,22 @@ Risk level indicators help you understand if your current or proposed configurat
 
 ---
 
-## Results: Capacity Gauges
+## Results Layout
+
+Scenario results are organized into two visual sections that separate "can we deploy this?" from "how full is it?":
+
+- **Infrastructure Headroom** -- Physical capacity limits and deployment constraints
+- **Current Utilization** -- Workload usage, performance, and configuration details
+
+![Scenario Results Demo](images/tas-scenario-results.gif)
+
+_Scenario results showing Infrastructure Headroom and Current Utilization sections with gauges, scorecards, and cell configuration comparison._
+
+---
+
+## Results: Infrastructure Headroom
+
+Answers: **"Does the physical infrastructure have room for this configuration?"**
 
 ### Capacity (HA) / N-1 Capacity
 
@@ -306,7 +317,7 @@ Whichever reserves more capacity is the limiting constraint and is displayed in 
 
 ### CPU Utilization (vCPU:pCPU Ratio)
 
-The vCPU:pCPU ratio shows how many virtual CPUs are allocated per physical CPU core. This is a **calculated output** based on your cell count and cell vCPU size--it's not a configurable setting.
+Shown when CPU is selected as an analysis resource. The vCPU:pCPU ratio shows how many virtual CPUs are allocated per physical CPU core. This is a **calculated output** based on your cell count and cell vCPU size--it's not a configurable setting.
 
 | Ratio         | Risk Level | Meaning                                                   |
 | ------------- | ---------- | --------------------------------------------------------- |
@@ -314,14 +325,44 @@ The vCPU:pCPU ratio shows how many virtual CPUs are allocated per physical CPU c
 | **4:1 - 8:1** | Medium     | Monitor CPU Ready time for contention                     |
 | **> 8:1**     | High       | Aggressive, requires active monitoring; expect contention |
 
-The display shows both your current ratio and what the ratio would be at maximum cell count:
-
-- **Current**: Ratio at your proposed/current cell count
-- **At Max**: Ratio if you deployed the maximum cells (memory-limited)
+The display shows the proposed ratio with vCPU and pCPU counts, plus a CPU headroom indicator showing how many additional cells can be added before reaching the target ratio.
 
 **Note:** VMware's current guidance emphasizes monitoring actual CPU Ready Time (target <5%) rather than adhering to fixed ratio thresholds. The ratio indicators help you understand the implications of your cell configuration, but actual performance depends on workload characteristics.
 
+### Maximum Deployable Cells
+
+Shows the upper bound on how many Diego cells your infrastructure can support, broken down by resource constraint. Each constraint is shown as a line item:
+
+| Constraint | What It Measures                                                  |
+| ---------- | ----------------------------------------------------------------- |
+| **Memory** | Max cells based on HA-usable memory (or N-1) divided by cell size |
+| **CPU**    | Max cells before exceeding the target vCPU:pCPU ratio             |
+
+When both Memory and CPU resources are selected, the more restrictive constraint is highlighted with a **BOTTLENECK** indicator. Each line also shows headroom (additional cells beyond the current count).
+
+**Example:** With 22.5TB HA-usable memory, 960 physical cores, and cells sized at 32 GB / 4 vCPU:
+
+- Memory: 22,500 / 32 = **703 cells** (+603 headroom from 100 current)
+- CPU at 4:1 target: 960 × 4 / 4 = **960 cells** (+860 headroom)
+- Memory is the bottleneck (703 < 960)
+
+---
+
+## Results: Current Utilization
+
+Answers: **"How full is the proposed configuration with the current workload?"**
+
 ### Memory Utilization
+
+| Value      | Status   | Meaning                  |
+| ---------- | -------- | ------------------------ |
+| **< 80%**  | Good     | Healthy headroom         |
+| **80-90%** | Warning  | Getting tight            |
+| **> 90%**  | Critical | Near capacity exhaustion |
+
+### Disk Utilization
+
+Shown when disk is selected as an analysis resource.
 
 | Value      | Status   | Meaning                  |
 | ---------- | -------- | ------------------------ |
@@ -341,11 +382,9 @@ Available memory chunks for `cf push` staging operations. The chunk size is **au
 
 **Chunk size detection:** The system calculates `Total App Memory / Total App Instances` to determine your typical app footprint. Java-heavy platforms typically show ~4GB chunks, while Go/Python workloads may show 1-2GB. The UI displays the actual chunk size used in calculations (e.g., "2.5GB chunks for staging").
 
----
+### Scheduling Performance (TPS)
 
-## Results: TPS Performance
-
-**TPS = Tasks Per Second** - how fast Diego's scheduler can place app instances.
+**TPS = Tasks Per Second** -- how fast Diego's scheduler can place app instances. Displayed as a current → proposed comparison with status badges.
 
 | Cell Count | TPS    | Notes              |
 | ---------- | ------ | ------------------ |
@@ -357,9 +396,7 @@ Available memory chunks for `cf push` staging operations. The chunk size is **au
 
 > **Note:** These values are modeled estimates, not live measurements. See [TPS Performance (Modeled)](#tps-performance-modeled) for methodology and customization options.
 
----
-
-## Results: Metric Scorecards
+### Metric Scorecards
 
 | Metric             | What It Means                             | Good Direction               |
 | ------------------ | ----------------------------------------- | ---------------------------- |
@@ -550,22 +587,30 @@ Each recommendation includes:
 
 ### Scenario Analysis Tab (Calculated)
 
-The Scenario Analysis tab displays results in several visual sections:
+Results are organized into two sections: **Infrastructure Headroom** (deployment limits) and **Current Utilization** (workload usage).
 
-#### Capacity Gauges
+#### Infrastructure Headroom
 
-Circular gauges showing utilization percentages with color-coded status:
-
-| Gauge                  | Formula                                                | Thresholds                                     |
-| ---------------------- | ------------------------------------------------------ | ---------------------------------------------- |
-| **Capacity (HA/N-1)**  | `(Cell Memory + Platform VMs) / Usable Capacity × 100` | Warning: 75%, Critical: 85%                    |
-| **Memory Utilization** | `App Memory / App Capacity × 100`                      | Warning: 80%, Critical: 90%                    |
-| **Disk Utilization**   | `App Disk / Disk Capacity × 100`                       | Warning: 80%, Critical: 90%                    |
-| **Staging Capacity**   | Raw count of free chunks (auto-sized)                  | Healthy: ≥20, Limited: 10-19, Constrained: <10 |
+| Gauge                    | Formula                                                                                      | Thresholds                              |
+| ------------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------- |
+| **Capacity (HA/N-1)**    | `(Cell Memory + Platform VMs) / Usable Capacity × 100`                                       | Warning: 75%, Critical: 85%             |
+| **vCPU:pCPU Ratio**      | `(Cell Count × Cell vCPU) / Total Physical Cores`                                            | Low: ≤4:1, Medium: 4-8:1, High: >8:1    |
+| **Max Deployable Cells** | `Usable Memory / Cell Memory` (memory) and `Physical Cores × Target Ratio / Cell vCPU` (CPU) | Bottleneck indicator when both selected |
 
 Where:
 
 - **Usable Capacity** = Total cluster memory - Reserved capacity (HA% or N-1, whichever reserves more)
+
+#### Current Utilization
+
+| Gauge                  | Formula                               | Thresholds                                     |
+| ---------------------- | ------------------------------------- | ---------------------------------------------- |
+| **Memory Utilization** | `App Memory / App Capacity × 100`     | Warning: 80%, Critical: 90%                    |
+| **Disk Utilization**   | `App Disk / Disk Capacity × 100`      | Warning: 80%, Critical: 90%                    |
+| **Staging Capacity**   | Raw count of free chunks (auto-sized) | Healthy: ≥20, Limited: 10-19, Constrained: <10 |
+
+Where:
+
 - **App Capacity** = `cells × (cell_memory_gb - 7% overhead)`
 - **Free Chunks** = `(App Capacity - App Memory) / Chunk Size`
 - **Chunk Size** = Auto-detected from `Max Instance Memory` (largest app memory limit, min 1GB, defaults to 4GB if unavailable). We use MAX because staging requires contiguous memory--if your largest app needs 4GB, you need 4GB chunks available even if most apps are small.
@@ -591,8 +636,9 @@ Visual comparison of cell specs (vCPU × GB) between current and proposed, showi
 
 - Current cell size and count
 - Proposed cell size and count
-- Redundancy change indicator (improved/reduced/no change)
+- Resilience risk indicator (low/moderate/high based on blast radius)
 - Capacity change summary in GB
+- Utilization change summary in percentage
 
 #### Advanced Options
 
