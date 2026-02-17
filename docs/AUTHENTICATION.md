@@ -18,15 +18,15 @@ Browser ──── httpOnly cookies ────> Backend ──── OAuth t
 
 Authentication-related environment variables:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AUTH_MODE` | `optional` | `disabled`, `optional`, or `required` |
-| `COOKIE_SECURE` | `true` | Set `false` for local dev (HTTP without TLS) |
-| `CORS_ALLOWED_ORIGINS` | (empty) | Comma-separated list of allowed origins |
-| `CF_API_URL` | (required) | Cloud Foundry API URL |
-| `CF_USERNAME` | (required) | CF admin username for backend API access |
-| `CF_PASSWORD` | (required) | CF admin password |
-| `CF_SKIP_SSL_VALIDATION` | `false` | Skip TLS verification for CF/UAA endpoints |
+| Variable                 | Default    | Description                                  |
+| ------------------------ | ---------- | -------------------------------------------- |
+| `AUTH_MODE`              | `optional` | `disabled`, `optional`, or `required`        |
+| `COOKIE_SECURE`          | `true`     | Set `false` for local dev (HTTP without TLS) |
+| `CORS_ALLOWED_ORIGINS`   | (empty)    | Comma-separated list of allowed origins      |
+| `CF_API_URL`             | (required) | Cloud Foundry API URL                        |
+| `CF_USERNAME`            | (required) | CF admin username for backend API access     |
+| `CF_PASSWORD`            | (required) | CF admin password                            |
+| `CF_SKIP_SSL_VALIDATION` | `false`    | Skip TLS verification for CF/UAA endpoints   |
 
 ## How Authentication Works
 
@@ -42,10 +42,10 @@ Authentication-related environment variables:
 
 ### Session Management
 
-| Cookie | Flags | Purpose |
-|--------|-------|---------|
+| Cookie          | Flags                                   | Purpose                                      |
+| --------------- | --------------------------------------- | -------------------------------------------- |
 | `DIEGO_SESSION` | `HttpOnly`, `Secure`, `SameSite=Strict` | Session identifier (opaque, 32 random bytes) |
-| `DIEGO_CSRF` | `Secure`, `SameSite=Lax` | CSRF token readable by JavaScript |
+| `DIEGO_CSRF`    | `Secure`, `SameSite=Lax`                | CSRF token readable by JavaScript            |
 
 - Sessions are stored in the backend's in-memory cache with a TTL matching the token lifetime (plus a 10-minute buffer for refresh)
 - The browser sends cookies automatically on every request (`credentials: "include"`)
@@ -74,34 +74,39 @@ The backend enforces CSRF protection using the double-submit cookie pattern:
 
 All auth endpoints use the `/api/v1/auth/` prefix.
 
-| Endpoint | Method | Description | Rate Limit |
-|----------|--------|-------------|------------|
-| `/api/v1/auth/login` | `POST` | Authenticate and create session | 5/min |
-| `/api/v1/auth/logout` | `POST` | Destroy session and clear cookies | 5/min |
-| `/api/v1/auth/me` | `GET` | Check authentication status | None |
-| `/api/v1/auth/refresh` | `POST` | Refresh access token | 10/min |
+| Endpoint               | Method | Description                       | Rate Limit |
+| ---------------------- | ------ | --------------------------------- | ---------- |
+| `/api/v1/auth/login`   | `POST` | Authenticate and create session   | 5/min      |
+| `/api/v1/auth/logout`  | `POST` | Destroy session and clear cookies | 5/min      |
+| `/api/v1/auth/me`      | `GET`  | Check authentication status       | None       |
+| `/api/v1/auth/refresh` | `POST` | Refresh access token              | 10/min     |
 
 **Login request:**
+
 ```json
 { "username": "admin", "password": "..." }
 ```
 
 **Login response (success):**
+
 ```json
 { "success": true, "username": "admin", "user_id": "..." }
 ```
 
 **Login response (failure):**
+
 ```json
 { "success": false, "error": "Invalid credentials" }
 ```
 
 **Me response (authenticated):**
+
 ```json
 { "authenticated": true, "username": "admin", "user_id": "..." }
 ```
 
 **Me response (not authenticated):**
+
 ```json
 { "authenticated": false }
 ```
@@ -110,22 +115,24 @@ All auth endpoints use the `/api/v1/auth/` prefix.
 
 The backend enforces role-based authorization on API endpoints. Roles are derived from CF UAA JWT scopes.
 
+> **Before you start:** Capacity Planning requires the `operator` role to load and manage infrastructure data. Without completing the [UAA Group Setup](#uaa-group-setup) below, all users -- including `admin` -- default to the `viewer` role and will receive a "403 Forbidden" error when accessing Capacity Planning features.
+
 ### Roles
 
-| Role | Description |
-|------|-------------|
-| **viewer** | Read-only access to dashboards, metrics, and calculations. Default for all authenticated users. |
+| Role         | Description                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------ |
+| **viewer**   | Read-only access to dashboards, metrics, and calculations. Default for all authenticated users.              |
 | **operator** | Full access including state-mutating operations (manual infrastructure input, infrastructure state changes). |
 
 Operator inherits all viewer permissions.
 
 ### UAA Scope Mapping
 
-| UAA Scope | Application Role |
-|-----------|-----------------|
-| `diego-analyzer.operator` | operator |
-| `diego-analyzer.viewer` | viewer |
-| (no matching scope) | viewer (default) |
+| UAA Scope                 | Application Role |
+| ------------------------- | ---------------- |
+| `diego-analyzer.operator` | operator         |
+| `diego-analyzer.viewer`   | viewer           |
+| (no matching scope)       | viewer (default) |
 
 If a token contains both scopes, operator takes precedence.
 
@@ -133,22 +140,39 @@ If a token contains both scopes, operator takes precedence.
 
 Only two endpoints require the operator role:
 
-| Endpoint | Method | Required Role |
-|----------|--------|---------------|
-| `/api/v1/infrastructure/manual` | POST | operator |
-| `/api/v1/infrastructure/state` | POST | operator |
+| Endpoint                        | Method | Required Role |
+| ------------------------------- | ------ | ------------- |
+| `/api/v1/infrastructure/manual` | POST   | operator      |
+| `/api/v1/infrastructure/state`  | POST   | operator      |
 
 All other authenticated endpoints are accessible to any role (viewer or operator).
 
 ### UAA Group Setup
 
-To configure RBAC, create the UAA groups and assign users:
+To configure RBAC, create the UAA groups, assign users, and update the OAuth client. All three steps are required.
+
+**Step 1: Get the UAA admin client secret**
+
+From Ops Manager:
+
+```bash
+# Set Ops Manager credentials
+export OM_TARGET=https://opsman.example.com
+export OM_USERNAME=admin
+export OM_PASSWORD=<password>
+
+# Retrieve the UAA admin client secret
+om -t "$OM_TARGET" -u "$OM_USERNAME" -p "$OM_PASSWORD" -k \
+  credentials -p cf -c .uaa.admin_client_credentials
+```
+
+**Step 2: Authenticate with UAA and create groups**
 
 ```bash
 # Target your UAA instance
-uaac target https://login.sys.example.com --skip-ssl-validation
+uaac target https://uaa.sys.example.com --skip-ssl-validation
 
-# Authenticate as admin
+# Authenticate as UAA admin client
 uaac token client get admin -s <admin-client-secret>
 
 # Create the groups
@@ -160,22 +184,45 @@ uaac member add diego-analyzer.viewer <username>
 uaac member add diego-analyzer.operator <username>
 ```
 
-The application authorizes based on the JWT `scope` claim, not UAA group membership directly. For scopes to appear in issued tokens, two conditions must be met:
+**Step 3: Create a dedicated OAuth client**
 
-1. **UAA groups exist** and the user is a member (commands above)
-2. **The OAuth client includes these scopes** in its allowed scope list
+Do NOT modify the `cf` or `admin` clients -- they are shared system clients used by the CF CLI and other tools. Instead, create a dedicated client for the application:
 
-For the default `cf` client, UAA group membership is automatically reflected in token scopes. For custom OAuth clients, you must explicitly add `diego-analyzer.viewer` and `diego-analyzer.operator` to the client's `scope` and `authorities` configuration. If groups exist but scopes don't appear in tokens, the client configuration is the most likely cause.
+```bash
+uaac client add diego-analyzer \
+  --name "Diego Capacity Analyzer" \
+  --scope "openid diego-analyzer.operator diego-analyzer.viewer" \
+  --authorized_grant_types "password,refresh_token" \
+  --access_token_validity 7200 \
+  --refresh_token_validity 1209600 \
+  --secret <client-secret>
+```
+
+Then configure the backend to use this client via environment variables:
+
+```bash
+OAUTH_CLIENT_ID=diego-analyzer
+OAUTH_CLIENT_SECRET=<client-secret>
+```
+
+After creating the client, users must log out and log back in to receive a token with the new scopes.
+
+The application authorizes based on the JWT `scope` claim, not UAA group membership directly. For scopes to appear in issued tokens, **both** conditions must be met:
+
+1. **UAA groups exist** and the user is a member (Step 2)
+2. **The OAuth client includes these scopes** in its allowed scope list (Step 3)
+
+If groups exist but scopes don't appear in tokens, the client configuration is the most likely cause.
 
 ### Auth Mode Behavior
 
 RBAC enforcement depends on the `AUTH_MODE` environment variable:
 
-| AUTH_MODE | RBAC Behavior |
-|-----------|---------------|
-| `disabled` | RBAC is bypassed; all requests pass through |
+| AUTH_MODE  | RBAC Behavior                                                                         |
+| ---------- | ------------------------------------------------------------------------------------- |
+| `disabled` | RBAC is bypassed; all requests pass through                                           |
 | `optional` | Anonymous requests are treated as viewer; authenticated users get their resolved role |
-| `required` | All requests must authenticate; role is resolved from token scopes |
+| `required` | All requests must authenticate; role is resolved from token scopes                    |
 
 ### Default Behavior
 
@@ -223,11 +270,11 @@ fetch("/api/v1/infrastructure/manual", {
 
 ## Auth Modes
 
-| Mode | Unauthenticated Requests | Authenticated Requests |
-|------|--------------------------|------------------------|
-| `disabled` | Allowed, no auth checks | Auth headers ignored |
+| Mode       | Unauthenticated Requests    | Authenticated Requests              |
+| ---------- | --------------------------- | ----------------------------------- |
+| `disabled` | Allowed, no auth checks     | Auth headers ignored                |
 | `optional` | Allowed as anonymous viewer | Validated; role resolved from token |
-| `required` | Rejected with 401 | Validated; role resolved from token |
+| `required` | Rejected with 401           | Validated; role resolved from token |
 
 In `optional` mode, if a token is present but invalid, the request is rejected (not treated as anonymous).
 
