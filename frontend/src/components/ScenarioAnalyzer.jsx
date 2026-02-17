@@ -86,9 +86,6 @@ const ScenarioAnalyzer = () => {
   const [memoryPerHost, setMemoryPerHost] = useState(512);
   const [haAdmissionPct, setHaAdmissionPct] = useState(25);
 
-  // Wizard step completion tracking
-  const [step1Completed, setStep1Completed] = useState(false);
-
   // Additional app state
   const [additionalApp, setAdditionalApp] = useState({
     name: "hypothetical-app",
@@ -190,12 +187,6 @@ const ScenarioAnalyzer = () => {
         ? prev.filter((r) => r !== resourceId)
         : [...prev, resourceId],
     );
-  };
-
-  const handleStepComplete = (stepIndex) => {
-    if (stepIndex === 0) {
-      setStep1Completed(true);
-    }
   };
 
   // Compute current configuration summary from loaded data
@@ -738,12 +729,11 @@ const ScenarioAnalyzer = () => {
           autoDetectedChunkSizeMB={
             infrastructureState?.max_instance_memory_mb || 0
           }
-          onStepComplete={handleStepComplete}
         />
       )}
 
-      {/* Run Analysis Section - appears after Step 1 completed */}
-      {infrastructureState && step1Completed && (
+      {/* Run Analysis Section */}
+      {infrastructureState && (
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
           <div className="flex items-center justify-between">
             <div>

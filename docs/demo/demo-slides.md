@@ -16,7 +16,7 @@ Use this markdown as a starting point for your slides. Import into your preferre
 │                                                         │
 │                    [Your Name]                          │
 │                    [Team Name]                          │
-│                    January 2025                         │
+│                    February 2026                        │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```

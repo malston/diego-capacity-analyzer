@@ -14,6 +14,7 @@ import (
 
 	"github.com/markalston/diego-capacity-analyzer/backend/cache"
 	"github.com/markalston/diego-capacity-analyzer/backend/config"
+	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 	"github.com/markalston/diego-capacity-analyzer/backend/services"
 )
@@ -419,6 +420,38 @@ func TestMe_InvalidSession(t *testing.T) {
 
 	if userInfo.Authenticated {
 		t.Error("Expected Authenticated to be false for invalid session")
+	}
+}
+
+func TestMe_AuthDisabled_ReturnsAuthenticated(t *testing.T) {
+	c := cache.New(5 * time.Minute)
+	cfg := &config.Config{
+		AuthMode:     string(middleware.AuthModeDisabled),
+		CookieSecure: false,
+	}
+
+	h := NewHandler(cfg, c)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	w := httptest.NewRecorder()
+
+	h.Me(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var userInfo models.UserInfoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if !userInfo.Authenticated {
+		t.Error("Expected Authenticated to be true when auth disabled")
+	}
+	if userInfo.Username != "demo" {
+		t.Errorf("Username = %q, want %q", userInfo.Username, "demo")
 	}
 }
 

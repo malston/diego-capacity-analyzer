@@ -236,7 +236,7 @@ func TestCORSAllowedOrigins_EnvParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Cleanup(withTestCFEnvAndExtra(t, map[string]string{
+			t.Cleanup(withTestCFEnv(t, map[string]string{
 				"CORS_ALLOWED_ORIGINS": tt.envValue,
 			}))
 

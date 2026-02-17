@@ -1,16 +1,16 @@
 // ABOUTME: Tests for scenario wizard container component
 // ABOUTME: Covers step navigation, state management, and step rendering
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import ScenarioWizard from './ScenarioWizard';
-import { ToastProvider } from '../../contexts/ToastContext';
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import ScenarioWizard from "./ScenarioWizard";
+import { ToastProvider } from "../../contexts/ToastContext";
 
 // Helper to wrap component with ToastProvider
 const renderWithToast = (ui) => render(<ToastProvider>{ui}</ToastProvider>);
 
-describe('ScenarioWizard', () => {
+describe("ScenarioWizard", () => {
   const defaultProps = {
     // Cell config props
     selectedPreset: 0,
@@ -23,7 +23,7 @@ describe('ScenarioWizard', () => {
     setCellCount: vi.fn(),
     equivalentCellSuggestion: null,
     // Resource props
-    selectedResources: ['memory'],
+    selectedResources: ["memory"],
     toggleResource: vi.fn(),
     customDisk: 128,
     setCustomDisk: vi.fn(),
@@ -47,104 +47,107 @@ describe('ScenarioWizard', () => {
     setOverheadPct: vi.fn(),
     useAdditionalApp: false,
     setUseAdditionalApp: vi.fn(),
-    additionalApp: { name: 'test', instances: 1, memoryGB: 1, diskGB: 1 },
+    additionalApp: { name: "test", instances: 1, memoryGB: 1, diskGB: 1 },
     setAdditionalApp: vi.fn(),
     tpsCurve: [{ cells: 50, tps: 500 }],
     setTPSCurve: vi.fn(),
     enableTPS: false,
     setEnableTPS: vi.fn(),
-    onStepComplete: vi.fn(),
   };
 
-  it('renders step indicator', () => {
+  it("renders step indicator", () => {
     renderWithToast(<ScenarioWizard {...defaultProps} />);
-    expect(screen.getByText('Resources')).toBeInTheDocument();
-    expect(screen.getByText('Cell Config')).toBeInTheDocument();
-    expect(screen.getByText('Advanced')).toBeInTheDocument();
+    expect(screen.getByText("Resources")).toBeInTheDocument();
+    expect(screen.getByText("Cell Config")).toBeInTheDocument();
+    expect(screen.getByText("Advanced")).toBeInTheDocument();
   });
 
-  it('shows ResourceTypesStep initially', () => {
+  it("shows ResourceTypesStep initially", () => {
     renderWithToast(<ScenarioWizard {...defaultProps} />);
     expect(screen.getByText(/which resources to analyze/i)).toBeInTheDocument();
   });
 
-  it('advances to CellConfigStep after continuing from Step 1', async () => {
+  it("advances to CellConfigStep after continuing from Step 1", async () => {
     renderWithToast(<ScenarioWizard {...defaultProps} />);
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }));
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     expect(screen.getByLabelText(/vm size/i)).toBeInTheDocument();
   });
 
-  it('advances to AdvancedStep after continuing from Step 2', async () => {
+  it("advances to AdvancedStep after continuing from Step 2", async () => {
     renderWithToast(<ScenarioWizard {...defaultProps} />);
     // Step 1 (Resources) -> Step 2 (Cell Config)
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }));
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     // Step 2 (Cell Config) -> Step 3 (Advanced)
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }));
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     expect(screen.getByLabelText(/memory overhead/i)).toBeInTheDocument();
   });
 
-  it('calls onStepComplete after Step 1', async () => {
-    const onStepComplete = vi.fn();
-    renderWithToast(<ScenarioWizard {...defaultProps} onStepComplete={onStepComplete} />);
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }));
-    expect(onStepComplete).toHaveBeenCalledWith(0);
-  });
-
-  it('does not show Skip button on required steps', () => {
+  it("does not show Skip button on required steps", () => {
     renderWithToast(<ScenarioWizard {...defaultProps} />);
     // Resources step is required, no Skip button
-    expect(screen.queryByRole('button', { name: /skip/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /skip/i }),
+    ).not.toBeInTheDocument();
   });
 
-  it('allows clicking on completed steps to navigate back', async () => {
+  it("allows clicking on completed steps to navigate back", async () => {
     renderWithToast(<ScenarioWizard {...defaultProps} />);
     // Go to step 2 (Cell Config)
-    await userEvent.click(screen.getByRole('button', { name: /continue/i }));
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     // Click on step 1 (Resources) in indicator
-    await userEvent.click(screen.getByText('Resources'));
+    await userEvent.click(screen.getByText("Resources"));
     // Should show step 1 content
     expect(screen.getByText(/which resources to analyze/i)).toBeInTheDocument();
   });
 
-  it('shows CPU Config step when cpu resource is selected', async () => {
-    renderWithToast(<ScenarioWizard {...defaultProps} selectedResources={['memory', 'cpu']} />);
+  it("shows CPU Config step when cpu resource is selected", async () => {
+    renderWithToast(
+      <ScenarioWizard
+        {...defaultProps}
+        selectedResources={["memory", "cpu"]}
+      />,
+    );
     // Should have CPU Config step in indicator
-    expect(screen.getByText('CPU Config')).toBeInTheDocument();
+    expect(screen.getByText("CPU Config")).toBeInTheDocument();
     // Navigate to CPU Config step: Resources -> Cell Config -> CPU Config
-    await userEvent.click(screen.getByRole('button', { name: /continue/i })); // to Cell Config
-    await userEvent.click(screen.getByRole('button', { name: /continue/i })); // to CPU Config
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // to Cell Config
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // to CPU Config
     // Should show CPU Config step content
-    expect(screen.getByLabelText(/physical cores per host/i)).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/physical cores per host/i),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText(/number of hosts/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/target vcpu.*ratio/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/platform vm vcpus/i)).toBeInTheDocument();
   });
 
-  it('hides CPU Config step when cpu resource is not selected', () => {
-    renderWithToast(<ScenarioWizard {...defaultProps} selectedResources={['memory']} />);
+  it("hides CPU Config step when cpu resource is not selected", () => {
+    renderWithToast(
+      <ScenarioWizard {...defaultProps} selectedResources={["memory"]} />,
+    );
     // Should NOT have CPU Config step in indicator
-    expect(screen.queryByText('CPU Config')).not.toBeInTheDocument();
+    expect(screen.queryByText("CPU Config")).not.toBeInTheDocument();
   });
 
-  it('passes platformVMsCPU prop to CPUConfigStep', async () => {
+  it("passes platformVMsCPU prop to CPUConfigStep", async () => {
     const setPlatformVMsCPU = vi.fn();
     renderWithToast(
       <ScenarioWizard
         {...defaultProps}
-        selectedResources={['memory', 'cpu']}
+        selectedResources={["memory", "cpu"]}
         platformVMsCPU={120}
         setPlatformVMsCPU={setPlatformVMsCPU}
-      />
+      />,
     );
     // Navigate to CPU Config step
-    await userEvent.click(screen.getByRole('button', { name: /continue/i })); // to Cell Config
-    await userEvent.click(screen.getByRole('button', { name: /continue/i })); // to CPU Config
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // to Cell Config
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // to CPU Config
     // Verify platformVMsCPU value is displayed
     const input = screen.getByLabelText(/platform vm vcpus/i);
     expect(input).toHaveValue(120);
     // Change value and verify setter is called
     await userEvent.clear(input);
-    await userEvent.type(input, '200');
+    await userEvent.type(input, "200");
     expect(setPlatformVMsCPU).toHaveBeenCalled();
   });
 });

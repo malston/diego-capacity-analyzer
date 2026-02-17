@@ -63,8 +63,6 @@ const ScenarioWizard = ({
   chunkSizeMB,
   setChunkSizeMB,
   autoDetectedChunkSizeMB,
-  // Callbacks
-  onStepComplete,
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState([]);
@@ -84,9 +82,8 @@ const ScenarioWizard = ({
       if (!completedSteps.includes(stepIndex)) {
         setCompletedSteps((prev) => [...prev, stepIndex]);
       }
-      onStepComplete?.(stepIndex);
     },
-    [completedSteps, onStepComplete],
+    [completedSteps],
   );
 
   const handleContinue = useCallback(() => {

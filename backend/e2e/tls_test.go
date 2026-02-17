@@ -14,7 +14,10 @@ import (
 // TestTLS_DefaultSecureConfig verifies that with only required CF env vars set,
 // TLS validation defaults to secure (skip=false).
 func TestTLS_DefaultSecureConfig(t *testing.T) {
-	t.Cleanup(withTestCFEnv(t))
+	t.Cleanup(withTestCFEnv(t, map[string]string{
+		"CF_SKIP_SSL_VALIDATION":   "",
+		"BOSH_SKIP_SSL_VALIDATION": "",
+	}))
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -127,7 +130,7 @@ func TestTLS_CFSkipSSLValidation_EnvParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Cleanup(withTestCFEnvAndExtra(t, map[string]string{
+			t.Cleanup(withTestCFEnv(t, map[string]string{
 				"CF_SKIP_SSL_VALIDATION": tt.envValue,
 			}))
 
@@ -170,7 +173,7 @@ func TestTLS_BOSHSkipSSLValidation_EnvParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Cleanup(withTestCFEnvAndExtra(t, map[string]string{
+			t.Cleanup(withTestCFEnv(t, map[string]string{
 				"BOSH_SKIP_SSL_VALIDATION": tt.envValue,
 			}))
 
@@ -196,7 +199,7 @@ c3RjYTAeFw0yNDAxMDEwMDAwMDBaFw0yNTAxMDEwMDAwMDBaMBExDzANBgNVBAMM
 BnRlc3RjYTBcMA0GCSqGSIb3DQEBAQUAA0sAMEgCQQC7o96HFLqGzOHHY+QLqJZT
 -----END CERTIFICATE-----`
 
-	t.Cleanup(withTestCFEnvAndExtra(t, map[string]string{
+	t.Cleanup(withTestCFEnv(t, map[string]string{
 		"BOSH_CA_CERT": sampleCert,
 	}))
 

@@ -8,31 +8,17 @@ import (
 	"testing"
 )
 
-// withTestCFEnv sets CF environment variables to test values and returns
-// a cleanup function that restores the original values. Use with t.Cleanup().
-//
-// Example:
-//
-//	func TestSomething(t *testing.T) {
-//	    t.Cleanup(withTestCFEnv(t))
-//	    // CF_API_URL, CF_USERNAME, CF_PASSWORD are now set
-//	}
-func withTestCFEnv(t *testing.T) func() {
-	t.Helper()
-	return withTestCFEnvAndExtra(t, nil)
-}
-
-// withTestCFEnvAndExtra sets CF environment variables plus additional vars,
+// withTestCFEnv sets CF environment variables plus additional vars,
 // returning a cleanup function that restores all original values.
 //
 // Example:
 //
 //	func TestSomething(t *testing.T) {
-//	    t.Cleanup(withTestCFEnvAndExtra(t, map[string]string{
+//	    t.Cleanup(withTestCFEnv(t, map[string]string{
 //	        "CORS_ALLOWED_ORIGINS": "https://example.com",
 //	    }))
 //	}
-func withTestCFEnvAndExtra(t *testing.T, extra map[string]string) func() {
+func withTestCFEnv(t *testing.T, extra map[string]string) func() {
 	t.Helper()
 
 	// Save original values for CF vars
