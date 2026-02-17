@@ -45,7 +45,7 @@ const TOOLTIPS = {
 
 const SectionHeader = ({ icon: Icon, label }) => (
   <div className="flex items-center gap-2 border-b border-slate-700/50 pb-3 mb-5">
-    <Icon size={16} className="text-gray-400" />
+    <Icon size={16} className="text-gray-400" aria-hidden="true" />
     <span className="text-xs uppercase tracking-wider font-medium text-gray-400">
       {label}
     </span>
@@ -220,7 +220,7 @@ const ScenarioResults = ({
           >
             <SectionHeader icon={Server} label="Infrastructure Headroom" />
             <div className="space-y-6">
-              {/* Infrastructure gauges grid */}
+              {/* Infrastructure gauges: N-1 Capacity (always) + vCPU:pCPU Ratio (when CPU selected) */}
               <div className={`grid gap-6 ${infraCols}`}>
                 {/* N-1 / Constraint Utilization Gauge */}
                 <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
@@ -503,7 +503,7 @@ const ScenarioResults = ({
           >
             <SectionHeader icon={Activity} label="Current Utilization" />
             <div className="space-y-6">
-              {/* Utilization gauges grid */}
+              {/* Utilization gauges: Memory (optional) + Disk (optional) + Staging Capacity (always) */}
               <div className={`grid gap-6 ${utilCols}`}>
                 {/* Cell Utilization Gauge - only if memory selected */}
                 {hasMemory && (

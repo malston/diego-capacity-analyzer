@@ -512,9 +512,9 @@ describe("ScenarioResults Metric Grouping", () => {
     );
 
     const infraSection = screen.getByTestId("section-infrastructure-headroom");
-    // N-1 gauge header contains the limiting constraint label
-    const { getByText } = within(infraSection);
-    expect(getByText(/Capacity.*HA 25%/)).toBeInTheDocument();
+    expect(
+      within(infraSection).getByText(/Capacity.*HA 25%/),
+    ).toBeInTheDocument();
   });
 
   it("places Memory Utilization gauge inside Current Utilization section", () => {
@@ -596,5 +596,26 @@ describe("ScenarioResults Metric Grouping", () => {
     // compareDocumentPosition bit 4 = DOCUMENT_POSITION_FOLLOWING
     const position = infraSection.compareDocumentPosition(utilizationSection);
     expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("renders disk-only selection with Disk and Staging but no Memory in Current Utilization", () => {
+    render(
+      <ScenarioResults
+        comparison={groupingComparison}
+        warnings={[]}
+        selectedResources={["disk"]}
+      />,
+    );
+
+    const utilizationSection = screen.getByTestId(
+      "section-current-utilization",
+    );
+    expect(
+      within(utilizationSection).getByText("Disk Utilization"),
+    ).toBeInTheDocument();
+    expect(
+      within(utilizationSection).getByText("Staging Capacity"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Memory Utilization")).not.toBeInTheDocument();
   });
 });
