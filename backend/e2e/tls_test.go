@@ -14,7 +14,10 @@ import (
 // TestTLS_DefaultSecureConfig verifies that with only required CF env vars set,
 // TLS validation defaults to secure (skip=false).
 func TestTLS_DefaultSecureConfig(t *testing.T) {
-	t.Cleanup(withTestCFEnv(t))
+	t.Cleanup(withTestCFEnvAndExtra(t, map[string]string{
+		"CF_SKIP_SSL_VALIDATION":   "",
+		"BOSH_SKIP_SSL_VALIDATION": "",
+	}))
 
 	cfg, err := config.Load()
 	if err != nil {
