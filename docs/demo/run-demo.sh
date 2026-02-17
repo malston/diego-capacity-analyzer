@@ -113,7 +113,7 @@ start_backend() {
 
 # Start frontend
 start_frontend() {
-    local port="${FRONTEND_PORT:-5173}"
+    local port="${FRONTEND_PORT:-3000}"
     if port_in_use "$port"; then
         log_warn "Frontend port $port already in use -- skipping (using existing service)"
         return 0
@@ -187,7 +187,7 @@ main() {
     echo ""
     log_success "Demo is ready!"
     echo ""
-    echo "  📊 Dashboard:    http://localhost:${FRONTEND_PORT:-5173}"
+    echo "  📊 Dashboard:    http://localhost:${FRONTEND_PORT:-3000}"
     echo "  🔌 Backend API:  http://localhost:${BACKEND_PORT:-8080}/api/v1/health"
     if [[ "${SLIDES:-true}" == "true" ]]; then
         echo "  📽️  Slides:       http://localhost:${SLIDES_PORT:-8888}/demo/"
@@ -207,7 +207,7 @@ main() {
         # Open browser to dashboard
         if [[ "${NO_BROWSER:-false}" != "true" ]]; then
             sleep 1
-            open_browser "http://localhost:${FRONTEND_PORT:-5173}"
+            open_browser "http://localhost:${FRONTEND_PORT:-3000}"
         fi
 
         # Wait for user interrupt
@@ -218,7 +218,7 @@ main() {
 
         # Open browser to dashboard
         if [[ "${NO_BROWSER:-false}" != "true" ]]; then
-            open_browser "http://localhost:${FRONTEND_PORT:-5173}"
+            open_browser "http://localhost:${FRONTEND_PORT:-3000}"
         fi
     fi
 }
@@ -234,7 +234,7 @@ work without credentials.
 
 Environment variables:
   BACKEND_PORT   Backend server port (default: 8080)
-  FRONTEND_PORT  Frontend dev server port (default: 5173)
+  FRONTEND_PORT  Frontend dev server port (default: 3000)
   SLIDES_PORT    Slides HTTP server port (default: 8888)
   SLIDES=false   Skip starting the presentation slides server
   NO_BROWSER=true  Don't auto-open browser
