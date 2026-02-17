@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +31,23 @@ func TestAuth_RequiredMode_NoHeader_Returns401(t *testing.T) {
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("Status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+
+	// Verify JSON error response format
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
+	}
+
+	var errResp struct {
+		Error string `json:"error"`
+		Code  int    `json:"code"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
+		t.Fatalf("Response body is not valid JSON: %v; body: %s", err, rec.Body.String())
+	}
+	if errResp.Error == "" {
+		t.Error("Expected non-empty error field in JSON response")
 	}
 }
 
@@ -697,11 +713,16 @@ func TestAuth_BearerWithoutJWKSClient(t *testing.T) {
 		t.Errorf("Status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
 
-	// Check for specific error message
-	body := strings.TrimSpace(rec.Body.String())
+	// Check for specific error message in JSON response
+	var errResp struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
+		t.Fatalf("Response body is not valid JSON: %v; body: %s", err, rec.Body.String())
+	}
 	expectedMsg := "Bearer authentication unavailable, please use web UI login"
-	if body != expectedMsg {
-		t.Errorf("Body = %q, want %q", body, expectedMsg)
+	if errResp.Error != expectedMsg {
+		t.Errorf("Error = %q, want %q", errResp.Error, expectedMsg)
 	}
 }
 

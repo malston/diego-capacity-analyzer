@@ -5,6 +5,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,6 +40,23 @@ func TestRequireRole_ViewerClaims_OperatorRequired_Returns403(t *testing.T) {
 
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("Status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+
+	// Verify JSON error response format
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
+	}
+
+	var errResp struct {
+		Error string `json:"error"`
+		Code  int    `json:"code"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
+		t.Fatalf("Response body is not valid JSON: %v; body: %s", err, rec.Body.String())
+	}
+	if errResp.Error == "" {
+		t.Error("Expected non-empty error field in JSON response")
 	}
 }
 
