@@ -256,76 +256,74 @@ const ScenarioResults = ({
                 </div>
 
                 {/* CPU Ratio Gauge - only if cpu selected and data available */}
-                {selectedResources.includes("cpu") &&
-                  proposed.total_pcpus > 0 && (
-                    <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
-                      <div className="flex items-center gap-2 mb-4 text-gray-400">
-                        <Cpu size={16} />
-                        <Tooltip
-                          text={TOOLTIPS.cpuRatio}
-                          position="bottom"
-                          showIcon
-                        >
-                          <span className="text-xs uppercase tracking-wider font-medium">
-                            vCPU:pCPU Ratio
-                          </span>
-                        </Tooltip>
+                {hasCpu && (
+                  <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
+                    <div className="flex items-center gap-2 mb-4 text-gray-400">
+                      <Cpu size={16} />
+                      <Tooltip
+                        text={TOOLTIPS.cpuRatio}
+                        position="bottom"
+                        showIcon
+                      >
+                        <span className="text-xs uppercase tracking-wider font-medium">
+                          vCPU:pCPU Ratio
+                        </span>
+                      </Tooltip>
+                    </div>
+                    <div className="flex flex-col items-center justify-center h-[120px]">
+                      <div
+                        className={`text-4xl font-mono font-bold ${
+                          proposed.cpu_risk_level === "conservative"
+                            ? "text-emerald-400"
+                            : proposed.cpu_risk_level === "moderate"
+                              ? "text-amber-400"
+                              : "text-red-400"
+                        }`}
+                      >
+                        {proposed.vcpu_ratio.toFixed(1)}:1
                       </div>
-                      <div className="flex flex-col items-center justify-center h-[120px]">
-                        <div
-                          className={`text-4xl font-mono font-bold ${
-                            proposed.cpu_risk_level === "conservative"
-                              ? "text-emerald-400"
-                              : proposed.cpu_risk_level === "moderate"
-                                ? "text-amber-400"
-                                : "text-red-400"
-                          }`}
-                        >
-                          {proposed.vcpu_ratio.toFixed(1)}:1
-                        </div>
-                        <div className="text-sm text-gray-400 mt-2">
-                          {proposed.total_vcpus.toLocaleString()} vCPU /{" "}
-                          {proposed.total_pcpus.toLocaleString()} pCPU
-                        </div>
-                        <div
-                          className={`text-xs mt-2 px-2 py-0.5 rounded ${
-                            proposed.cpu_risk_level === "conservative"
-                              ? "bg-emerald-900/30 text-emerald-400"
-                              : proposed.cpu_risk_level === "moderate"
-                                ? "bg-amber-900/30 text-amber-400"
-                                : "bg-red-900/30 text-red-400"
-                          }`}
-                        >
-                          {proposed.cpu_risk_level}
-                        </div>
+                      <div className="text-sm text-gray-400 mt-2">
+                        {proposed.total_vcpus.toLocaleString()} vCPU /{" "}
+                        {proposed.total_pcpus.toLocaleString()} pCPU
                       </div>
-                      {proposed?.cpu_headroom_cells !== undefined && (
-                        <div className="mt-2 text-center">
-                          <span
-                            className={`text-sm font-medium ${
-                              proposed.cpu_headroom_cells > 0
-                                ? "text-emerald-400"
-                                : proposed.cpu_headroom_cells < 0
-                                  ? "text-red-400"
-                                  : "text-gray-400"
-                            }`}
-                          >
-                            Headroom:{" "}
-                            {proposed.cpu_headroom_cells > 0 ? "+" : ""}
-                            {proposed.cpu_headroom_cells} cells
-                          </span>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {proposed.cpu_headroom_cells >= 0
-                              ? "before reaching target ratio"
-                              : "over target ratio"}
-                          </p>
-                        </div>
-                      )}
-                      <div className="mt-4 text-center text-xs text-gray-500">
-                        Physical CPU oversubscription
+                      <div
+                        className={`text-xs mt-2 px-2 py-0.5 rounded ${
+                          proposed.cpu_risk_level === "conservative"
+                            ? "bg-emerald-900/30 text-emerald-400"
+                            : proposed.cpu_risk_level === "moderate"
+                              ? "bg-amber-900/30 text-amber-400"
+                              : "bg-red-900/30 text-red-400"
+                        }`}
+                      >
+                        {proposed.cpu_risk_level}
                       </div>
                     </div>
-                  )}
+                    {proposed?.cpu_headroom_cells !== undefined && (
+                      <div className="mt-2 text-center">
+                        <span
+                          className={`text-sm font-medium ${
+                            proposed.cpu_headroom_cells > 0
+                              ? "text-emerald-400"
+                              : proposed.cpu_headroom_cells < 0
+                                ? "text-red-400"
+                                : "text-gray-400"
+                          }`}
+                        >
+                          Headroom: {proposed.cpu_headroom_cells > 0 ? "+" : ""}
+                          {proposed.cpu_headroom_cells} cells
+                        </span>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {proposed.cpu_headroom_cells >= 0
+                            ? "before reaching target ratio"
+                            : "over target ratio"}
+                        </p>
+                      </div>
+                    )}
+                    <div className="mt-4 text-center text-xs text-gray-500">
+                      Physical CPU oversubscription
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Maximum Deployable Cells */}
@@ -494,9 +492,9 @@ const ScenarioResults = ({
         const utilGaugeCount = (hasMemory ? 1 : 0) + (hasDisk ? 1 : 0) + 1;
         const utilCols =
           utilGaugeCount >= 3
-            ? "grid-cols-3"
+            ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
             : utilGaugeCount === 2
-              ? "grid-cols-2"
+              ? "grid-cols-1 sm:grid-cols-2"
               : "grid-cols-1";
         return (
           <div
@@ -508,7 +506,7 @@ const ScenarioResults = ({
               {/* Utilization gauges grid */}
               <div className={`grid gap-6 ${utilCols}`}>
                 {/* Cell Utilization Gauge - only if memory selected */}
-                {selectedResources.includes("memory") && (
+                {hasMemory && (
                   <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
                     <div className="flex items-center gap-2 mb-4 text-gray-400">
                       <Activity size={16} />
