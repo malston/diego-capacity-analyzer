@@ -8,17 +8,17 @@ import (
 	"testing"
 )
 
-// withTestCFEnvAndExtra sets CF environment variables plus additional vars,
+// withTestCFEnv sets CF environment variables plus additional vars,
 // returning a cleanup function that restores all original values.
 //
 // Example:
 //
 //	func TestSomething(t *testing.T) {
-//	    t.Cleanup(withTestCFEnvAndExtra(t, map[string]string{
+//	    t.Cleanup(withTestCFEnv(t, map[string]string{
 //	        "CORS_ALLOWED_ORIGINS": "https://example.com",
 //	    }))
 //	}
-func withTestCFEnvAndExtra(t *testing.T, extra map[string]string) func() {
+func withTestCFEnv(t *testing.T, extra map[string]string) func() {
 	t.Helper()
 
 	// Save original values for CF vars
