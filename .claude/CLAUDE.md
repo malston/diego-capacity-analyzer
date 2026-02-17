@@ -170,6 +170,7 @@ Both paths return identical responses. New integrations should use `/api/v1/`.
 - Automatically detects Diego cell VMs by name pattern
 
 **Diego Cell VM Naming:**
+
 - Standard TAS: VMs named `diego_cell/*` or `diego-cell-*`
 - Small Footprint TAS/TPCF: Diego cells run on `compute` instances (colocated)
 - Detection matches: `diego_cell*`, `diego-cell*`, `compute*`, `diego*`
@@ -188,11 +189,13 @@ Both paths return identical responses. New integrations should use `/api/v1/`.
 ## Technology Stack
 
 ### Backend
+
 - **Go 1.23+** - HTTP server with standard library
 - **govmomi** - vSphere/vCenter API client
 - **socks5-proxy** - SSH tunneling for BOSH
 
 ### Frontend
+
 - **React 18** - UI framework
 - **Vite 5** - Build tool and dev server
 - **Tailwind CSS** - Utility-first styling
@@ -218,55 +221,52 @@ handlers/
 
 ### Middleware Architecture
 
-The backend uses composable middleware via `middleware.Chain()`:
+The backend uses composable middleware via `middleware.Chain()`. The chain is built dynamically per route in `main.go`:
 
 ```go
 // middleware/chain.go - Applies middleware in declaration order (first is outermost)
-handler := middleware.Chain(route.Handler, middleware.CORS, middleware.LogRequest)
-// Equivalent to: CORS(LogRequest(handler))
+mws := []func(http.HandlerFunc) http.HandlerFunc{corsMiddleware, middleware.CSRF()}
+mws = append(mws, middleware.Auth(authCfg))           // if auth enabled
+mws = append(mws, middleware.RequireRole(route.Role))  // if route has role requirement
+mws = append(mws, rateLimiter)                         // per-route rate limit
+mws = append(mws, middleware.LogRequest)
+handler := middleware.Chain(route.Handler, mws...)
 ```
 
 **Available middleware (`middleware/`):**
-- `CORS` - Adds CORS headers, handles OPTIONS preflight
+
+- `CORSWithConfig` - CORS headers and OPTIONS preflight (configurable origins)
+- `CSRF` - Double-submit cookie pattern; validates `X-CSRF-Token` header on POST/PUT/DELETE
+- `Auth` - Session cookie and Bearer token authentication; resolves user identity and role
+- `RequireRole` - RBAC enforcement; returns 403 if user lacks the required role
+- `RateLimit` - Per-endpoint rate limiting with configurable keys (IP, session, user)
 - `LogRequest` - Structured request logging with timing
+- `errors.go` - `writeJSONError()` helper ensuring middleware errors return `{"error":"...","code":N}` JSON (not plain text)
 
 **Adding new middleware:**
 
-1. Create `middleware/yourname.go`:
-```go
-func YourMiddleware(next http.HandlerFunc) http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-        // Pre-processing
-        next(w, r)
-        // Post-processing
-    }
-}
-```
-
-2. Add to chain in `main.go`:
-```go
-handler := middleware.Chain(route.Handler, middleware.CORS, middleware.YourMiddleware, middleware.LogRequest)
-```
+1. Create `middleware/yourname.go` implementing `func(http.HandlerFunc) http.HandlerFunc`
+2. Add to the chain-building logic in `main.go`
 
 ### Route Registration
 
-Routes are defined declaratively in `handlers/routes.go` and registered in `main.go`:
+Routes are defined declaratively in `handlers/routes.go` with optional role requirements, and registered in `main.go`:
 
 ```go
 // handlers/routes.go
 func (h *Handler) Routes() []Route {
     return []Route{
         {Method: http.MethodGet, Path: "/api/v1/health", Handler: h.Health},
+        {Method: http.MethodPost, Path: "/api/v1/infrastructure/state", Handler: h.SetState, Role: "operator"},
         // ...
     }
 }
 
-// main.go - Registers both /api/v1/ and legacy /api/ paths
+// main.go - Builds middleware chain per route, registers both /api/v1/ and legacy /api/ paths
 for _, route := range h.Routes() {
-    pattern := route.Method + " " + route.Path
-    handler := middleware.Chain(route.Handler, middleware.CORS, middleware.LogRequest)
-    mux.HandleFunc(pattern, handler)
-    // Also registers legacy path without /v1/
+    mws := buildMiddlewareChain(route, authCfg, rateLimiters)
+    handler := middleware.Chain(route.Handler, mws...)
+    mux.HandleFunc(route.Method+" "+route.Path, handler)
 }
 ```
 
@@ -290,7 +290,6 @@ make frontend-test-coverage     # With coverage report
 6. Backend queries vSphere for infrastructure data (optional)
 7. Backend aggregates data and returns dashboard/planning response
 8. Frontend renders capacity analysis and recommendations
-
 
 <claude-mem-context>
 
