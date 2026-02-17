@@ -53,7 +53,7 @@ const TASCapacityAnalyzer = () => {
     setError(null);
 
     try {
-      const apiURL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+      const apiURL = import.meta.env.VITE_API_URL || "";
 
       const response = await fetch(`${apiURL}/api/v1/dashboard`, {
         headers: { "Content-Type": "application/json" },

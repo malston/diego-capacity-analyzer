@@ -98,7 +98,7 @@ start_backend() {
     log_info "Starting backend on port $port (auth disabled for demo)..."
     cd "$PROJECT_ROOT/backend"
     go build -o capacity-backend . || { log_error "Backend build failed"; exit 1; }
-    AUTH_MODE=disabled ./capacity-backend &
+    AUTH_MODE=disabled CORS_ALLOWED_ORIGINS="http://localhost:${FRONTEND_PORT:-3000}" ./capacity-backend &
     BACKEND_PID=$!
     cd "$PROJECT_ROOT"
     sleep 2
