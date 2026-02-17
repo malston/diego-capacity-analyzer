@@ -1,6 +1,6 @@
 # Diego Capacity Analyzer -- R&D Demo Plan
 
-**Date:** January 2025
+**Date:** February 2026
 **Duration:** ~25 minutes + Q&A
 **Format:** Slides + Live Demo
 **Audience:** R&D team (deep TAS/Diego expertise)
@@ -143,13 +143,14 @@ _Goal: Set up the pain they recognize_
 
 **Step 6: Results (3 min)** -- _The payoff_
 
-| Component             | Talking Point                                                                                                            |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| "Will It Fit?" banner | "Green checkmark--yes, 128GB cells will fit. If it didn't, this would be red with the specific constraint."               |
-| Capacity Gauges       | "Memory at 68%, CPU at 45%, Disk at 32%. Memory is my tightest resource."                                                |
-| Bottleneck Card       | "Here's the insight: I'm constrained by N-1 HA, not raw memory. If I add one more host, I unlock significant headroom."  |
-| Staging Capacity      | "22 free chunks--that's how many app instances I can stage concurrently. Chunk size is auto-detected from your workload." |
-| Recommendations       | "Prioritized suggestions: add hosts first (high impact), then consider scale-out over scale-up."                         |
+| Component               | Talking Point                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| "Will It Fit?" banner   | "Green checkmark--yes, 128GB cells will fit. If it didn't, this would be red with the specific constraint."               |
+| Infrastructure Headroom | "Top section: N-1 capacity, max deployable cells, vCPU ratio. These are your infrastructure constraints."                 |
+| Current Utilization     | "Bottom section: memory, disk, staging capacity. This is your day-to-day utilization picture."                            |
+| Bottleneck Card         | "Here's the insight: I'm constrained by N-1 HA, not raw memory. If I add one more host, I unlock significant headroom."   |
+| Staging Capacity        | "22 free chunks--that's how many app instances I can stage concurrently. Chunk size is auto-detected from your workload." |
+| Recommendations         | "Prioritized suggestions: add hosts first (high impact), then consider scale-out over scale-up."                          |
 
 ### Transition
 
