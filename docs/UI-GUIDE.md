@@ -152,10 +152,6 @@ For more details, see [Configure Advanced Features](https://techdocs.broadcom.co
 
 Answers: **"Will my workload fit if I change my cell configuration?"**
 
-![Scenario Results Demo](images/tas-scenario-results.gif)
-
-_Running capacity analysis through the wizard to see detailed scenario results with gauges and metrics._
-
 ---
 
 ## Loading Infrastructure Data
@@ -273,7 +269,22 @@ Risk level indicators help you understand if your current or proposed configurat
 
 ---
 
-## Results: Capacity Gauges
+## Results Layout
+
+Scenario results are organized into two visual sections that separate "can we deploy this?" from "how full is it?":
+
+- **Infrastructure Headroom** -- Physical capacity limits and deployment constraints
+- **Current Utilization** -- Workload usage, performance, and configuration details
+
+![Scenario Results Demo](images/tas-scenario-results.gif)
+
+_Scenario results showing Infrastructure Headroom and Current Utilization sections with gauges, scorecards, and cell configuration comparison._
+
+---
+
+## Results: Infrastructure Headroom
+
+Answers: **"Does the physical infrastructure have room for this configuration?"**
 
 ### Capacity (HA) / N-1 Capacity
 
@@ -306,7 +317,7 @@ Whichever reserves more capacity is the limiting constraint and is displayed in 
 
 ### CPU Utilization (vCPU:pCPU Ratio)
 
-The vCPU:pCPU ratio shows how many virtual CPUs are allocated per physical CPU core. This is a **calculated output** based on your cell count and cell vCPU size--it's not a configurable setting.
+Shown when CPU is selected as an analysis resource. The vCPU:pCPU ratio shows how many virtual CPUs are allocated per physical CPU core. This is a **calculated output** based on your cell count and cell vCPU size--it's not a configurable setting.
 
 | Ratio         | Risk Level | Meaning                                                   |
 | ------------- | ---------- | --------------------------------------------------------- |
@@ -314,12 +325,32 @@ The vCPU:pCPU ratio shows how many virtual CPUs are allocated per physical CPU c
 | **4:1 - 8:1** | Medium     | Monitor CPU Ready time for contention                     |
 | **> 8:1**     | High       | Aggressive, requires active monitoring; expect contention |
 
-The display shows both your current ratio and what the ratio would be at maximum cell count:
-
-- **Current**: Ratio at your proposed/current cell count
-- **At Max**: Ratio if you deployed the maximum cells (memory-limited)
+The display shows the proposed ratio with vCPU and pCPU counts, plus a CPU headroom indicator showing how many additional cells can be added before reaching the target ratio.
 
 **Note:** VMware's current guidance emphasizes monitoring actual CPU Ready Time (target <5%) rather than adhering to fixed ratio thresholds. The ratio indicators help you understand the implications of your cell configuration, but actual performance depends on workload characteristics.
+
+### Maximum Deployable Cells
+
+Shows the upper bound on how many Diego cells your infrastructure can support, broken down by resource constraint. Each constraint is shown as a line item:
+
+| Constraint | What It Measures                                                  |
+| ---------- | ----------------------------------------------------------------- |
+| **Memory** | Max cells based on HA-usable memory (or N-1) divided by cell size |
+| **CPU**    | Max cells before exceeding the target vCPU:pCPU ratio             |
+
+When both Memory and CPU resources are selected, the more restrictive constraint is highlighted with a **BOTTLENECK** indicator. Each line also shows headroom (additional cells beyond the current count).
+
+**Example:** With 22.5TB HA-usable memory, 960 physical cores, and cells sized at 32 GB / 4 vCPU:
+
+- Memory: 22,500 / 32 = **703 cells** (+603 headroom from 100 current)
+- CPU at 4:1 target: 960 × 4 / 4 = **960 cells** (+860 headroom)
+- Memory is the bottleneck (703 < 960)
+
+---
+
+## Results: Current Utilization
+
+Answers: **"How full is the proposed configuration with the current workload?"**
 
 ### Memory Utilization
 
@@ -329,9 +360,19 @@ The display shows both your current ratio and what the ratio would be at maximum
 | **80-90%** | Warning  | Getting tight            |
 | **> 90%**  | Critical | Near capacity exhaustion |
 
+### Disk Utilization
+
+Shown when disk is selected as an analysis resource.
+
+| Value      | Status   | Meaning                  |
+| ---------- | -------- | ------------------------ |
+| **< 80%**  | Good     | Healthy headroom         |
+| **80-90%** | Warning  | Getting tight            |
+| **> 90%**  | Critical | Near capacity exhaustion |
+
 ### Staging Capacity (Free Chunks)
 
-Available memory chunks for `cf push` staging operations. The chunk size is **auto-detected** from your application portfolio's average instance memory, with a 4GB fallback when no data is available.
+Available memory chunks for `cf push` staging operations. The chunk size is **auto-detected** from the largest app instance's memory limit, with a 1GB floor and a 4GB fallback when no data is available.
 
 | Chunks    | Status      | Meaning                       |
 | --------- | ----------- | ----------------------------- |
@@ -339,13 +380,11 @@ Available memory chunks for `cf push` staging operations. The chunk size is **au
 | **10-19** | Limited     | May queue during busy periods |
 | **< 10**  | Constrained | Deployment bottleneck likely  |
 
-**Chunk size detection:** The system calculates `Total App Memory / Total App Instances` to determine your typical app footprint. Java-heavy platforms typically show ~4GB chunks, while Go/Python workloads may show 1-2GB. The UI displays the actual chunk size used in calculations (e.g., "2.5GB chunks for staging").
+**Chunk size detection:** The system uses your largest app instance's memory limit (`MaxInstanceMemoryMB`) as the chunk size, with a 1GB floor and a 4GB default when no app data is available. Java-heavy platforms typically show ~4GB chunks, while Go/Python workloads may show 1-2GB. The UI displays the actual chunk size used in calculations (e.g., "2.5GB chunks for staging").
 
----
+### Scheduling Performance (TPS)
 
-## Results: TPS Performance
-
-**TPS = Tasks Per Second** - how fast Diego's scheduler can place app instances.
+**TPS = Tasks Per Second** -- how fast Diego's scheduler can place app instances. Displayed as a current → proposed comparison with status badges.
 
 | Cell Count | TPS    | Notes              |
 | ---------- | ------ | ------------------ |
@@ -357,9 +396,7 @@ Available memory chunks for `cf push` staging operations. The chunk size is **au
 
 > **Note:** These values are modeled estimates, not live measurements. See [TPS Performance (Modeled)](#tps-performance-modeled) for methodology and customization options.
 
----
-
-## Results: Metric Scorecards
+### Metric Scorecards
 
 | Metric             | What It Means                             | Good Direction               |
 | ------------------ | ----------------------------------------- | ---------------------------- |
@@ -550,22 +587,30 @@ Each recommendation includes:
 
 ### Scenario Analysis Tab (Calculated)
 
-The Scenario Analysis tab displays results in several visual sections:
+Results are organized into two sections: **Infrastructure Headroom** (deployment limits) and **Current Utilization** (workload usage).
 
-#### Capacity Gauges
+#### Infrastructure Headroom
 
-Circular gauges showing utilization percentages with color-coded status:
-
-| Gauge                  | Formula                                                | Thresholds                                     |
-| ---------------------- | ------------------------------------------------------ | ---------------------------------------------- |
-| **Capacity (HA/N-1)**  | `(Cell Memory + Platform VMs) / Usable Capacity × 100` | Warning: 75%, Critical: 85%                    |
-| **Memory Utilization** | `App Memory / App Capacity × 100`                      | Warning: 80%, Critical: 90%                    |
-| **Disk Utilization**   | `App Disk / Disk Capacity × 100`                       | Warning: 80%, Critical: 90%                    |
-| **Staging Capacity**   | Raw count of free chunks (auto-sized)                  | Healthy: ≥20, Limited: 10-19, Constrained: <10 |
+| Gauge                    | Formula                                                                                      | Thresholds                              |
+| ------------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------- |
+| **Capacity (HA/N-1)**    | `(Cell Memory + Platform VMs) / Usable Capacity × 100`                                       | Warning: 75%, Critical: 85%             |
+| **vCPU:pCPU Ratio**      | `(Cell Count × Cell vCPU) / Total Physical Cores`                                            | Low: ≤4:1, Medium: 4-8:1, High: >8:1    |
+| **Max Deployable Cells** | `Usable Memory / Cell Memory` (memory) and `Physical Cores × Target Ratio / Cell vCPU` (CPU) | Bottleneck indicator when both selected |
 
 Where:
 
 - **Usable Capacity** = Total cluster memory - Reserved capacity (HA% or N-1, whichever reserves more)
+
+#### Current Utilization
+
+| Gauge                  | Formula                               | Thresholds                                     |
+| ---------------------- | ------------------------------------- | ---------------------------------------------- |
+| **Memory Utilization** | `App Memory / App Capacity × 100`     | Warning: 80%, Critical: 90%                    |
+| **Disk Utilization**   | `App Disk / Disk Capacity × 100`      | Warning: 80%, Critical: 90%                    |
+| **Staging Capacity**   | Raw count of free chunks (auto-sized) | Healthy: ≥20, Limited: 10-19, Constrained: <10 |
+
+Where:
+
 - **App Capacity** = `cells × (cell_memory_gb - 7% overhead)`
 - **Free Chunks** = `(App Capacity - App Memory) / Chunk Size`
 - **Chunk Size** = Auto-detected from `Max Instance Memory` (largest app memory limit, min 1GB, defaults to 4GB if unavailable). We use MAX because staging requires contiguous memory--if your largest app needs 4GB, you need 4GB chunks available even if most apps are small.
@@ -591,8 +636,9 @@ Visual comparison of cell specs (vCPU × GB) between current and proposed, showi
 
 - Current cell size and count
 - Proposed cell size and count
-- Redundancy change indicator (improved/reduced/no change)
+- Resilience risk indicator (low/moderate/high based on blast radius)
 - Capacity change summary in GB
+- Utilization change summary in percentage
 
 #### Advanced Options
 
@@ -744,7 +790,7 @@ Available memory chunks for `cf push` staging operations. Chunk size is auto-det
 
 **Formula:** `Free Chunks = (App Capacity - Total App Memory) / Chunk Size`
 
-**Chunk Size:** Auto-detected from `Total App Memory / Total App Instances`. Defaults to 4GB when no app data is available. Java-heavy platforms typically show ~4GB chunks; Go/Python workloads may show 1-2GB.
+**Chunk Size:** Auto-detected from the largest app instance's memory limit (`MaxInstanceMemoryMB`), with a 1GB floor. Defaults to 4GB when no app data is available. Java-heavy platforms typically show ~4GB chunks; Go/Python workloads may show 1-2GB.
 
 ### Cell Memory Utilization
 
@@ -822,23 +868,23 @@ The cell configuration comparison shows a resilience indicator between current a
 
 Common terms used throughout the TAS Capacity Analyzer:
 
-| Term                            | Definition                                                                                                                                                                                                                                                                 |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Diego Cell**                  | A VM that runs application containers in TAS/Cloud Foundry. Each cell can host multiple app instances. Diego is the container orchestration system that schedules and manages apps.                                                                                        |
-| **Isolation Segment**           | A dedicated pool of Diego cells for running specific workloads. Apps in one segment cannot run on another segment's cells. Used to separate production from dev, or to isolate tenants.                                                                                    |
-| **Garden**                      | The container runtime that runs on Diego cells. Manages the lifecycle of application containers, similar to Docker's role in Kubernetes.                                                                                                                                   |
-| **N-1 / N-X Tolerance**         | Fault tolerance notation. N-1 means the system can survive 1 host failure; N-2 means 2 host failures, etc. Determined by how much spare capacity is reserved for failover.                                                                                                 |
-| **HA Admission Control**        | A vSphere cluster setting that reserves a percentage of resources for VM failover. If set to 25%, vSphere won't let you deploy VMs that would consume more than 75% of cluster capacity.                                                                                   |
-| **Memory Overcommit (Diego)**   | An advanced TAS feature that makes Diego cells advertise more memory than they physically have. Configured in Ops Manager under TAS → Advanced Features. Different from vSphere memory overcommit.                                                                         |
-| **Memory Overcommit (vSphere)** | Hypervisor-level memory oversubscription where total VM memory exceeds physical RAM. Triggers ballooning and swapping under pressure. Not recommended for Diego cells.                                                                                                     |
-| **Ballooning**                  | A vSphere memory reclamation technique. When hosts run low on RAM, the balloon driver inflates inside guest VMs, forcing the guest OS to page memory to disk. Causes unpredictable latency.                                                                                |
-| **vCPU:pCPU Ratio**             | The ratio of virtual CPU cores allocated to VMs versus physical CPU cores available. A 4:1 ratio means 4 vCPUs per physical core. Higher ratios increase CPU contention risk.                                                                                              |
-| **Staging**                     | The `cf push` process where Cloud Foundry builds your app into a runnable droplet. Requires temporary memory (typically 4GB) on Diego cells. Low staging capacity causes deployment queuing.                                                                               |
-| **Free Chunks**                 | Available memory blocks for staging operations. Chunk size is auto-detected from average app instance memory (defaults to 4GB). Calculated as (App Capacity - App Memory) / Chunk Size. Below 10 chunks indicates deployment bottleneck risk.                              |
-| **Chunk Size**                  | The memory allocation unit used for staging capacity calculations. Auto-detected from your workload profile (Total App Memory / Total Instances). Java-heavy platforms typically show ~4GB; Go/Python workloads show 1-2GB. Defaults to 4GB when no app data is available. |
-| **TPS (Tasks Per Second)**      | Diego scheduler throughput, measuring how fast the BBS can place app instances. More cells = more coordination overhead = lower TPS. This is a trade-off: capacity vs. scheduling speed.                                                                                   |
-| **Blast Radius**                | The percentage of total capacity affected by a single cell failure. Calculated as 100 / Cell Count. Lower is better for fault tolerance.                                                                                                                                   |
-| **App Capacity**                | Memory available for running application containers, after subtracting system overhead. Calculated as Cell Memory × (1 - Memory Overhead %).                                                                                                                               |
-| **Memory Overhead**             | The percentage of Diego cell memory consumed by Garden runtime, system processes, and the Diego executor (default 7%). Not available for application containers.                                                                                                           |
-| **BOSH**                        | The deployment and lifecycle management tool for Cloud Foundry. Manages Diego cell VMs, handles health monitoring, and provides the vitals data shown in the dashboard.                                                                                                    |
-| **Log Cache**                   | A CF component that stores recent container metrics. Used by the analyzer to get actual (not just allocated) memory consumption per app.                                                                                                                                   |
+| Term                            | Definition                                                                                                                                                                                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Diego Cell**                  | A VM that runs application containers in TAS/Cloud Foundry. Each cell can host multiple app instances. Diego is the container orchestration system that schedules and manages apps.                                                                                                               |
+| **Isolation Segment**           | A dedicated pool of Diego cells for running specific workloads. Apps in one segment cannot run on another segment's cells. Used to separate production from dev, or to isolate tenants.                                                                                                           |
+| **Garden**                      | The container runtime that runs on Diego cells. Manages the lifecycle of application containers, similar to Docker's role in Kubernetes.                                                                                                                                                          |
+| **N-1 / N-X Tolerance**         | Fault tolerance notation. N-1 means the system can survive 1 host failure; N-2 means 2 host failures, etc. Determined by how much spare capacity is reserved for failover.                                                                                                                        |
+| **HA Admission Control**        | A vSphere cluster setting that reserves a percentage of resources for VM failover. If set to 25%, vSphere won't let you deploy VMs that would consume more than 75% of cluster capacity.                                                                                                          |
+| **Memory Overcommit (Diego)**   | An advanced TAS feature that makes Diego cells advertise more memory than they physically have. Configured in Ops Manager under TAS → Advanced Features. Different from vSphere memory overcommit.                                                                                                |
+| **Memory Overcommit (vSphere)** | Hypervisor-level memory oversubscription where total VM memory exceeds physical RAM. Triggers ballooning and swapping under pressure. Not recommended for Diego cells.                                                                                                                            |
+| **Ballooning**                  | A vSphere memory reclamation technique. When hosts run low on RAM, the balloon driver inflates inside guest VMs, forcing the guest OS to page memory to disk. Causes unpredictable latency.                                                                                                       |
+| **vCPU:pCPU Ratio**             | The ratio of virtual CPU cores allocated to VMs versus physical CPU cores available. A 4:1 ratio means 4 vCPUs per physical core. Higher ratios increase CPU contention risk.                                                                                                                     |
+| **Staging**                     | The `cf push` process where Cloud Foundry builds your app into a runnable droplet. Requires temporary memory (typically 4GB) on Diego cells. Low staging capacity causes deployment queuing.                                                                                                      |
+| **Free Chunks**                 | Available memory blocks for staging operations. Chunk size is auto-detected from the largest app instance's memory limit (defaults to 4GB). Calculated as (App Capacity - App Memory) / Chunk Size. Below 10 chunks indicates deployment bottleneck risk.                                         |
+| **Chunk Size**                  | The memory allocation unit used for staging capacity calculations. Auto-detected from the largest app instance's memory limit (`MaxInstanceMemoryMB`), with a 1GB floor. Java-heavy platforms typically show ~4GB; Go/Python workloads show 1-2GB. Defaults to 4GB when no app data is available. |
+| **TPS (Tasks Per Second)**      | Diego scheduler throughput, measuring how fast the BBS can place app instances. More cells = more coordination overhead = lower TPS. This is a trade-off: capacity vs. scheduling speed.                                                                                                          |
+| **Blast Radius**                | The percentage of total capacity affected by a single cell failure. Calculated as 100 / Cell Count. Lower is better for fault tolerance.                                                                                                                                                          |
+| **App Capacity**                | Memory available for running application containers, after subtracting system overhead. Calculated as Cell Memory × (1 - Memory Overhead %).                                                                                                                                                      |
+| **Memory Overhead**             | The percentage of Diego cell memory consumed by Garden runtime, system processes, and the Diego executor (default 7%). Not available for application containers.                                                                                                                                  |
+| **BOSH**                        | The deployment and lifecycle management tool for Cloud Foundry. Manages Diego cell VMs, handles health monitoring, and provides the vitals data shown in the dashboard.                                                                                                                           |
+| **Log Cache**                   | A CF component that stores recent container metrics. Used by the analyzer to get actual (not just allocated) memory consumption per app.                                                                                                                                                          |
