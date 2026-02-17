@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 )
 
@@ -89,7 +90,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 // Me returns the current user's authentication status.
 // When auth is disabled, returns an anonymous authenticated user.
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
-	if h.cfg.AuthMode == "disabled" {
+	if h.cfg.AuthMode == string(middleware.AuthModeDisabled) {
 		h.writeJSON(w, http.StatusOK, models.UserInfoResponse{
 			Authenticated: true,
 			Username:      "demo",

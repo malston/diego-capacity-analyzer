@@ -14,6 +14,7 @@ import (
 
 	"github.com/markalston/diego-capacity-analyzer/backend/cache"
 	"github.com/markalston/diego-capacity-analyzer/backend/config"
+	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 	"github.com/markalston/diego-capacity-analyzer/backend/services"
 )
@@ -425,7 +426,7 @@ func TestMe_InvalidSession(t *testing.T) {
 func TestMe_AuthDisabled_ReturnsAuthenticated(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	cfg := &config.Config{
-		AuthMode:     "disabled",
+		AuthMode:     string(middleware.AuthModeDisabled),
 		CookieSecure: false,
 	}
 
