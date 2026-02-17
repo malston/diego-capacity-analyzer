@@ -49,7 +49,7 @@ func RequireRole(requiredRole string) func(http.HandlerFunc) http.HandlerFunc {
 					"user_role", callerRole,
 					"username", username,
 				)
-				http.Error(w, "Insufficient permissions", http.StatusForbidden)
+				writeJSONError(w, "Insufficient permissions", http.StatusForbidden)
 				return
 			}
 

@@ -112,7 +112,7 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 				// Validate Bearer format
 				if !strings.HasPrefix(authHeader, "Bearer ") {
 					slog.Debug("Auth rejected: invalid format", "path", r.URL.Path)
-					http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
+					writeJSONError(w, "Invalid authorization format", http.StatusUnauthorized)
 					return
 				}
 
@@ -121,7 +121,7 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 				// If JWKSClient is not configured, Bearer auth is unavailable
 				if cfg.JWKSClient == nil {
 					slog.Debug("Auth rejected: JWKSClient not configured", "path", r.URL.Path)
-					http.Error(w, "Bearer authentication unavailable, please use web UI login", http.StatusUnauthorized)
+					writeJSONError(w, "Bearer authentication unavailable, please use web UI login", http.StatusUnauthorized)
 					return
 				}
 
@@ -131,7 +131,7 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 					// Log detailed error for debugging, but return generic message to client
 					// to avoid leaking internal details (key IDs, algorithm info, etc.)
 					slog.Debug("Auth rejected: invalid token", "path", r.URL.Path, "error", err.Error())
-					http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+					writeJSONError(w, "Invalid or expired token", http.StatusUnauthorized)
 					return
 				}
 
@@ -162,7 +162,7 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 					}
 					// Session cookie present but invalid
 					slog.Debug("Auth rejected: invalid session", "path", r.URL.Path)
-					http.Error(w, "Invalid session", http.StatusUnauthorized)
+					writeJSONError(w, "Invalid session", http.StatusUnauthorized)
 					return
 				}
 			}
@@ -170,7 +170,7 @@ func Auth(cfg AuthConfig) func(http.HandlerFunc) http.HandlerFunc {
 			// No auth provided
 			if cfg.Mode == AuthModeRequired {
 				slog.Debug("Auth rejected: no auth provided", "path", r.URL.Path, "mode", cfg.Mode)
-				http.Error(w, "Authentication required", http.StatusUnauthorized)
+				writeJSONError(w, "Authentication required", http.StatusUnauthorized)
 				return
 			}
 
