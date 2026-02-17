@@ -1,6 +1,8 @@
 // ABOUTME: Cloud Foundry API service using BFF proxy pattern
 // ABOUTME: All CF API calls go through backend proxy - tokens never exposed to JavaScript
 
+import { ApiConnectionError } from "./apiClient";
+
 const API_URL = import.meta.env.VITE_API_URL || "";
 
 class CFApiService {
@@ -14,14 +16,22 @@ class CFApiService {
     // Map CF API path to our backend proxy path
     const proxyPath = this.mapToProxyPath(endpoint);
 
-    const response = await fetch(`${API_URL}${proxyPath}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-      credentials: "include",
-    });
+    let response;
+    try {
+      response = await fetch(`${API_URL}${proxyPath}`, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+        credentials: "include",
+      });
+    } catch (err) {
+      if (err instanceof TypeError) {
+        throw new ApiConnectionError(`${API_URL}${proxyPath}`);
+      }
+      throw err;
+    }
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -210,10 +220,17 @@ class CFApiService {
    */
   async getInfo() {
     try {
-      // This endpoint is proxied through our backend
-      const response = await fetch(`${API_URL}/api/v1/health`, {
-        credentials: "include",
-      });
+      let response;
+      try {
+        response = await fetch(`${API_URL}/api/v1/health`, {
+          credentials: "include",
+        });
+      } catch (err) {
+        if (err instanceof TypeError) {
+          throw new ApiConnectionError(`${API_URL}/api/v1/health`);
+        }
+        throw err;
+      }
       return await response.json();
     } catch (error) {
       console.error("Error fetching CF info:", error);
