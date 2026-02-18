@@ -27,6 +27,22 @@ export class ApiConnectionError extends Error {
 }
 
 /**
+ * Structured error for permission/authorization failures (HTTP 403).
+ * `message` contains a user-friendly summary.
+ * `detail` contains guidance on resolving the permission issue.
+ */
+export class ApiPermissionError extends Error {
+  constructor() {
+    super("You don't have permission to perform this action");
+    this.name = "ApiPermissionError";
+    this.detail =
+      "Your account lacks the required role. Ask an administrator " +
+      "to add your user to the 'diego-analyzer.operator' UAA group. " +
+      "See AUTHENTICATION.md for setup instructions.";
+  }
+}
+
+/**
  * Fetch wrapper that classifies errors into user-friendly categories.
  *
  * - Network failures (TypeError) become ApiConnectionError
@@ -49,6 +65,10 @@ export async function apiFetch(url, options) {
   }
 
   if (!response.ok) {
+    if (response.status === 403) {
+      throw new ApiPermissionError();
+    }
+
     let message;
     try {
       const body = await response.json();

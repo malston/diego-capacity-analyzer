@@ -2,7 +2,7 @@
 // ABOUTME: Verifies network error classification, HTTP error handling, and JSON parsing
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { apiFetch, ApiConnectionError } from "./apiClient";
+import { apiFetch, ApiConnectionError, ApiPermissionError } from "./apiClient";
 
 describe("apiFetch", () => {
   let originalFetch;
@@ -53,6 +53,63 @@ describe("apiFetch", () => {
       global.fetch = vi.fn().mockRejectedValue(original);
 
       await expect(apiFetch("/api/v1/health")).rejects.toBe(original);
+    });
+  });
+
+  describe("permission errors", () => {
+    it("throws ApiPermissionError on 403 response", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        json: () => Promise.resolve({ error: "Insufficient permissions" }),
+      });
+
+      await expect(apiFetch("/api/v1/infrastructure/manual")).rejects.toThrow(
+        ApiPermissionError,
+      );
+    });
+
+    it("includes user-friendly message", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        json: () => Promise.resolve({ error: "Insufficient permissions" }),
+      });
+
+      await expect(apiFetch("/api/v1/infrastructure/manual")).rejects.toThrow(
+        "You don't have permission to perform this action",
+      );
+    });
+
+    it("includes UAA setup guidance in detail", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        json: () => Promise.resolve({ error: "Insufficient permissions" }),
+      });
+
+      const err = await apiFetch("/api/v1/infrastructure/manual").catch(
+        (e) => e,
+      );
+      expect(err).toBeInstanceOf(ApiPermissionError);
+      expect(err.detail).toContain("diego-analyzer.operator");
+      expect(err.detail).toContain("AUTHENTICATION.md");
+    });
+
+    it("throws ApiPermissionError even when 403 body is not JSON", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        json: () => Promise.reject(new Error("not json")),
+      });
+
+      await expect(apiFetch("/api/v1/infrastructure/manual")).rejects.toThrow(
+        ApiPermissionError,
+      );
     });
   });
 
