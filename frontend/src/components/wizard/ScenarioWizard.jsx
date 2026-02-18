@@ -93,9 +93,16 @@ const ScenarioWizard = ({
     }
   }, [currentStep, markStepComplete, steps.length]);
 
-  const handleStepClick = useCallback((stepIndex) => {
-    setCurrentStep(stepIndex);
-  }, []);
+  const handleStepClick = useCallback(
+    (stepIndex) => {
+      if (stepIndex === currentStep) {
+        return;
+      }
+      markStepComplete(currentStep);
+      setCurrentStep(stepIndex);
+    },
+    [currentStep, markStepComplete],
+  );
 
   const renderStepContent = () => {
     const currentStepId = steps[currentStep]?.id;

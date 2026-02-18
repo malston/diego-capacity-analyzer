@@ -90,6 +90,24 @@ describe("ScenarioWizard", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("marks departing step as completed when clicking another step in indicator", async () => {
+    renderWithToast(<ScenarioWizard {...defaultProps} />);
+    // We're on step 0 (Resources). Click directly on step 1 (Cell Config) in indicator.
+    await userEvent.click(screen.getByText("Cell Config"));
+    // Step 0 should now be marked completed (green checkmark)
+    const resourcesButton = screen.getByText("Resources").closest("button");
+    expect(resourcesButton).toHaveAttribute("data-completed", "true");
+  });
+
+  it("does not mark current step as completed when clicking it again", async () => {
+    renderWithToast(<ScenarioWizard {...defaultProps} />);
+    // Click on step 0 (Resources) while already on step 0
+    await userEvent.click(screen.getByText("Resources"));
+    // Step 0 should NOT be marked completed -- user hasn't left it
+    const resourcesButton = screen.getByText("Resources").closest("button");
+    expect(resourcesButton).not.toHaveAttribute("data-completed", "true");
+  });
+
   it("allows clicking on completed steps to navigate back", async () => {
     renderWithToast(<ScenarioWizard {...defaultProps} />);
     // Go to step 2 (Cell Config)
