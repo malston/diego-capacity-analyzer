@@ -62,6 +62,7 @@ const ScenarioAnalyzer = () => {
   const [comparison, setComparison] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [errorDetail, setErrorDetail] = useState(null);
 
   // Scenario input state
   const [selectedPreset, setSelectedPreset] = useState(DEFAULT_PRESET_INDEX);
@@ -112,6 +113,7 @@ const ScenarioAnalyzer = () => {
       setInfrastructureData(data);
       setLoading(true);
       setError(null);
+      setErrorDetail(null);
 
       try {
         console.log("[ScenarioAnalyzer] Calling setManualInfrastructure...");
@@ -146,6 +148,7 @@ const ScenarioAnalyzer = () => {
       } catch (err) {
         console.error("[ScenarioAnalyzer] Error loading infrastructure:", err);
         setError(err.message);
+        setErrorDetail(err.detail || null);
         showToast(`Failed to load infrastructure: ${err.message}`, "error");
       } finally {
         setLoading(false);
@@ -419,6 +422,7 @@ const ScenarioAnalyzer = () => {
 
     setLoading(true);
     setError(null);
+    setErrorDetail(null);
 
     try {
       const scenarioInput = {
@@ -461,6 +465,7 @@ const ScenarioAnalyzer = () => {
       showToast("Analysis complete", "success");
     } catch (err) {
       setError(err.message);
+      setErrorDetail(err.detail || null);
       showToast(`Analysis failed: ${err.message}`, "error");
     } finally {
       setLoading(false);
@@ -776,7 +781,15 @@ const ScenarioAnalyzer = () => {
 
       {error && (
         <div className="bg-red-900/20 border border-red-800 rounded-lg p-4 text-red-300">
-          Error: {error}
+          <p className="font-semibold text-sm">{error}</p>
+          {errorDetail && (
+            <details className="mt-2">
+              <summary className="text-xs text-red-400/60 cursor-pointer hover:text-red-300">
+                Troubleshooting details
+              </summary>
+              <p className="mt-2 text-xs text-red-400/80">{errorDetail}</p>
+            </details>
+          )}
         </div>
       )}
 
