@@ -32,6 +32,24 @@ describe("cfApi.request", () => {
       global.fetch = vi.fn().mockRejectedValue(original);
       await expect(cfApi.request("/v3/apps")).rejects.toBe(original);
     });
+
+    it("includes user-friendly message", async () => {
+      global.fetch = vi
+        .fn()
+        .mockRejectedValue(new TypeError("Failed to fetch"));
+      await expect(cfApi.request("/v3/apps")).rejects.toThrow(
+        "Unable to reach the server",
+      );
+    });
+
+    it("includes diagnostic detail", async () => {
+      global.fetch = vi
+        .fn()
+        .mockRejectedValue(new TypeError("Failed to fetch"));
+      const err = await cfApi.request("/v3/apps").catch((e) => e);
+      expect(err).toBeInstanceOf(ApiConnectionError);
+      expect(err.detail).toContain("not responding");
+    });
   });
 
   describe("authentication errors", () => {
@@ -74,6 +92,18 @@ describe("cfApi.request", () => {
         "You don't have permission to perform this action",
       );
       expect(err.detail).toContain("diego-analyzer.operator");
+    });
+
+    it("throws ApiPermissionError even when 403 body is not JSON", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        json: () => Promise.reject(new Error("not json")),
+      });
+      await expect(cfApi.request("/v3/apps")).rejects.toThrow(
+        ApiPermissionError,
+      );
     });
   });
 
