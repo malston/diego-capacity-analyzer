@@ -1,9 +1,8 @@
 // ABOUTME: Cloud Foundry API service using BFF proxy pattern
 // ABOUTME: All CF API calls go through backend proxy - tokens never exposed to JavaScript
 
-// ApiConnectionError and ApiPermissionError only (not apiFetch) because
-// request() has custom 401 handling and JSON error parsing that differs
-// from apiFetch's generic handler.
+// Does not use apiFetch: request() has custom 401/403 handling and JSON
+// error parsing that differs from apiFetch's generic handler.
 import { ApiConnectionError, ApiPermissionError } from "./apiClient";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
