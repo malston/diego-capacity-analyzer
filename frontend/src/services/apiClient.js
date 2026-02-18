@@ -46,6 +46,7 @@ export class ApiPermissionError extends Error {
  * Fetch wrapper that classifies errors into user-friendly categories.
  *
  * - Network failures (TypeError) become ApiConnectionError
+ * - Permission failures (HTTP 403) become ApiPermissionError
  * - HTTP errors parse the JSON body for the server's error message
  * - Successful responses return parsed JSON
  *
