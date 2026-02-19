@@ -331,6 +331,41 @@ In `optional` mode, if a token is present but invalid, the request is rejected (
 
    The login URL is derived from your CF API URL by replacing `api.` with `login.` (e.g., `https://api.sys.example.com` becomes `https://login.sys.example.com`).
 
+## CI / Automation
+
+For pipelines and scripts that call the API, create a dedicated UAA service account instead of using human credentials. This avoids embedding personal passwords in CI secrets and gives the automation its own audit trail.
+
+**Step 1: Create the service account**
+
+```bash
+# Authenticate with UAA (see UAA Group Setup above for getting the admin secret)
+uaac target https://uaa.sys.example.com --skip-ssl-validation
+uaac token client get admin -s <admin-client-secret>
+
+# Create a service account user
+uaac user add ci-pipeline -p <service-account-password> --emails ci-pipeline@example.com
+
+# Grant the appropriate role
+uaac member add diego-analyzer.operator ci-pipeline
+uaac member add diego-analyzer.viewer ci-pipeline
+```
+
+**Step 2: Use in your pipeline**
+
+```bash
+# Get a token (valid for 2 hours with default client settings)
+export OAUTH_TOKEN=$(curl -sk -X POST "https://login.sys.example.com/oauth/token" \
+  -u "$OAUTH_CLIENT_ID:$OAUTH_CLIENT_SECRET" \
+  -d "grant_type=password&username=ci-pipeline&password=$CI_SERVICE_ACCOUNT_PASSWORD" \
+  | jq -r '.access_token')
+
+# Call the API
+curl -s http://your-backend:8080/api/v1/dashboard \
+  -H "Authorization: Bearer $OAUTH_TOKEN" | jq .
+```
+
+Store `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, and `CI_SERVICE_ACCOUNT_PASSWORD` in your pipeline's secrets manager. The token can be reused for the duration of the pipeline run (2-hour lifetime).
+
 ## Security Properties
 
 - OAuth tokens are stored server-side and never exposed to JavaScript
