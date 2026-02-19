@@ -310,6 +310,27 @@ In `optional` mode, if a token is present but invalid, the request is rejected (
 
 **Login works locally but cookies not sent:** Set `COOKIE_SECURE=false` when running over HTTP (local dev without TLS).
 
+**Verifying OAuth client credentials:** To confirm your dedicated OAuth client is configured correctly, check two things:
+
+1. The backend logs the configured client at startup:
+
+   ```text
+   INFO Auth mode configured mode=required oauth_client=diego-analyzer
+   ```
+
+2. Test the credentials directly against UAA with a password grant:
+
+   ```bash
+   curl -sk -X POST "https://login.sys.example.com/oauth/token" \
+     -u "$OAUTH_CLIENT_ID:$OAUTH_CLIENT_SECRET" \
+     -d "grant_type=password&username=$CF_USERNAME&password=$CF_PASSWORD" \
+     | jq .
+   ```
+
+   A successful response includes an `access_token` with `diego-analyzer.operator` and `diego-analyzer.viewer` in the `scope` field. If the client credentials are wrong, UAA returns `"error": "unauthorized"` with `"Bad client credentials"`.
+
+   The login URL is derived from your CF API URL by replacing `api.` with `login.` (e.g., `https://api.sys.example.com` becomes `https://login.sys.example.com`).
+
 ## Security Properties
 
 - OAuth tokens are stored server-side and never exposed to JavaScript
