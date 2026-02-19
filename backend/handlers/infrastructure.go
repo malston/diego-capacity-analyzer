@@ -223,14 +223,15 @@ func (h *Handler) GetInfrastructureApps(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Authenticate with CF
-	if err := h.cfClient.Authenticate(); err != nil {
+	ctx := r.Context()
+	if err := h.cfClient.Authenticate(ctx); err != nil {
 		slog.Error("CF authentication failed", "error", err)
 		h.writeError(w, "Authentication service temporarily unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
 	// Fetch apps
-	apps, err := h.cfClient.GetApps()
+	apps, err := h.cfClient.GetApps(ctx)
 	if err != nil {
 		slog.Error("Failed to fetch apps from CF", "error", err)
 		h.writeError(w, "Failed to retrieve application data", http.StatusInternalServerError)
@@ -267,16 +268,11 @@ func (h *Handler) enrichWithCFAppData(ctx context.Context, state *models.Infrast
 		return fmt.Errorf("context cancelled before CF enrichment: %w", err)
 	}
 
-	if err := h.cfClient.Authenticate(); err != nil {
+	if err := h.cfClient.Authenticate(ctx); err != nil {
 		return err
 	}
 
-	// Check context again after authentication
-	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("context cancelled after CF authentication: %w", err)
-	}
-
-	apps, err := h.cfClient.GetApps()
+	apps, err := h.cfClient.GetApps(ctx)
 	if err != nil {
 		return err
 	}
