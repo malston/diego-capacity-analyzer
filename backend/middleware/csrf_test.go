@@ -186,6 +186,63 @@ func TestCSRF_RejectsInvalidTokenLength(t *testing.T) {
 	}
 }
 
+func TestCSRF_SkipsLoginPath(t *testing.T) {
+	handler := CSRF()(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// POST to login with a stale session cookie but no CSRF token
+	req := httptest.NewRequest("POST", "/api/v1/auth/login", nil)
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "stale-session-id"})
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected 200 for login path, got %d", rr.Code)
+	}
+}
+
+func TestCSRF_SkipsLoginLegacyPath(t *testing.T) {
+	handler := CSRF()(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Legacy path should also be exempt
+	req := httptest.NewRequest("POST", "/api/auth/login", nil)
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "stale-session-id"})
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected 200 for legacy login path, got %d", rr.Code)
+	}
+}
+
+func TestCSRF_DoesNotSkipNonLoginPaths(t *testing.T) {
+	handler := CSRF()(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Other POST paths with session cookie should still require CSRF
+	paths := []string{
+		"/api/v1/infrastructure/manual",
+		"/api/v1/auth/logout",
+		"/api/v1/scenario/compare",
+	}
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest("POST", path, nil)
+			req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "session-id"})
+			rr := httptest.NewRecorder()
+			handler(rr, req)
+
+			if rr.Code != http.StatusForbidden {
+				t.Errorf("Expected 403 for %s without CSRF token, got %d", path, rr.Code)
+			}
+		})
+	}
+}
+
 func TestCSRF_WorksWithDELETE(t *testing.T) {
 	handler := CSRF()(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

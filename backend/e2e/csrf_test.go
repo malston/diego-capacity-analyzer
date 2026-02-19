@@ -150,6 +150,55 @@ func TestCSRF_E2E_FullLoginFlow(t *testing.T) {
 	}
 }
 
+// TestCSRF_E2E_LoginWithStaleCookie verifies that login works when the browser
+// has a stale session cookie from a previous backend session (GH-107).
+func TestCSRF_E2E_LoginWithStaleCookie(t *testing.T) {
+	uaaServer := createMockCFUAAServer(t)
+	defer uaaServer.Close()
+
+	cfg := &config.Config{
+		CFAPIUrl:     uaaServer.URL,
+		CookieSecure: false,
+	}
+	c := cache.New(5 * time.Minute)
+	sessionSvc := services.NewSessionService(c)
+
+	h := handlers.NewHandler(cfg, c)
+	h.SetSessionService(sessionSvc)
+
+	// Wrap the login handler with CSRF middleware (as main.go does)
+	csrfLogin := middleware.Chain(h.Login, middleware.CSRF())
+
+	// Simulate: browser has stale session cookie, no CSRF cookie
+	loginBody := `{"username":"admin","password":"secret"}`
+	req := httptest.NewRequest("POST", "/api/v1/auth/login", strings.NewReader(loginBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "stale-session-from-previous-backend"})
+	rr := httptest.NewRecorder()
+	csrfLogin(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Login with stale session cookie should succeed, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// Verify new session and CSRF cookies are issued
+	var hasSession, hasCSRF bool
+	for _, c := range rr.Result().Cookies() {
+		switch c.Name {
+		case "DIEGO_SESSION":
+			hasSession = true
+		case "DIEGO_CSRF":
+			hasCSRF = true
+		}
+	}
+	if !hasSession {
+		t.Error("Expected new DIEGO_SESSION cookie after login")
+	}
+	if !hasCSRF {
+		t.Error("Expected new DIEGO_CSRF cookie after login")
+	}
+}
+
 // TestCSRF_E2E_TokenMismatchRejected verifies that mismatched CSRF tokens are rejected.
 func TestCSRF_E2E_TokenMismatchRejected(t *testing.T) {
 	handler := middleware.Chain(

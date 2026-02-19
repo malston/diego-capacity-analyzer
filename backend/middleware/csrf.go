@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -24,11 +25,19 @@ const (
 //   - GET, HEAD, OPTIONS requests (safe methods)
 //   - Requests with Authorization header (Bearer token auth)
 //   - Requests without session cookie (not session-authenticated)
+//   - Login endpoint (creates a new session, must work with stale cookies)
 func CSRF() func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			// Skip safe methods
 			if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+				next(w, r)
+				return
+			}
+
+			// Skip login endpoint -- it creates a new session and must work
+			// even when the browser has a stale session cookie with no CSRF cookie
+			if strings.HasSuffix(r.URL.Path, "/auth/login") {
 				next(w, r)
 				return
 			}
