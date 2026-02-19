@@ -1,0 +1,14 @@
+{
+  "auto_load_navigator": true,
+  "auto_update": {
+    "check_interval_hours": 1,
+    "enabled": true
+  },
+  "compact_strategy": "conservative",
+  "project_management": "github",
+  "project_name": "diego-capacity-analyzer",
+  "task_prefix": "GH",
+  "team_chat": "none",
+  "tech_stack": "Unknown",
+  "version": "6.1.0"
+}
