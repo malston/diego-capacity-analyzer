@@ -147,6 +147,73 @@ describe("ScenarioWizard", () => {
     expect(screen.queryByText("CPU Config")).not.toBeInTheDocument();
   });
 
+  it("preserves correct completion state when CPU step is toggled off", async () => {
+    // Start with CPU selected (steps: Resources, Cell Config, CPU Config, Advanced)
+    const { rerender } = renderWithToast(
+      <ScenarioWizard
+        {...defaultProps}
+        selectedResources={["memory", "cpu"]}
+      />,
+    );
+
+    // Advance through Resources -> Cell Config -> CPU Config
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // Resources -> Cell Config
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // Cell Config -> CPU Config
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // CPU Config -> Advanced
+
+    // Verify Resources and Cell Config are completed
+    const resourcesBefore = screen.getByText("Resources").closest("button");
+    const cellConfigBefore = screen.getByText("Cell Config").closest("button");
+    expect(resourcesBefore).toHaveAttribute("data-completed", "true");
+    expect(cellConfigBefore).toHaveAttribute("data-completed", "true");
+
+    // Rerender without CPU (steps become: Resources, Cell Config, Advanced)
+    rerender(
+      <ToastProvider>
+        <ScenarioWizard {...defaultProps} selectedResources={["memory"]} />
+      </ToastProvider>,
+    );
+
+    // Resources and Cell Config should still be completed
+    const resourcesAfter = screen.getByText("Resources").closest("button");
+    const cellConfigAfter = screen.getByText("Cell Config").closest("button");
+    expect(resourcesAfter).toHaveAttribute("data-completed", "true");
+    expect(cellConfigAfter).toHaveAttribute("data-completed", "true");
+
+    // Advanced should NOT be completed (it was never completed, only navigated to)
+    const advancedAfter = screen.getByText("Advanced").closest("button");
+    expect(advancedAfter).not.toHaveAttribute("data-completed", "true");
+
+    // Wizard body should not be blank -- currentStep should clamp to valid range
+    expect(screen.getByLabelText(/memory overhead/i)).toBeInTheDocument();
+  });
+
+  it("clamps currentStep when steps array shrinks", async () => {
+    // Start with CPU selected (4 steps)
+    const { rerender } = renderWithToast(
+      <ScenarioWizard
+        {...defaultProps}
+        selectedResources={["memory", "cpu"]}
+      />,
+    );
+
+    // Navigate to Advanced (step index 3, last step)
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // Resources -> Cell Config
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // Cell Config -> CPU Config
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // CPU Config -> Advanced
+    expect(screen.getByLabelText(/memory overhead/i)).toBeInTheDocument();
+
+    // Remove CPU step (steps shrink to 3, max valid index is 2)
+    rerender(
+      <ToastProvider>
+        <ScenarioWizard {...defaultProps} selectedResources={["memory"]} />
+      </ToastProvider>,
+    );
+
+    // Should land on the last valid step (Advanced, now index 2) not blank
+    expect(screen.getByLabelText(/memory overhead/i)).toBeInTheDocument();
+  });
+
   it("passes platformVMsCPU prop to CPUConfigStep", async () => {
     const setPlatformVMsCPU = vi.fn();
     renderWithToast(
