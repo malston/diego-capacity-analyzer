@@ -78,30 +78,30 @@ const ScenarioWizard = ({
   }, [selectedResources]);
 
   const markStepComplete = useCallback(
-    (stepIndex) => {
-      if (!completedSteps.includes(stepIndex)) {
-        setCompletedSteps((prev) => [...prev, stepIndex]);
+    (stepId) => {
+      if (!completedSteps.includes(stepId)) {
+        setCompletedSteps((prev) => [...prev, stepId]);
       }
     },
     [completedSteps],
   );
 
   const handleContinue = useCallback(() => {
-    markStepComplete(currentStep);
+    markStepComplete(steps[currentStep]?.id);
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
-  }, [currentStep, markStepComplete, steps.length]);
+  }, [currentStep, markStepComplete, steps]);
 
   const handleStepClick = useCallback(
     (stepIndex) => {
       if (stepIndex === currentStep) {
         return;
       }
-      markStepComplete(currentStep);
+      markStepComplete(steps[currentStep]?.id);
       setCurrentStep(stepIndex);
     },
-    [currentStep, markStepComplete],
+    [currentStep, markStepComplete, steps],
   );
 
   const renderStepContent = () => {
