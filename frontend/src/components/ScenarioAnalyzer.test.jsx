@@ -222,4 +222,37 @@ describe("ScenarioAnalyzer", () => {
       });
     });
   });
+
+  describe("error display", () => {
+    it("shows friendly error message when backend is unreachable", async () => {
+      scenarioApi.setManualInfrastructure.mockRejectedValue(
+        Object.assign(new Error("Unable to reach the server"), {
+          detail: "The backend at http://localhost:8080 is not responding.",
+        }),
+      );
+      mockLocalStorage.getItem.mockReturnValue(
+        JSON.stringify({
+          name: "Test",
+          clusters: [
+            {
+              diego_cell_count: 5,
+              diego_cell_memory_gb: 64,
+              diego_cell_cpu: 8,
+            },
+          ],
+        }),
+      );
+
+      renderWithProviders(<ScenarioAnalyzer />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("Unable to reach the server"),
+        ).toBeInTheDocument();
+      });
+
+      // Detail should be in a collapsed details element
+      expect(screen.getByText(/Troubleshooting details/)).toBeInTheDocument();
+    });
+  });
 });

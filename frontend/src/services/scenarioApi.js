@@ -2,6 +2,7 @@
 // ABOUTME: Handles manual infrastructure input and scenario comparison with BFF auth
 
 import { withCSRFToken } from "../utils/csrf";
+import { apiFetch, ApiConnectionError } from "./apiClient";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -12,17 +13,12 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async setManualInfrastructure(data) {
-    const response = await fetch(`${API_URL}/api/v1/infrastructure/manual`, {
+    return apiFetch(`${API_URL}/api/v1/infrastructure/manual`, {
       method: "POST",
       headers: withCSRFToken({ "Content-Type": "application/json" }),
       credentials: "include",
       body: JSON.stringify(data),
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to set infrastructure");
-    }
-    return response.json();
   },
 
   /**
@@ -31,17 +27,12 @@ export const scenarioApi = {
    * @returns {Promise<Object>} ScenarioComparison
    */
   async compareScenario(input) {
-    const response = await fetch(`${API_URL}/api/v1/scenario/compare`, {
+    return apiFetch(`${API_URL}/api/v1/scenario/compare`, {
       method: "POST",
       headers: withCSRFToken({ "Content-Type": "application/json" }),
       credentials: "include",
       body: JSON.stringify(input),
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to compare scenario");
-    }
-    return response.json();
   },
 
   /**
@@ -49,16 +40,11 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async getLiveInfrastructure() {
-    const response = await fetch(`${API_URL}/api/v1/infrastructure`, {
+    return apiFetch(`${API_URL}/api/v1/infrastructure`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to fetch live infrastructure");
-    }
-    return response.json();
   },
 
   /**
@@ -66,15 +52,16 @@ export const scenarioApi = {
    * @returns {Promise<Object>} Status including vsphere_configured, has_data, source
    */
   async getInfrastructureStatus() {
-    const response = await fetch(`${API_URL}/api/v1/infrastructure/status`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-    });
-    if (!response.ok) {
+    try {
+      return await apiFetch(`${API_URL}/api/v1/infrastructure/status`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+    } catch (err) {
+      if (err instanceof ApiConnectionError) throw err;
       return { vsphere_configured: false, has_data: false };
     }
-    return response.json();
   },
 
   /**
@@ -83,17 +70,12 @@ export const scenarioApi = {
    * @returns {Promise<Object>} InfrastructureState
    */
   async setInfrastructureState(state) {
-    const response = await fetch(`${API_URL}/api/v1/infrastructure/state`, {
+    return apiFetch(`${API_URL}/api/v1/infrastructure/state`, {
       method: "POST",
       headers: withCSRFToken({ "Content-Type": "application/json" }),
       credentials: "include",
       body: JSON.stringify(state),
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to set infrastructure state");
-    }
-    return response.json();
   },
 
   /**
@@ -102,16 +84,11 @@ export const scenarioApi = {
    * @returns {Promise<Object>} PlanningResponse with result and recommendations
    */
   async calculatePlanning(input) {
-    const response = await fetch(`${API_URL}/api/v1/infrastructure/planning`, {
+    return apiFetch(`${API_URL}/api/v1/infrastructure/planning`, {
       method: "POST",
       headers: withCSRFToken({ "Content-Type": "application/json" }),
       credentials: "include",
       body: JSON.stringify(input),
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to calculate planning");
-    }
-    return response.json();
   },
 };

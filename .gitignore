@@ -40,6 +40,9 @@ bosh-*.yml
 settings.local.json
 cli/diego-capacity
 
+# Agent
+.agent/
+
 # Claude
 **/CLAUDE.md
 !.claude/CLAUDE.md

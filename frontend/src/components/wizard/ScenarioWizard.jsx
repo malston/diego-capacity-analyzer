@@ -64,7 +64,7 @@ const ScenarioWizard = ({
   setChunkSizeMB,
   autoDetectedChunkSizeMB,
 }) => {
-  const [currentStep, setCurrentStep] = useState(0);
+  const [rawStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState([]);
 
   // Dynamically build steps based on selected resources
@@ -77,25 +77,35 @@ const ScenarioWizard = ({
     return result;
   }, [selectedResources]);
 
-  const markStepComplete = useCallback(
-    (stepIndex) => {
-      if (!completedSteps.includes(stepIndex)) {
-        setCompletedSteps((prev) => [...prev, stepIndex]);
-      }
-    },
-    [completedSteps],
-  );
+  // Clamp to valid range when steps array shrinks
+  const currentStep = Math.min(rawStep, steps.length - 1);
+
+  const markStepComplete = useCallback((stepId) => {
+    if (!stepId) {
+      return;
+    }
+    setCompletedSteps((prev) =>
+      prev.includes(stepId) ? prev : [...prev, stepId],
+    );
+  }, []);
 
   const handleContinue = useCallback(() => {
-    markStepComplete(currentStep);
+    markStepComplete(steps[currentStep]?.id);
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
-  }, [currentStep, markStepComplete, steps.length]);
+  }, [currentStep, markStepComplete, steps]);
 
-  const handleStepClick = useCallback((stepIndex) => {
-    setCurrentStep(stepIndex);
-  }, []);
+  const handleStepClick = useCallback(
+    (stepIndex) => {
+      if (stepIndex === currentStep) {
+        return;
+      }
+      markStepComplete(steps[currentStep]?.id);
+      setCurrentStep(stepIndex);
+    },
+    [currentStep, markStepComplete, steps],
+  );
 
   const renderStepContent = () => {
     const currentStepId = steps[currentStep]?.id;

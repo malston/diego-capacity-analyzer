@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import { Server, Zap, TrendingUp, AlertTriangle, Layers } from "lucide-react";
 import { useAuth } from "./contexts/AuthContext";
+import { apiFetch } from "./services/apiClient";
 import { cfApi } from "./services/cfApi";
 import ScenarioAnalyzer from "./components/ScenarioAnalyzer";
 import Header from "./components/Header";
@@ -44,6 +45,7 @@ const TASCapacityAnalyzer = () => {
   const [data, setData] = useState(mockData);
   const [loading, setLoading] = useState(!isDevMode());
   const [error, setError] = useState(null);
+  const [errorDetail, setErrorDetail] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
   const devMode = isDevMode();
 
@@ -51,20 +53,14 @@ const TASCapacityAnalyzer = () => {
   const loadCFData = async () => {
     setLoading(true);
     setError(null);
+    setErrorDetail(null);
 
     try {
       const apiURL = import.meta.env.VITE_API_URL || "";
-
-      const response = await fetch(`${apiURL}/api/v1/dashboard`, {
+      const dashboardData = await apiFetch(`${apiURL}/api/v1/dashboard`, {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
-
-      if (!response.ok) {
-        throw new Error(`Backend returned ${response.status}`);
-      }
-
-      const dashboardData = await response.json();
 
       setData({
         cells: dashboardData.cells,
@@ -76,6 +72,7 @@ const TASCapacityAnalyzer = () => {
     } catch (err) {
       console.error("Error loading data:", err);
       setError(err.message);
+      setErrorDetail(err.detail || null);
       setData(mockData);
       setUseMockData(true);
     } finally {
@@ -121,6 +118,7 @@ Check browser console (F12) for details.`;
       setData(mockData);
       setUseMockData(true);
       setError(null);
+      setErrorDetail(null);
     }
   };
 
@@ -312,29 +310,19 @@ Check browser console (F12) for details.`;
             aria-hidden="true"
           />
           <div className="flex-1">
-            <p className="text-red-300 text-sm font-semibold">
-              Error loading CF data
-            </p>
-            <p className="text-red-400/80 text-xs mt-1">{error}</p>
-            <p className="text-red-400/60 text-xs mt-2">
+            <p className="text-red-300 text-sm font-semibold">{error}</p>
+            <p className="text-red-400/60 text-xs mt-1">
               Falling back to mock data.
             </p>
-            {error.includes("CORS") && (
-              <div className="mt-3 p-3 bg-slate-900/50 rounded text-xs text-slate-300">
-                <p className="font-semibold text-amber-400 mb-2">
-                  CORS Issue - Solutions:
+            {errorDetail && (
+              <details className="mt-3">
+                <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300">
+                  Troubleshooting details
+                </summary>
+                <p className="mt-2 p-3 bg-slate-900/50 rounded text-xs text-slate-400">
+                  {errorDetail}
                 </p>
-                <ul className="space-y-1 list-disc list-inside text-slate-400">
-                  <li>
-                    Configure CF/HAProxy to allow localhost in CORS headers
-                  </li>
-                  <li>Create a backend proxy to handle CF API requests</li>
-                  <li>Deploy this app to the same domain as your CF API</li>
-                </ul>
-                <p className="mt-2 text-slate-500">
-                  Check browser DevTools Console (F12) for detailed error
-                </p>
-              </div>
+              </details>
             )}
           </div>
         </div>
