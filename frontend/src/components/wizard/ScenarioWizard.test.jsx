@@ -156,7 +156,7 @@ describe("ScenarioWizard", () => {
       />,
     );
 
-    // Advance through Resources -> Cell Config -> CPU Config (completing 0, 1, 2)
+    // Advance through Resources -> Cell Config -> CPU Config
     await userEvent.click(screen.getByRole("button", { name: /continue/i })); // Resources -> Cell Config
     await userEvent.click(screen.getByRole("button", { name: /continue/i })); // Cell Config -> CPU Config
     await userEvent.click(screen.getByRole("button", { name: /continue/i })); // CPU Config -> Advanced
@@ -183,6 +183,35 @@ describe("ScenarioWizard", () => {
     // Advanced should NOT be completed (it was never completed, only navigated to)
     const advancedAfter = screen.getByText("Advanced").closest("button");
     expect(advancedAfter).not.toHaveAttribute("data-completed", "true");
+
+    // Wizard body should not be blank -- currentStep should clamp to valid range
+    expect(screen.getByLabelText(/memory overhead/i)).toBeInTheDocument();
+  });
+
+  it("clamps currentStep when steps array shrinks", async () => {
+    // Start with CPU selected (4 steps)
+    const { rerender } = renderWithToast(
+      <ScenarioWizard
+        {...defaultProps}
+        selectedResources={["memory", "cpu"]}
+      />,
+    );
+
+    // Navigate to Advanced (step index 3, last step)
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // Resources -> Cell Config
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // Cell Config -> CPU Config
+    await userEvent.click(screen.getByRole("button", { name: /continue/i })); // CPU Config -> Advanced
+    expect(screen.getByLabelText(/memory overhead/i)).toBeInTheDocument();
+
+    // Remove CPU step (steps shrink to 3, max valid index is 2)
+    rerender(
+      <ToastProvider>
+        <ScenarioWizard {...defaultProps} selectedResources={["memory"]} />
+      </ToastProvider>,
+    );
+
+    // Should land on the last valid step (Advanced, now index 2) not blank
+    expect(screen.getByLabelText(/memory overhead/i)).toBeInTheDocument();
   });
 
   it("passes platformVMsCPU prop to CPUConfigStep", async () => {
