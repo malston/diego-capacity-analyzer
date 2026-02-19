@@ -125,7 +125,7 @@ func main() {
 		SessionValidator: sessionValidator,
 		JWKSClient:       jwksClient,
 	}
-	slog.Info("Auth mode configured", "mode", authMode)
+	slog.Info("Auth mode configured", "mode", authMode, "oauth_client", cfg.OAuthClientID)
 
 	// Configure CORS middleware with allowed origins
 	corsMiddleware := middleware.CORSWithConfig(cfg.CORSAllowedOrigins)

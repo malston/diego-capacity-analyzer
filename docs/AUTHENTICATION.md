@@ -27,6 +27,8 @@ Authentication-related environment variables:
 | `CF_USERNAME`            | (required) | CF admin username for backend API access     |
 | `CF_PASSWORD`            | (required) | CF admin password                            |
 | `CF_SKIP_SSL_VALIDATION` | `false`    | Skip TLS verification for CF/UAA endpoints   |
+| `OAUTH_CLIENT_ID`        | `cf`       | OAuth client ID for UAA password grants      |
+| `OAUTH_CLIENT_SECRET`    | (empty)    | OAuth client secret                          |
 
 ## How Authentication Works
 
@@ -149,7 +151,25 @@ All other authenticated endpoints are accessible to any role (viewer or operator
 
 ### UAA Group Setup
 
-To configure RBAC, create the UAA groups, assign users, and update the OAuth client. All three steps are required.
+To configure RBAC, create the UAA groups, assign users, and create a dedicated OAuth client. All three steps are required.
+
+**Automated setup (recommended):**
+
+```bash
+# Set Ops Manager credentials
+export OM_TARGET=opsman.example.com
+export OM_USERNAME=admin
+export OM_PASSWORD=<password>
+
+# Run setup script with the UAA usernames to grant access
+./setup-uaa.sh admin operator-user
+```
+
+The script creates the groups, assigns users, creates the OAuth client, and prints the `OAUTH_CLIENT_ID` / `OAUTH_CLIENT_SECRET` values to add to your `.env` file. Run `./setup-uaa.sh --help` for all options.
+
+**Manual setup:**
+
+If you prefer to run the steps manually, follow Steps 1-3 below.
 
 **Step 1: Get the UAA admin client secret**
 
@@ -289,6 +309,62 @@ In `optional` mode, if a token is present but invalid, the request is rejected (
 **CSRF validation failures:** Ensure the `DIEGO_CSRF` cookie is present in the browser and that the `X-CSRF-Token` header is included on POST/PUT/DELETE requests. Use `withCSRFToken()` from `utils/csrf.js`.
 
 **Login works locally but cookies not sent:** Set `COOKIE_SECURE=false` when running over HTTP (local dev without TLS).
+
+**Verifying OAuth client credentials:** To confirm your dedicated OAuth client is configured correctly, check two things:
+
+1. The backend logs the configured client at startup:
+
+   ```text
+   INFO Auth mode configured mode=required oauth_client=diego-analyzer
+   ```
+
+2. Test the credentials directly against UAA with a password grant:
+
+   ```bash
+   curl -sk -X POST "https://login.sys.example.com/oauth/token" \
+     -u "$OAUTH_CLIENT_ID:$OAUTH_CLIENT_SECRET" \
+     -d "grant_type=password&username=$CF_USERNAME&password=$CF_PASSWORD" \
+     | jq .
+   ```
+
+   A successful response includes an `access_token` with `diego-analyzer.operator` and `diego-analyzer.viewer` in the `scope` field. If the client credentials are wrong, UAA returns `"error": "unauthorized"` with `"Bad client credentials"`.
+
+   The login URL is derived from your CF API URL by replacing `api.` with `login.` (e.g., `https://api.sys.example.com` becomes `https://login.sys.example.com`).
+
+## CI / Automation
+
+For pipelines and scripts that call the API, create a dedicated UAA service account instead of using human credentials. This avoids embedding personal passwords in CI secrets and gives the automation its own audit trail.
+
+**Step 1: Create the service account**
+
+```bash
+# Authenticate with UAA (see UAA Group Setup above for getting the admin secret)
+uaac target https://uaa.sys.example.com --skip-ssl-validation
+uaac token client get admin -s <admin-client-secret>
+
+# Create a service account user
+uaac user add ci-pipeline -p <service-account-password> --emails ci-pipeline@example.com
+
+# Grant the appropriate role
+uaac member add diego-analyzer.operator ci-pipeline
+uaac member add diego-analyzer.viewer ci-pipeline
+```
+
+**Step 2: Use in your pipeline**
+
+```bash
+# Get a token (valid for 2 hours with default client settings)
+export OAUTH_TOKEN=$(curl -sk -X POST "https://login.sys.example.com/oauth/token" \
+  -u "$OAUTH_CLIENT_ID:$OAUTH_CLIENT_SECRET" \
+  -d "grant_type=password&username=ci-pipeline&password=$CI_SERVICE_ACCOUNT_PASSWORD" \
+  | jq -r '.access_token')
+
+# Call the API
+curl -s http://your-backend:8080/api/v1/dashboard \
+  -H "Authorization: Bearer $OAUTH_TOKEN" | jq .
+```
+
+Store `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, and `CI_SERVICE_ACCOUNT_PASSWORD` in your pipeline's secrets manager. The token can be reused for the duration of the pipeline run (2-hour lifetime).
 
 ## Security Properties
 

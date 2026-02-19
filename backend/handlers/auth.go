@@ -211,7 +211,7 @@ func (h *Handler) refreshWithCFUAA(refreshToken string) (*uaaTokenResponse, erro
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth("cf", "")
+	req.SetBasicAuth(h.cfg.OAuthClientID, h.cfg.OAuthClientSecret)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -265,7 +265,7 @@ func (h *Handler) authenticateWithCFUAA(username, password string) (*uaaTokenRes
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth("cf", "")
+	req.SetBasicAuth(h.cfg.OAuthClientID, h.cfg.OAuthClientSecret)
 
 	resp, err := client.Do(req)
 	if err != nil {
