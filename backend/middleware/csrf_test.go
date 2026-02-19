@@ -72,6 +72,23 @@ func TestCSRF_SkipsBearerAuth(t *testing.T) {
 	}
 }
 
+func TestCSRF_DoesNotSkipNonBearerAuth(t *testing.T) {
+	handler := CSRF()(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Non-Bearer Authorization headers should not bypass CSRF
+	req := httptest.NewRequest("POST", "/test", nil)
+	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: "session-id"})
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("Expected 403 for Basic auth with session cookie, got %d", rr.Code)
+	}
+}
+
 func TestCSRF_SkipsNoSessionCookie(t *testing.T) {
 	handler := CSRF()(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

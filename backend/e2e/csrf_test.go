@@ -142,11 +142,19 @@ func TestCSRF_E2E_FullLoginFlow(t *testing.T) {
 	}
 
 	// Verify error response format
-	var errResp map[string]string
+	var errResp struct {
+		Error string `json:"error"`
+		Code  int    `json:"code"`
+	}
 	if err := json.NewDecoder(invalidRR.Body).Decode(&errResp); err != nil {
 		t.Errorf("Failed to decode error response: %v", err)
-	} else if errResp["error"] == "" {
-		t.Error("Expected error message in response")
+	} else {
+		if errResp.Error == "" {
+			t.Error("Expected error message in response")
+		}
+		if errResp.Code != http.StatusForbidden {
+			t.Errorf("Expected code 403 in response, got %d", errResp.Code)
+		}
 	}
 }
 
