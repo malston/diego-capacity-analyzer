@@ -4,6 +4,7 @@
 package services
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -42,9 +43,13 @@ func NewCFClient(apiURL, username, password string, skipSSLValidation bool) *CFC
 	}
 }
 
-func (c *CFClient) Authenticate() error {
+func (c *CFClient) Authenticate(ctx context.Context) error {
 	// Get UAA URL from CF API info
-	infoResp, err := c.client.Get(c.apiURL + "/v3/info")
+	infoReq, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/v3/info", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create CF info request: %w", err)
+	}
+	infoResp, err := c.client.Do(infoReq)
 	if err != nil {
 		return fmt.Errorf("failed to get CF info: %w", err)
 	}
@@ -75,7 +80,7 @@ func (c *CFClient) Authenticate() error {
 	data.Set("username", c.username)
 	data.Set("password", c.password)
 
-	req, err := http.NewRequest("POST", uaaURL+"/oauth/token", strings.NewReader(data.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", uaaURL+"/oauth/token", strings.NewReader(data.Encode()))
 	if err != nil {
 		return fmt.Errorf("failed to create auth request: %w", err)
 	}
@@ -111,13 +116,13 @@ func (c *CFClient) Authenticate() error {
 	return nil
 }
 
-// doAuthenticatedRequest performs an HTTP request with the CF API token
-func (c *CFClient) doAuthenticatedRequest(method, path string) (*http.Response, error) {
+// doAuthenticatedRequest performs an HTTP request with the CF API token and caller-provided context
+func (c *CFClient) doAuthenticatedRequest(ctx context.Context, method, path string) (*http.Response, error) {
 	if c.token == "" {
 		return nil, fmt.Errorf("not authenticated: call Authenticate() first")
 	}
 
-	req, err := http.NewRequest(method, c.apiURL+path, nil)
+	req, err := http.NewRequestWithContext(ctx, method, c.apiURL+path, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -140,7 +145,7 @@ func (c *CFClient) doAuthenticatedRequest(method, path string) (*http.Response, 
 }
 
 // GetApps fetches all apps from CF API v3 with pagination
-func (c *CFClient) GetApps() ([]models.App, error) {
+func (c *CFClient) GetApps(ctx context.Context) ([]models.App, error) {
 	start := time.Now()
 	var apps []models.App
 	var pageCount int
@@ -148,7 +153,7 @@ func (c *CFClient) GetApps() ([]models.App, error) {
 
 	for nextURL != "" {
 		pageCount++
-		resp, err := c.doAuthenticatedRequest("GET", nextURL)
+		resp, err := c.doAuthenticatedRequest(ctx, "GET", nextURL)
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +185,7 @@ func (c *CFClient) GetApps() ([]models.App, error) {
 
 		// Fetch processes for each app to get memory, disk, and instance info
 		for _, resource := range result.Resources {
-			processes, err := c.getAppProcesses(resource.GUID)
+			processes, err := c.getAppProcesses(ctx, resource.GUID)
 			if err != nil {
 				return nil, err
 			}
@@ -196,8 +201,14 @@ func (c *CFClient) GetApps() ([]models.App, error) {
 			// Try to get actual memory from Log Cache
 			totalActualMB := totalRequestedMB // Default to requested
 			if c.logCache != nil && totalInstances > 0 {
-				metrics, err := c.logCache.GetAppMemoryMetrics(resource.GUID)
-				if err == nil && metrics.MemoryBytesAvg > 0 {
+				metrics, err := c.logCache.GetAppMemoryMetrics(ctx, resource.GUID)
+				if err != nil {
+					// Context cancellation should not be silently absorbed
+					if ctx.Err() != nil {
+						return nil, fmt.Errorf("context cancelled during log cache fetch for app %s: %w", resource.GUID, ctx.Err())
+					}
+					slog.Debug("Log Cache unavailable for app, using requested memory", "app_guid", resource.GUID, "error", err)
+				} else if metrics.MemoryBytesAvg > 0 {
 					// Convert bytes to MB
 					totalActualMB = int(metrics.MemoryBytesAvg / (1024 * 1024))
 					// Multiply by instances if we got per-instance average
@@ -208,9 +219,14 @@ func (c *CFClient) GetApps() ([]models.App, error) {
 			}
 
 			// Get isolation segment for the space
-			isoSegName, err := c.getSpaceIsolationSegment(resource.Relationships.Space.Data.GUID)
-			if err != nil || isoSegName == "" {
-				// Apps without explicit isolation segment run on "default"
+			isoSegName, err := c.getSpaceIsolationSegment(ctx, resource.Relationships.Space.Data.GUID)
+			if err != nil {
+				if ctx.Err() != nil {
+					return nil, fmt.Errorf("context cancelled during isolation segment lookup for app %s: %w", resource.GUID, ctx.Err())
+				}
+				slog.Debug("Could not determine isolation segment for space, using default", "space_guid", resource.Relationships.Space.Data.GUID, "error", err)
+				isoSegName = "default"
+			} else if isoSegName == "" {
 				isoSegName = "default"
 			}
 
@@ -243,7 +259,7 @@ func (c *CFClient) GetApps() ([]models.App, error) {
 }
 
 // getAppProcesses fetches process information for an app
-func (c *CFClient) getAppProcesses(appGUID string) ([]struct {
+func (c *CFClient) getAppProcesses(ctx context.Context, appGUID string) ([]struct {
 	Type      string `json:"type"`
 	Instances int    `json:"instances"`
 	MemoryMB  int    `json:"memory_in_mb"`
@@ -252,7 +268,7 @@ func (c *CFClient) getAppProcesses(appGUID string) ([]struct {
 	if err := ValidateGUID(appGUID); err != nil {
 		return nil, fmt.Errorf("invalid app GUID: %w", err)
 	}
-	resp, err := c.doAuthenticatedRequest("GET", "/v3/apps/"+appGUID+"/processes")
+	resp, err := c.doAuthenticatedRequest(ctx, "GET", "/v3/apps/"+appGUID+"/processes")
 	if err != nil {
 		return nil, err
 	}
@@ -275,11 +291,11 @@ func (c *CFClient) getAppProcesses(appGUID string) ([]struct {
 }
 
 // getSpaceIsolationSegment fetches the isolation segment name for a space
-func (c *CFClient) getSpaceIsolationSegment(spaceGUID string) (string, error) {
+func (c *CFClient) getSpaceIsolationSegment(ctx context.Context, spaceGUID string) (string, error) {
 	if err := ValidateGUID(spaceGUID); err != nil {
 		return "", fmt.Errorf("invalid space GUID: %w", err)
 	}
-	resp, err := c.doAuthenticatedRequest("GET", "/v3/spaces/"+spaceGUID+"/relationships/isolation_segment")
+	resp, err := c.doAuthenticatedRequest(ctx, "GET", "/v3/spaces/"+spaceGUID+"/relationships/isolation_segment")
 	if err != nil {
 		return "", err
 	}
@@ -306,7 +322,7 @@ func (c *CFClient) getSpaceIsolationSegment(spaceGUID string) (string, error) {
 	}
 
 	// Fetch the isolation segment name
-	segResp, err := c.doAuthenticatedRequest("GET", "/v3/isolation_segments/"+result.Data.GUID)
+	segResp, err := c.doAuthenticatedRequest(ctx, "GET", "/v3/isolation_segments/"+result.Data.GUID)
 	if err != nil {
 		return "", err
 	}
@@ -324,12 +340,12 @@ func (c *CFClient) getSpaceIsolationSegment(spaceGUID string) (string, error) {
 }
 
 // GetIsolationSegments fetches all isolation segments from CF API v3
-func (c *CFClient) GetIsolationSegments() ([]models.IsolationSegment, error) {
+func (c *CFClient) GetIsolationSegments(ctx context.Context) ([]models.IsolationSegment, error) {
 	var segments []models.IsolationSegment
 	nextURL := "/v3/isolation_segments?per_page=100"
 
 	for nextURL != "" {
-		resp, err := c.doAuthenticatedRequest("GET", nextURL)
+		resp, err := c.doAuthenticatedRequest(ctx, "GET", nextURL)
 		if err != nil {
 			return nil, err
 		}

@@ -53,14 +53,15 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Authenticate with CF API
-	if err := h.cfClient.Authenticate(); err != nil {
+	ctx := r.Context()
+	if err := h.cfClient.Authenticate(ctx); err != nil {
 		slog.Error("CF API authentication failed", "error", err)
 		h.writeError(w, "Authentication service temporarily unavailable", http.StatusInternalServerError)
 		return
 	}
 
 	// Fetch apps from CF API
-	apps, err := h.cfClient.GetApps()
+	apps, err := h.cfClient.GetApps(ctx)
 	if err != nil {
 		slog.Error("CF API GetApps failed", "error", err)
 		h.writeError(w, "Failed to retrieve application data", http.StatusInternalServerError)
@@ -69,7 +70,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	resp.Apps = apps
 
 	// Fetch isolation segments from CF API
-	segments, err := h.cfClient.GetIsolationSegments()
+	segments, err := h.cfClient.GetIsolationSegments(ctx)
 	if err != nil {
 		slog.Error("CF API GetIsolationSegments failed", "error", err)
 		h.writeError(w, "Failed to retrieve isolation segment data", http.StatusInternalServerError)
