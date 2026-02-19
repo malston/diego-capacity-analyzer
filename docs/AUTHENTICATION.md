@@ -151,7 +151,25 @@ All other authenticated endpoints are accessible to any role (viewer or operator
 
 ### UAA Group Setup
 
-To configure RBAC, create the UAA groups, assign users, and update the OAuth client. All three steps are required.
+To configure RBAC, create the UAA groups, assign users, and create a dedicated OAuth client. All three steps are required.
+
+**Automated setup (recommended):**
+
+```bash
+# Set Ops Manager credentials
+export OM_TARGET=opsman.example.com
+export OM_USERNAME=admin
+export OM_PASSWORD=<password>
+
+# Run setup script with the UAA usernames to grant access
+./setup-uaa.sh admin operator-user
+```
+
+The script creates the groups, assigns users, creates the OAuth client, and prints the `OAUTH_CLIENT_ID` / `OAUTH_CLIENT_SECRET` values to add to your `.env` file. Run `./setup-uaa.sh --help` for all options.
+
+**Manual setup:**
+
+If you prefer to run the steps manually, follow Steps 1-3 below.
 
 **Step 1: Get the UAA admin client secret**
 
