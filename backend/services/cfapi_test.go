@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -338,8 +339,8 @@ func TestCFClient_Authenticate_CancelledContext(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error when context is cancelled, got nil")
 	}
-	if !strings.Contains(err.Error(), "context canceled") {
-		t.Errorf("Expected context canceled error, got: %v", err)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Expected context.Canceled error, got: %v", err)
 	}
 }
 
@@ -362,8 +363,8 @@ func TestCFClient_GetApps_CancelledContext(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error when context is cancelled, got nil")
 	}
-	if !strings.Contains(err.Error(), "context canceled") {
-		t.Errorf("Expected context canceled error, got: %v", err)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Expected context.Canceled error, got: %v", err)
 	}
 }
 
@@ -385,8 +386,8 @@ func TestCFClient_GetIsolationSegments_CancelledContext(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error when context is cancelled, got nil")
 	}
-	if !strings.Contains(err.Error(), "context canceled") {
-		t.Errorf("Expected context canceled error, got: %v", err)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Expected context.Canceled error, got: %v", err)
 	}
 }
 
@@ -394,7 +395,7 @@ func TestCFClient_Authenticate_ContextTimeout(t *testing.T) {
 	// Server that delays longer than the context deadline
 	var serverURL string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/v3/info" {
 			w.Write([]byte(`{"links":{"login":{"href":"` + serverURL + `"}}}`))
@@ -410,14 +411,14 @@ func TestCFClient_Authenticate_ContextTimeout(t *testing.T) {
 
 	client := NewCFClient(server.URL, "admin", "secret", true)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
 	err := client.Authenticate(ctx)
 	if err == nil {
 		t.Fatal("Expected error when context times out, got nil")
 	}
-	if !strings.Contains(err.Error(), "context deadline exceeded") {
-		t.Errorf("Expected context deadline exceeded error, got: %v", err)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("Expected context.DeadlineExceeded error, got: %v", err)
 	}
 }

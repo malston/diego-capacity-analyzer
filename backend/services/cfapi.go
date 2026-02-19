@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -119,7 +120,7 @@ func (c *CFClient) Authenticate(ctx context.Context) error {
 // doAuthenticatedRequest performs an HTTP request with the CF API token and caller-provided context
 func (c *CFClient) doAuthenticatedRequest(ctx context.Context, method, path string) (*http.Response, error) {
 	if c.token == "" {
-		return nil, fmt.Errorf("not authenticated: call Authenticate() first")
+		return nil, fmt.Errorf("not authenticated: call Authenticate(ctx) first")
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, c.apiURL+path, nil)
@@ -204,8 +205,8 @@ func (c *CFClient) GetApps(ctx context.Context) ([]models.App, error) {
 				metrics, err := c.logCache.GetAppMemoryMetrics(ctx, resource.GUID)
 				if err != nil {
 					// Context cancellation should not be silently absorbed
-					if ctx.Err() != nil {
-						return nil, fmt.Errorf("context cancelled during log cache fetch for app %s: %w", resource.GUID, ctx.Err())
+					if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+						return nil, fmt.Errorf("log cache fetch for app %s: %w", resource.GUID, err)
 					}
 					slog.Debug("Log Cache unavailable for app, using requested memory", "app_guid", resource.GUID, "error", err)
 				} else if metrics.MemoryBytesAvg > 0 {
@@ -221,8 +222,8 @@ func (c *CFClient) GetApps(ctx context.Context) ([]models.App, error) {
 			// Get isolation segment for the space
 			isoSegName, err := c.getSpaceIsolationSegment(ctx, resource.Relationships.Space.Data.GUID)
 			if err != nil {
-				if ctx.Err() != nil {
-					return nil, fmt.Errorf("context cancelled during isolation segment lookup for app %s: %w", resource.GUID, ctx.Err())
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return nil, fmt.Errorf("isolation segment lookup for app %s: %w", resource.GUID, err)
 				}
 				slog.Debug("Could not determine isolation segment for space, using default", "space_guid", resource.Relationships.Space.Data.GUID, "error", err)
 				isoSegName = "default"

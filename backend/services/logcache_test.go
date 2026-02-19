@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -101,14 +102,14 @@ func TestLogCacheClient_GetAppMemoryMetrics_CancelledContext(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error when context is cancelled, got nil")
 	}
-	if !strings.Contains(err.Error(), "context canceled") {
-		t.Errorf("Expected context canceled error, got: %v", err)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Expected context.Canceled error, got: %v", err)
 	}
 }
 
 func TestLogCacheClient_GetAppMemoryMetrics_ContextTimeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"envelopes":{"batch":[]}}`))
 	}))
@@ -120,12 +121,15 @@ func TestLogCacheClient_GetAppMemoryMetrics_ContextTimeout(t *testing.T) {
 		client:      server.Client(),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
 	_, err := client.GetAppMemoryMetrics(ctx, "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1")
 	if err == nil {
 		t.Fatal("Expected error when context times out, got nil")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("Expected context.DeadlineExceeded error, got: %v", err)
 	}
 }
 
@@ -150,7 +154,7 @@ func TestLogCacheClient_GetAppMemoryPromQL_CancelledContext(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error when context is cancelled, got nil")
 	}
-	if !strings.Contains(err.Error(), "context canceled") {
-		t.Errorf("Expected context canceled error, got: %v", err)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Expected context.Canceled error, got: %v", err)
 	}
 }
