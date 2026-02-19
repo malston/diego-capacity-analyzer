@@ -884,6 +884,48 @@ func TestLogout_ClearsCSRFCookie(t *testing.T) {
 	}
 }
 
+func TestLogin_WrongOAuthClientCredentials(t *testing.T) {
+	// Mock UAA expects client "cf" / "", but handler is configured with wrong credentials
+	cfServer, uaaServer := setupMockCFAndUAAServers("admin", "secret")
+	defer cfServer.Close()
+	defer uaaServer.Close()
+
+	c := cache.New(5 * time.Minute)
+	sessionSvc := services.NewSessionService(c)
+	cfg := &config.Config{
+		CFAPIUrl:          cfServer.URL,
+		CookieSecure:      false,
+		OAuthClientID:     "wrong-client",
+		OAuthClientSecret: "wrong-secret",
+	}
+
+	h := NewHandler(cfg, c)
+	h.SetSessionService(sessionSvc)
+
+	body := `{"username":"admin","password":"secret"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Login(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("Status = %d, want %d", resp.StatusCode, http.StatusUnauthorized)
+	}
+
+	var loginResp models.LoginResponse
+	if err := json.NewDecoder(resp.Body).Decode(&loginResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if loginResp.Success {
+		t.Error("Expected login failure with wrong OAuth client credentials")
+	}
+	if loginResp.Error != "Invalid credentials" {
+		t.Errorf("Error = %q, want %q", loginResp.Error, "Invalid credentials")
+	}
+}
+
 func TestLogin_UsesConfiguredOAuthClient(t *testing.T) {
 	cfServer, uaaServer := setupMockCFAndUAAServersWithClient(
 		"admin", "secret", "", "diego-analyzer", "client-secret-123",
