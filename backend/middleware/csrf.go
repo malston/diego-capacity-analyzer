@@ -5,9 +5,9 @@ package middleware
 
 import (
 	"crypto/subtle"
-	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -22,7 +22,8 @@ const (
 // CSRF returns middleware that validates CSRF tokens for state-changing requests.
 // Validation is skipped for:
 //   - GET, HEAD, OPTIONS requests (safe methods)
-//   - Requests with Authorization header (Bearer token auth)
+//   - Login endpoint (creates a new session, must work with stale cookies)
+//   - Requests with Bearer token in Authorization header (not cookie-authenticated)
 //   - Requests without session cookie (not session-authenticated)
 func CSRF() func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
@@ -33,8 +34,16 @@ func CSRF() func(http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 
-			// Skip if using Bearer token auth (CSRF not applicable)
-			if r.Header.Get("Authorization") != "" {
+			// Skip login endpoint -- it creates a new session and must work
+			// even when the browser has a stale session cookie with no CSRF cookie
+			if r.URL.Path == "/api/v1/auth/login" || r.URL.Path == "/api/auth/login" {
+				slog.Debug("CSRF skipped: login endpoint", "path", r.URL.Path)
+				next(w, r)
+				return
+			}
+
+			// Skip if using Bearer token auth (CSRF not applicable to token-authenticated requests)
+			if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
 				next(w, r)
 				return
 			}
@@ -50,28 +59,28 @@ func CSRF() func(http.HandlerFunc) http.HandlerFunc {
 			csrfCookie, err := r.Cookie(csrfCookieName)
 			if err != nil || csrfCookie.Value == "" {
 				slog.Debug("CSRF rejected: missing cookie", "path", r.URL.Path)
-				writeCSRFError(w)
+				writeJSONError(w, "CSRF token missing or invalid", http.StatusForbidden)
 				return
 			}
 
 			csrfHeader := r.Header.Get(csrfHeaderName)
 			if csrfHeader == "" {
 				slog.Debug("CSRF rejected: missing header", "path", r.URL.Path)
-				writeCSRFError(w)
+				writeJSONError(w, "CSRF token missing or invalid", http.StatusForbidden)
 				return
 			}
 
 			// Validate token lengths before comparison
 			if len(csrfCookie.Value) != csrfTokenLength || len(csrfHeader) != csrfTokenLength {
 				slog.Debug("CSRF rejected: invalid token length", "path", r.URL.Path)
-				writeCSRFError(w)
+				writeJSONError(w, "CSRF token missing or invalid", http.StatusForbidden)
 				return
 			}
 
 			// Constant-time comparison to prevent timing attacks
 			if subtle.ConstantTimeCompare([]byte(csrfCookie.Value), []byte(csrfHeader)) != 1 {
 				slog.Debug("CSRF rejected: token mismatch", "path", r.URL.Path)
-				writeCSRFError(w)
+				writeJSONError(w, "CSRF token missing or invalid", http.StatusForbidden)
 				return
 			}
 
@@ -79,12 +88,4 @@ func CSRF() func(http.HandlerFunc) http.HandlerFunc {
 			next(w, r)
 		}
 	}
-}
-
-func writeCSRFError(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusForbidden)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error": "CSRF token missing or invalid",
-	})
 }
