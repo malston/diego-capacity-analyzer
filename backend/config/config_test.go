@@ -177,6 +177,41 @@ func TestLoadConfig_RateLimitInvalidValue(t *testing.T) {
 	}
 }
 
+func TestLoad_OAuthClientDefaults(t *testing.T) {
+	t.Cleanup(withCleanCFEnv(t))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	if cfg.OAuthClientID != "cf" {
+		t.Errorf("OAuthClientID = %q, want %q", cfg.OAuthClientID, "cf")
+	}
+	if cfg.OAuthClientSecret != "" {
+		t.Errorf("OAuthClientSecret = %q, want %q", cfg.OAuthClientSecret, "")
+	}
+}
+
+func TestLoad_OAuthClientFromEnv(t *testing.T) {
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"OAUTH_CLIENT_ID":     "diego-analyzer",
+		"OAUTH_CLIENT_SECRET": "my-secret",
+	}))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	if cfg.OAuthClientID != "diego-analyzer" {
+		t.Errorf("OAuthClientID = %q, want %q", cfg.OAuthClientID, "diego-analyzer")
+	}
+	if cfg.OAuthClientSecret != "my-secret" {
+		t.Errorf("OAuthClientSecret = %q, want %q", cfg.OAuthClientSecret, "my-secret")
+	}
+}
+
 func TestLoadConfig_URLSchemePrefixing(t *testing.T) {
 	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
 		"CF_API_URL":       "api.sys.test.com", // Override to test scheme prefixing
