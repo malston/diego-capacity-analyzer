@@ -97,12 +97,25 @@ func TestExtractScopesFromToken(t *testing.T) {
 	}
 }
 
-// setupMockUAAServerWithRefresh creates a mock UAA server that handles both password and refresh_token grants
-func setupMockUAAServerWithRefresh(validUser, validPass, validRefreshToken string) *httptest.Server {
+// setupMockUAAServerWithRefresh creates a mock UAA server that handles both password and refresh_token grants.
+// It validates OAuth client credentials via HTTP Basic Auth before processing any grant type.
+func setupMockUAAServerWithRefresh(validUser, validPass, validRefreshToken, clientID, clientSecret string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth/token" {
 			if r.Method != http.MethodPost {
 				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+
+			// Validate OAuth client credentials via Basic Auth
+			reqClientID, reqClientSecret, ok := r.BasicAuth()
+			if !ok || reqClientID != clientID || reqClientSecret != clientSecret {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"error":             "unauthorized",
+					"error_description": "Bad client credentials",
+				})
 				return
 			}
 
@@ -167,9 +180,15 @@ func setupMockCFAndUAAServers(validUser, validPass string) (*httptest.Server, *h
 	return setupMockCFAndUAAServersWithRefresh(validUser, validPass, "")
 }
 
-// setupMockCFAndUAAServersWithRefresh creates mock CF API and UAA servers with refresh token support
+// setupMockCFAndUAAServersWithRefresh creates mock CF API and UAA servers with refresh token support.
+// Uses default OAuth client credentials ("cf" / "").
 func setupMockCFAndUAAServersWithRefresh(validUser, validPass, validRefreshToken string) (*httptest.Server, *httptest.Server) {
-	uaaServer := setupMockUAAServerWithRefresh(validUser, validPass, validRefreshToken)
+	return setupMockCFAndUAAServersWithClient(validUser, validPass, validRefreshToken, "cf", "")
+}
+
+// setupMockCFAndUAAServersWithClient creates mock CF API and UAA servers with custom OAuth client credentials
+func setupMockCFAndUAAServersWithClient(validUser, validPass, validRefreshToken, clientID, clientSecret string) (*httptest.Server, *httptest.Server) {
+	uaaServer := setupMockUAAServerWithRefresh(validUser, validPass, validRefreshToken, clientID, clientSecret)
 
 	cfServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
