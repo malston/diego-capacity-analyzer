@@ -4,6 +4,7 @@
 package services
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -72,17 +73,16 @@ func (l *LogCacheClient) SetToken(token string) {
 }
 
 // GetAppMemoryMetrics fetches memory metrics for a specific app
-func (l *LogCacheClient) GetAppMemoryMetrics(appGUID string) (*AppMetrics, error) {
+func (l *LogCacheClient) GetAppMemoryMetrics(ctx context.Context, appGUID string) (*AppMetrics, error) {
 	if l.token == "" {
 		return nil, fmt.Errorf("not authenticated")
 	}
 
-	// Query Log Cache for memory gauge metrics
-	// Look back 5 minutes for recent data
+	// Fetch recent gauge envelopes (up to 100 most recent)
 	endpoint := fmt.Sprintf("%s/api/v1/read/%s?envelope_types=GAUGE&limit=100",
 		l.logCacheURL, appGUID)
 
-	req, err := http.NewRequest("GET", endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -146,7 +146,7 @@ func (l *LogCacheClient) GetAppMemoryMetrics(appGUID string) (*AppMetrics, error
 }
 
 // GetAppMemoryPromQL uses PromQL endpoint for more precise queries
-func (l *LogCacheClient) GetAppMemoryPromQL(appGUID string) (int64, error) {
+func (l *LogCacheClient) GetAppMemoryPromQL(ctx context.Context, appGUID string) (int64, error) {
 	if l.token == "" {
 		return 0, fmt.Errorf("not authenticated")
 	}
@@ -155,7 +155,7 @@ func (l *LogCacheClient) GetAppMemoryPromQL(appGUID string) (int64, error) {
 	query := url.QueryEscape(fmt.Sprintf(`avg_over_time(memory{source_id="%s"}[5m])`, appGUID))
 	endpoint := fmt.Sprintf("%s/api/v1/promql?query=%s", l.logCacheURL, query)
 
-	req, err := http.NewRequest("GET", endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create request: %w", err)
 	}
