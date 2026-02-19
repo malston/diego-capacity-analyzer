@@ -27,6 +27,8 @@ Authentication-related environment variables:
 | `CF_USERNAME`            | (required) | CF admin username for backend API access     |
 | `CF_PASSWORD`            | (required) | CF admin password                            |
 | `CF_SKIP_SSL_VALIDATION` | `false`    | Skip TLS verification for CF/UAA endpoints   |
+| `OAUTH_CLIENT_ID`        | `cf`       | OAuth client ID for UAA password grants      |
+| `OAUTH_CLIENT_SECRET`    | (empty)    | OAuth client secret                          |
 
 ## How Authentication Works
 
