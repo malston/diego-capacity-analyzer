@@ -1,10 +1,13 @@
 package services
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCFClient_Authenticate(t *testing.T) {
@@ -36,7 +39,7 @@ func TestCFClient_Authenticate(t *testing.T) {
 
 	client := NewCFClient(cfServer.URL, "admin", "secret", true)
 
-	if err := client.Authenticate(); err != nil {
+	if err := client.Authenticate(context.Background()); err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
@@ -162,7 +165,7 @@ func TestCFClient_GetApps(t *testing.T) {
 	client := NewCFClient(server.URL, "admin", "secret", true)
 	client.token = "test-token"
 
-	apps, err := client.GetApps()
+	apps, err := client.GetApps(context.Background())
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -253,7 +256,7 @@ func TestCFClient_GetIsolationSegments(t *testing.T) {
 	client := NewCFClient(server.URL, "admin", "secret", true)
 	client.token = "test-token"
 
-	segments, err := client.GetIsolationSegments()
+	segments, err := client.GetIsolationSegments(context.Background())
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -288,7 +291,7 @@ func TestCFClient_GetApps_Unauthenticated(t *testing.T) {
 	client := NewCFClient(server.URL, "admin", "secret", true)
 	// Don't set token
 
-	_, err := client.GetApps()
+	_, err := client.GetApps(context.Background())
 	if err == nil {
 		t.Error("Expected error for unauthenticated request")
 	}
@@ -306,11 +309,116 @@ func TestCFClient_GetIsolationSegments_Unauthenticated(t *testing.T) {
 	client := NewCFClient(server.URL, "admin", "secret", true)
 	// Don't set token
 
-	_, err := client.GetIsolationSegments()
+	_, err := client.GetIsolationSegments(context.Background())
 	if err == nil {
 		t.Error("Expected error for unauthenticated request")
 	}
 	if !strings.Contains(err.Error(), "not authenticated") {
 		t.Errorf("Expected 'not authenticated' error, got %v", err)
+	}
+}
+
+func TestCFClient_Authenticate_CancelledContext(t *testing.T) {
+	// Server that responds slowly to simulate a real API
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v3/info" {
+			w.Write([]byte(`{"links":{"login":{"href":"` + "http://localhost:0" + `"}}}`))
+		}
+	}))
+	defer server.Close()
+
+	client := NewCFClient(server.URL, "admin", "secret", true)
+
+	// Cancel context before the call
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := client.Authenticate(ctx)
+	if err == nil {
+		t.Fatal("Expected error when context is cancelled, got nil")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Expected context.Canceled error, got: %v", err)
+	}
+}
+
+func TestCFClient_GetApps_CancelledContext(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"resources":[],"pagination":{"next":null}}`))
+	}))
+	defer server.Close()
+
+	client := NewCFClient(server.URL, "admin", "secret", true)
+	client.token = "test-token"
+
+	// Cancel context before the call
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := client.GetApps(ctx)
+	if err == nil {
+		t.Fatal("Expected error when context is cancelled, got nil")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Expected context.Canceled error, got: %v", err)
+	}
+}
+
+func TestCFClient_GetIsolationSegments_CancelledContext(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"resources":[],"pagination":{"next":null}}`))
+	}))
+	defer server.Close()
+
+	client := NewCFClient(server.URL, "admin", "secret", true)
+	client.token = "test-token"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := client.GetIsolationSegments(ctx)
+	if err == nil {
+		t.Fatal("Expected error when context is cancelled, got nil")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Expected context.Canceled error, got: %v", err)
+	}
+}
+
+func TestCFClient_Authenticate_ContextTimeout(t *testing.T) {
+	// Server that delays longer than the context deadline
+	var serverURL string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(1 * time.Second)
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v3/info" {
+			w.Write([]byte(`{"links":{"login":{"href":"` + serverURL + `"}}}`))
+			return
+		}
+		if r.URL.Path == "/oauth/token" {
+			w.Write([]byte(`{"access_token":"test-token","token_type":"bearer"}`))
+			return
+		}
+	}))
+	defer server.Close()
+	serverURL = server.URL
+
+	client := NewCFClient(server.URL, "admin", "secret", true)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err := client.Authenticate(ctx)
+	if err == nil {
+		t.Fatal("Expected error when context times out, got nil")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("Expected context.DeadlineExceeded error, got: %v", err)
 	}
 }

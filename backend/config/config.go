@@ -19,6 +19,10 @@ type Config struct {
 	CORSAllowedOrigins []string // allowed CORS origins (empty = block all cross-origin)
 	CookieSecure       bool     // Set Secure flag on session cookies (default: true)
 
+	// OAuth Client (for UAA password/refresh grants)
+	OAuthClientID     string
+	OAuthClientSecret string
+
 	// Rate Limiting
 	RateLimitEnabled bool // Enable rate limiting (default: true)
 	RateLimitAuth    int  // Requests per minute for auth endpoints (default: 5)
@@ -67,6 +71,9 @@ func Load() (*Config, error) {
 		AuthMode:           getEnv("AUTH_MODE", "optional"),
 		CORSAllowedOrigins: getEnvStringList("CORS_ALLOWED_ORIGINS"),
 		CookieSecure:       getEnvBool("COOKIE_SECURE", true),
+
+		OAuthClientID:     getEnv("OAUTH_CLIENT_ID", "cf"),
+		OAuthClientSecret: os.Getenv("OAUTH_CLIENT_SECRET"),
 
 		RateLimitEnabled: getEnvBool("RATE_LIMIT_ENABLED", true),
 		RateLimitAuth:    getEnvInt("RATE_LIMIT_AUTH", 5),

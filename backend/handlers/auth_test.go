@@ -97,12 +97,25 @@ func TestExtractScopesFromToken(t *testing.T) {
 	}
 }
 
-// setupMockUAAServerWithRefresh creates a mock UAA server that handles both password and refresh_token grants
-func setupMockUAAServerWithRefresh(validUser, validPass, validRefreshToken string) *httptest.Server {
+// setupMockUAAServerWithRefresh creates a mock UAA server that handles both password and refresh_token grants.
+// It validates OAuth client credentials via HTTP Basic Auth before processing any grant type.
+func setupMockUAAServerWithRefresh(validUser, validPass, validRefreshToken, clientID, clientSecret string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth/token" {
 			if r.Method != http.MethodPost {
 				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+
+			// Validate OAuth client credentials via Basic Auth
+			reqClientID, reqClientSecret, ok := r.BasicAuth()
+			if !ok || reqClientID != clientID || reqClientSecret != clientSecret {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"error":             "unauthorized",
+					"error_description": "Bad client credentials",
+				})
 				return
 			}
 
@@ -167,9 +180,15 @@ func setupMockCFAndUAAServers(validUser, validPass string) (*httptest.Server, *h
 	return setupMockCFAndUAAServersWithRefresh(validUser, validPass, "")
 }
 
-// setupMockCFAndUAAServersWithRefresh creates mock CF API and UAA servers with refresh token support
+// setupMockCFAndUAAServersWithRefresh creates mock CF API and UAA servers with refresh token support.
+// Uses default OAuth client credentials ("cf" / "").
 func setupMockCFAndUAAServersWithRefresh(validUser, validPass, validRefreshToken string) (*httptest.Server, *httptest.Server) {
-	uaaServer := setupMockUAAServerWithRefresh(validUser, validPass, validRefreshToken)
+	return setupMockCFAndUAAServersWithClient(validUser, validPass, validRefreshToken, "cf", "")
+}
+
+// setupMockCFAndUAAServersWithClient creates mock CF API and UAA servers with custom OAuth client credentials
+func setupMockCFAndUAAServersWithClient(validUser, validPass, validRefreshToken, clientID, clientSecret string) (*httptest.Server, *httptest.Server) {
+	uaaServer := setupMockUAAServerWithRefresh(validUser, validPass, validRefreshToken, clientID, clientSecret)
 
 	cfServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -197,8 +216,9 @@ func TestLogin_Success(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	sessionSvc := services.NewSessionService(c)
 	cfg := &config.Config{
-		CFAPIUrl:     cfServer.URL,
-		CookieSecure: false, // false for test (http)
+		CFAPIUrl:      cfServer.URL,
+		CookieSecure:  false, // false for test (http)
+		OAuthClientID: "cf",
 	}
 
 	h := NewHandler(cfg, c)
@@ -272,8 +292,9 @@ func TestLogin_InvalidCredentials(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	sessionSvc := services.NewSessionService(c)
 	cfg := &config.Config{
-		CFAPIUrl:     cfServer.URL,
-		CookieSecure: false,
+		CFAPIUrl:      cfServer.URL,
+		CookieSecure:  false,
+		OAuthClientID: "cf",
 	}
 
 	h := NewHandler(cfg, c)
@@ -532,8 +553,9 @@ func TestLogin_CookieSecureFlag(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	sessionSvc := services.NewSessionService(c)
 	cfg := &config.Config{
-		CFAPIUrl:     cfServer.URL,
-		CookieSecure: true, // Production setting
+		CFAPIUrl:      cfServer.URL,
+		CookieSecure:  true, // Production setting
+		OAuthClientID: "cf",
 	}
 
 	h := NewHandler(cfg, c)
@@ -589,8 +611,9 @@ func TestRefresh_TokensUpdated(t *testing.T) {
 	}
 
 	cfg := &config.Config{
-		CFAPIUrl:     cfServer.URL,
-		CookieSecure: false,
+		CFAPIUrl:      cfServer.URL,
+		CookieSecure:  false,
+		OAuthClientID: "cf",
 	}
 	h := NewHandler(cfg, c)
 	h.SetSessionService(sessionSvc)
@@ -702,8 +725,9 @@ func TestRefresh_InvalidRefreshToken(t *testing.T) {
 	}
 
 	cfg := &config.Config{
-		CFAPIUrl:     cfServer.URL,
-		CookieSecure: false,
+		CFAPIUrl:      cfServer.URL,
+		CookieSecure:  false,
+		OAuthClientID: "cf",
 	}
 	h := NewHandler(cfg, c)
 	h.SetSessionService(sessionSvc)
@@ -770,8 +794,9 @@ func TestLogin_SetsCSRFCookie(t *testing.T) {
 	c := cache.New(5 * time.Minute)
 	sessionSvc := services.NewSessionService(c)
 	cfg := &config.Config{
-		CFAPIUrl:     cfServer.URL,
-		CookieSecure: false, // false for test (http)
+		CFAPIUrl:      cfServer.URL,
+		CookieSecure:  false, // false for test (http)
+		OAuthClientID: "cf",
 	}
 
 	h := NewHandler(cfg, c)
@@ -856,5 +881,136 @@ func TestLogout_ClearsCSRFCookie(t *testing.T) {
 	}
 	if csrfCookie.MaxAge != -1 {
 		t.Errorf("CSRF Cookie MaxAge = %d, want -1 (expired)", csrfCookie.MaxAge)
+	}
+}
+
+func TestLogin_WrongOAuthClientCredentials(t *testing.T) {
+	// Mock UAA expects client "cf" / "", but handler is configured with wrong credentials
+	cfServer, uaaServer := setupMockCFAndUAAServers("admin", "secret")
+	defer cfServer.Close()
+	defer uaaServer.Close()
+
+	c := cache.New(5 * time.Minute)
+	sessionSvc := services.NewSessionService(c)
+	cfg := &config.Config{
+		CFAPIUrl:          cfServer.URL,
+		CookieSecure:      false,
+		OAuthClientID:     "wrong-client",
+		OAuthClientSecret: "wrong-secret",
+	}
+
+	h := NewHandler(cfg, c)
+	h.SetSessionService(sessionSvc)
+
+	body := `{"username":"admin","password":"secret"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Login(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("Status = %d, want %d", resp.StatusCode, http.StatusUnauthorized)
+	}
+
+	var loginResp models.LoginResponse
+	if err := json.NewDecoder(resp.Body).Decode(&loginResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if loginResp.Success {
+		t.Error("Expected login failure with wrong OAuth client credentials")
+	}
+	if loginResp.Error != "Invalid credentials" {
+		t.Errorf("Error = %q, want %q", loginResp.Error, "Invalid credentials")
+	}
+}
+
+func TestLogin_UsesConfiguredOAuthClient(t *testing.T) {
+	cfServer, uaaServer := setupMockCFAndUAAServersWithClient(
+		"admin", "secret", "", "diego-analyzer", "client-secret-123",
+	)
+	defer cfServer.Close()
+	defer uaaServer.Close()
+
+	c := cache.New(5 * time.Minute)
+	sessionSvc := services.NewSessionService(c)
+	cfg := &config.Config{
+		CFAPIUrl:          cfServer.URL,
+		CookieSecure:      false,
+		OAuthClientID:     "diego-analyzer",
+		OAuthClientSecret: "client-secret-123",
+	}
+
+	h := NewHandler(cfg, c)
+	h.SetSessionService(sessionSvc)
+
+	body := `{"username":"admin","password":"secret"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Login(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var loginResp models.LoginResponse
+	if err := json.NewDecoder(resp.Body).Decode(&loginResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if !loginResp.Success {
+		t.Errorf("Expected login success with custom OAuth client")
+	}
+}
+
+func TestRefresh_UsesConfiguredOAuthClient(t *testing.T) {
+	knownRefreshToken := "refresh-token-for-custom-client"
+	cfServer, uaaServer := setupMockCFAndUAAServersWithClient(
+		"admin", "secret", knownRefreshToken, "diego-analyzer", "client-secret-123",
+	)
+	defer cfServer.Close()
+	defer uaaServer.Close()
+
+	c := cache.New(5 * time.Minute)
+	sessionSvc := services.NewSessionService(c)
+
+	sessionID, err := sessionSvc.Create(
+		"testuser", "user-123", "old-access-token",
+		knownRefreshToken, nil,
+		time.Now().Add(2*time.Minute),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create session: %v", err)
+	}
+
+	cfg := &config.Config{
+		CFAPIUrl:          cfServer.URL,
+		CookieSecure:      false,
+		OAuthClientID:     "diego-analyzer",
+		OAuthClientSecret: "client-secret-123",
+	}
+	h := NewHandler(cfg, c)
+	h.SetSessionService(sessionSvc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", nil)
+	req.AddCookie(&http.Cookie{Name: "DIEGO_SESSION", Value: sessionID})
+	w := httptest.NewRecorder()
+
+	h.Refresh(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var refreshResp map[string]bool
+	if err := json.NewDecoder(resp.Body).Decode(&refreshResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if !refreshResp["refreshed"] {
+		t.Error("Expected refreshed=true with custom OAuth client")
 	}
 }
