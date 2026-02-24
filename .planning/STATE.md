@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators can have a conversation with a domain expert that sees their live capacity data -- turning raw metrics into actionable procurement guidance.
-**Current focus:** Phase 4: Chat Endpoint (Complete)
+**Current focus:** Phase 4.1: Chat Endpoint Hardening (Complete)
 
 ## Current Position
 
-Phase: 4 of 8 (Chat Endpoint) -- COMPLETE
-Plan: 2 of 2 in current phase (all plans complete)
+Phase: 4.1 of 8 (Chat Endpoint Hardening) -- COMPLETE
+Plan: 1 of 1 in current phase (all plans complete)
 Status: Phase Complete
-Last activity: 2026-02-24 -- Completed 04-02-PLAN.md (streaming timeouts and cancellation)
+Last activity: 2026-02-24 -- Completed 04.1-01-PLAN.md (auth guard, scenario wiring, provider defaults)
 
-Progress: [████░░░░░░] 40%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 8
-- Average duration: 3 min
-- Total execution time: 26 min
+- Total plans completed: 9
+- Average duration: 4 min
+- Total execution time: 35 min
 
 **By Phase:**
 
@@ -32,10 +32,11 @@ Progress: [████░░░░░░] 40%
 | 02    | 2     | 6 min | 3 min    |
 | 03    | 1     | 2 min | 2 min    |
 | 04    | 2     | 9 min | 4.5 min  |
+| 04.1  | 1     | 9 min | 9 min    |
 
 **Recent Trend:**
 
-- Last 5 plans: 02-02 (3 min), 03-01 (2 min), 04-01 (5 min), 04-02 (4 min)
+- Last 5 plans: 03-01 (2 min), 04-01 (5 min), 04-02 (4 min), 04.1-01 (9 min)
 - Trend: stable
 
 _Updated after each plan completion_
@@ -74,6 +75,10 @@ Recent decisions affecting current work:
 - 04-02: Config fields are int seconds (minimum 1s granularity); tests use 1-second timeouts for reasonable speed
 - 04-02: maxDurationExceeded channel (not atomic.Bool) distinguishes max-duration from client disconnect in ctx.Done case
 - 04-02: Test helper newChatTestHandler sets production-default timeout values (30s idle, 300s max) to avoid zero-value timer issues
+- 04.1-01: sync.RWMutex for per-user scenario map (matches existing infraMutex pattern; typed map with read/write distinction)
+- 04.1-01: Auth check first in Chat(), before nil provider check -- unauthenticated users get 401, not 503
+- 04.1-01: Scenario stored per-user keyed on claims.Username; not stored for anonymous users
+- 04.1-01: Skipped adding AI_MODEL to health endpoint (keeps changes minimal; health reports availability, not config)
 
 ### Pending Todos
 
@@ -86,5 +91,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 04-02-PLAN.md (Phase 4 complete)
-Resume file: .planning/phases/04-chat-endpoint/04-02-SUMMARY.md
+Stopped at: Completed 04.1-01-PLAN.md (Phase 4.1 complete)
+Resume file: .planning/phases/04.1-chat-endpoint-hardening/04.1-01-SUMMARY.md
