@@ -1,5 +1,5 @@
 // ABOUTME: Tests for SSE streaming chat handler
-// ABOUTME: Covers pre-stream validation, SSE streaming, timeouts, and cancellation
+// ABOUTME: Covers auth guard, pre-stream validation, SSE streaming, timeouts, and cancellation
 
 package handlers
 
@@ -20,6 +20,7 @@ import (
 
 	"github.com/markalston/diego-capacity-analyzer/backend/cache"
 	"github.com/markalston/diego-capacity-analyzer/backend/config"
+	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 	"github.com/markalston/diego-capacity-analyzer/backend/services/ai"
 )
@@ -54,6 +55,22 @@ func (m *mockChatProvider) getCapturedConfig() ai.ChatConfig {
 	return ai.NewChatConfig(m.capturedOpts...)
 }
 
+// testClaims returns standard user claims for tests that require authentication.
+var testClaims = &middleware.UserClaims{
+	Username: "testuser",
+	UserID:   "test-user-id",
+	Role:     "viewer",
+}
+
+// withTestAuth wraps a handler to inject test user claims into the request context.
+// Used for httptest.NewServer-based tests where middleware is not present.
+func withTestAuth(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r = middleware.WithUserClaims(r, testClaims)
+		handler(w, r)
+	}
+}
+
 // newChatTestHandler creates a Handler suitable for chat tests.
 // It bypasses NewHandler to avoid requiring CF/BOSH/vSphere clients.
 // Timeout fields use production defaults (30s idle, 300s max duration).
@@ -64,9 +81,71 @@ func newChatTestHandler(provider ai.ChatProvider) *Handler {
 		AIMaxDurationSecs: 300,
 	}
 	return &Handler{
-		cfg:          cfg,
-		cache:        c,
-		chatProvider: provider,
+		cfg:           cfg,
+		cache:         c,
+		chatProvider:  provider,
+		userScenarios: make(map[string]*models.ScenarioComparison),
+	}
+}
+
+// --- Auth guard tests ---
+
+func TestChat_AuthRequired_NoCredentials(t *testing.T) {
+	h := newChatTestHandler(&mockChatProvider{})
+
+	body := `{"messages":[{"role":"user","content":"hello"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	// No user claims attached -- simulates unauthenticated request
+	w := httptest.NewRecorder()
+
+	h.Chat(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
+	}
+
+	var resp models.ErrorResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode error response: %v", err)
+	}
+	if resp.Error != "authentication required for AI advisor" {
+		t.Errorf("expected 'authentication required for AI advisor', got %q", resp.Error)
+	}
+	if resp.Code != http.StatusUnauthorized {
+		t.Errorf("expected code 401, got %d", resp.Code)
+	}
+}
+
+func TestChat_AuthRequired_WithCredentials(t *testing.T) {
+	mock := &mockChatProvider{
+		events: []ai.TokenEvent{
+			{Done: true, StopReason: "end_turn", Usage: &ai.Usage{}},
+		},
+	}
+	h := newChatTestHandler(mock)
+
+	body := `{"messages":[{"role":"user","content":"hello"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = middleware.WithUserClaims(req, testClaims)
+
+	// Use httptest.NewServer so SSE streaming works (httptest.NewRecorder does not support Flusher)
+	ts := httptest.NewServer(withTestAuth(h.Chat))
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL, "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Authenticated request should NOT get 401
+	if resp.StatusCode == http.StatusUnauthorized {
+		t.Fatal("authenticated request got 401, expected 200")
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 }
 
@@ -78,6 +157,8 @@ func TestChat_NilProvider(t *testing.T) {
 	body := `{"messages":[{"role":"user","content":"hello"}]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	// Nil provider check comes after auth check, so include credentials
+	req = middleware.WithUserClaims(req, testClaims)
 	w := httptest.NewRecorder()
 
 	h.Chat(w, req)
@@ -101,6 +182,7 @@ func TestChat_EmptyMessages(t *testing.T) {
 	body := `{"messages":[]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = middleware.WithUserClaims(req, testClaims)
 	w := httptest.NewRecorder()
 
 	h.Chat(w, req)
@@ -130,6 +212,7 @@ func TestChat_TooManyMessages(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = middleware.WithUserClaims(req, testClaims)
 	w := httptest.NewRecorder()
 
 	h.Chat(w, req)
@@ -153,6 +236,7 @@ func TestChat_InvalidJSON(t *testing.T) {
 	body := `{not valid json`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = middleware.WithUserClaims(req, testClaims)
 	w := httptest.NewRecorder()
 
 	h.Chat(w, req)
@@ -168,6 +252,7 @@ func TestChat_InvalidRole(t *testing.T) {
 	body := `{"messages":[{"role":"system","content":"hello"}]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = middleware.WithUserClaims(req, testClaims)
 	w := httptest.NewRecorder()
 
 	h.Chat(w, req)
@@ -191,6 +276,7 @@ func TestChat_EmptyContent(t *testing.T) {
 	body := `{"messages":[{"role":"user","content":""}]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = middleware.WithUserClaims(req, testClaims)
 	w := httptest.NewRecorder()
 
 	h.Chat(w, req)
@@ -260,7 +346,7 @@ func TestChat_StreamTokens(t *testing.T) {
 	}
 	h := newChatTestHandler(mock)
 
-	ts := httptest.NewServer(http.HandlerFunc(h.Chat))
+	ts := httptest.NewServer(withTestAuth(h.Chat))
 	defer ts.Close()
 
 	body := `{"messages":[{"role":"user","content":"hi"}]}`
@@ -333,7 +419,7 @@ func TestChat_ProviderError(t *testing.T) {
 	}
 	h := newChatTestHandler(mock)
 
-	ts := httptest.NewServer(http.HandlerFunc(h.Chat))
+	ts := httptest.NewServer(withTestAuth(h.Chat))
 	defer ts.Close()
 
 	body := `{"messages":[{"role":"user","content":"hi"}]}`
@@ -374,7 +460,7 @@ func TestChat_SSEHeaders(t *testing.T) {
 	}
 	h := newChatTestHandler(mock)
 
-	ts := httptest.NewServer(http.HandlerFunc(h.Chat))
+	ts := httptest.NewServer(withTestAuth(h.Chat))
 	defer ts.Close()
 
 	body := `{"messages":[{"role":"user","content":"hi"}]}`
@@ -443,9 +529,10 @@ func newChatTestHandlerWithTimeouts(provider ai.ChatProvider, idleTimeoutSecs, m
 		AIMaxDurationSecs: maxDurationSecs,
 	}
 	return &Handler{
-		cfg:          cfg,
-		cache:        c,
-		chatProvider: provider,
+		cfg:           cfg,
+		cache:         c,
+		chatProvider:  provider,
+		userScenarios: make(map[string]*models.ScenarioComparison),
 	}
 }
 
@@ -467,7 +554,7 @@ func TestChat_IdleTimeout(t *testing.T) {
 	// support sub-second for testing. For RED phase, just write what we expect.
 	h := newChatTestHandlerWithTimeouts(mock, 1, 300)
 
-	ts := httptest.NewServer(http.HandlerFunc(h.Chat))
+	ts := httptest.NewServer(withTestAuth(h.Chat))
 	defer ts.Close()
 
 	body := `{"messages":[{"role":"user","content":"hi"}]}`
@@ -525,7 +612,7 @@ func TestChat_IdleTimerResets(t *testing.T) {
 	// should arrive well before the 1s idle timeout.
 	h := newChatTestHandlerWithTimeouts(mock, 1, 300)
 
-	ts := httptest.NewServer(http.HandlerFunc(h.Chat))
+	ts := httptest.NewServer(withTestAuth(h.Chat))
 	defer ts.Close()
 
 	body := `{"messages":[{"role":"user","content":"hi"}]}`
@@ -572,7 +659,7 @@ func TestChat_MaxDuration(t *testing.T) {
 	// Set max duration to 1 second. The stream should be cut short.
 	h := newChatTestHandlerWithTimeouts(mock, 30, 1)
 
-	ts := httptest.NewServer(http.HandlerFunc(h.Chat))
+	ts := httptest.NewServer(withTestAuth(h.Chat))
 	defer ts.Close()
 
 	body := `{"messages":[{"role":"user","content":"hi"}]}`
@@ -626,7 +713,7 @@ func TestChat_ClientDisconnect(t *testing.T) {
 
 	h := newChatTestHandlerWithTimeouts(mock, 30, 300)
 
-	ts := httptest.NewServer(http.HandlerFunc(h.Chat))
+	ts := httptest.NewServer(withTestAuth(h.Chat))
 	defer ts.Close()
 
 	body := `{"messages":[{"role":"user","content":"hi"}]}`
@@ -691,7 +778,7 @@ func TestChat_MidStreamProviderError(t *testing.T) {
 	}
 	h := newChatTestHandler(mock)
 
-	ts := httptest.NewServer(http.HandlerFunc(h.Chat))
+	ts := httptest.NewServer(withTestAuth(h.Chat))
 	defer ts.Close()
 
 	body := `{"messages":[{"role":"user","content":"hi"},{"role":"assistant","content":"hello"},{"role":"user","content":"test"}]}`
@@ -779,7 +866,7 @@ func TestChat_SystemPromptIncludesContext(t *testing.T) {
 	h.infrastructureState = infraState
 	h.infraMutex.Unlock()
 
-	ts := httptest.NewServer(http.HandlerFunc(h.Chat))
+	ts := httptest.NewServer(withTestAuth(h.Chat))
 	defer ts.Close()
 
 	body := `{"messages":[{"role":"user","content":"analyze capacity"}]}`
@@ -802,5 +889,51 @@ func TestChat_SystemPromptIncludesContext(t *testing.T) {
 	}
 	if !strings.Contains(cfg.System, "Log Cache: available") {
 		t.Errorf("expected system prompt to contain 'Log Cache: available' (app has ActualMB > 0), got:\n%s", cfg.System)
+	}
+}
+
+func TestChat_SystemPromptIncludesScenario(t *testing.T) {
+	mock := &mockChatProvider{
+		events: []ai.TokenEvent{
+			{Done: true, StopReason: "end_turn", Usage: &ai.Usage{}},
+		},
+	}
+	h := newChatTestHandler(mock)
+
+	// Store a scenario comparison for the test user
+	scenario := &models.ScenarioComparison{
+		Current: models.ScenarioResult{
+			CellCount: 6,
+		},
+		Proposed: models.ScenarioResult{
+			CellCount: 10,
+		},
+	}
+	h.userScenariosMutex.Lock()
+	h.userScenarios["testuser"] = scenario
+	h.userScenariosMutex.Unlock()
+
+	ts := httptest.NewServer(withTestAuth(h.Chat))
+	defer ts.Close()
+
+	body := `{"messages":[{"role":"user","content":"analyze scenario"}]}`
+	resp, err := http.Post(ts.URL, "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Verify the system prompt includes scenario data
+	cfg := mock.getCapturedConfig()
+	if cfg.System == "" {
+		t.Fatal("expected system prompt to be set, got empty string")
+	}
+	// The scenario section should contain cell count data, not the "no scenario" message
+	if strings.Contains(cfg.System, "No scenario comparison has been run") {
+		t.Error("expected system prompt to contain scenario data, but got 'No scenario comparison has been run'")
+	}
+	// Verify the scenario section renders with the proposed cell count
+	if !strings.Contains(cfg.System, "Scenario Comparison") {
+		t.Errorf("expected system prompt to contain 'Scenario Comparison', got:\n%s", cfg.System)
 	}
 }

@@ -248,6 +248,34 @@ func TestLoadConfig_AIProviderDefaults(t *testing.T) {
 	}
 }
 
+func TestConfig_AIModelDefault(t *testing.T) {
+	t.Cleanup(withCleanCFEnv(t))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.AIModel != "claude-sonnet-4-5-20250514" {
+		t.Errorf("Expected default AIModel 'claude-sonnet-4-5-20250514', got %q", cfg.AIModel)
+	}
+}
+
+func TestConfig_AIModelFromEnv(t *testing.T) {
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"AI_MODEL": "custom-model",
+	}))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.AIModel != "custom-model" {
+		t.Errorf("Expected AIModel 'custom-model', got %q", cfg.AIModel)
+	}
+}
+
 func TestLoadConfig_AIProviderFromEnv(t *testing.T) {
 	tests := []struct {
 		name           string
