@@ -237,10 +237,7 @@ func writeApps(b *strings.Builder, dashboard *models.DashboardResponse) {
 	})
 
 	total := len(sorted)
-	show := maxApps
-	if show > total {
-		show = total
-	}
+	show := min(maxApps, total)
 	top := sorted[:show]
 
 	for _, app := range top {
