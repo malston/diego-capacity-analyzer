@@ -13,7 +13,7 @@ Deliver a conversational AI advisor embedded in the Diego Capacity Analyzer dash
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Provider Foundation** - ChatProvider interface, Anthropic implementation, config, and feature gating
+- [x] **Phase 1: Provider Foundation** - ChatProvider interface, Anthropic implementation, config, and feature gating (completed 2026-02-24)
 - [ ] **Phase 2: Context Builder** - Serialize infrastructure/dashboard/scenario state for the LLM without leaking credentials
 - [ ] **Phase 3: Domain Expertise** - System prompt encoding TAS/Diego capacity planning knowledge and procurement framing
 - [ ] **Phase 4: Chat Endpoint** - SSE streaming endpoint with auth, rate limiting, error handling, and timeout protection
@@ -173,7 +173,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase                   | Plans Complete | Status      | Completed |
 | ----------------------- | -------------- | ----------- | --------- |
-| 1. Provider Foundation  | 2/3            | In Progress | -         |
+| 1. Provider Foundation  | 2/3            | Complete    | 2026-02-24 |
 | 2. Context Builder      | 0/0            | Not started | -         |
 | 3. Domain Expertise     | 0/0            | Not started | -         |
 | 4. Chat Endpoint        | 0/0            | Not started | -         |
