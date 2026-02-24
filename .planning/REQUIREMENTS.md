@@ -16,11 +16,11 @@ Requirements for Phase 1 release. Each maps to roadmap phases.
 
 ### Context Builder
 
-- [ ] **CTX-01**: Context builder serializes current dashboard state (cell counts, memory utilization, isolation segments, app counts) into annotated text for the LLM
-- [ ] **CTX-02**: Context builder serializes infrastructure state (clusters, hosts, VMs) when vSphere data is available
-- [ ] **CTX-03**: Context builder serializes scenario comparison results when a scenario has been run
-- [ ] **CTX-04**: Context builder flags missing data sources (BOSH unavailable, vSphere unconfigured) with explicit markers the LLM can reference
-- [ ] **CTX-05**: Context builder reads from existing Handler state (cache and mutex-protected infrastructure state) without making additional API calls
+- [x] **CTX-01**: Context builder serializes current dashboard state (cell counts, memory utilization, isolation segments, app counts) into annotated text for the LLM
+- [x] **CTX-02**: Context builder serializes infrastructure state (clusters, hosts, VMs) when vSphere data is available
+- [x] **CTX-03**: Context builder serializes scenario comparison results when a scenario has been run
+- [x] **CTX-04**: Context builder flags missing data sources (BOSH unavailable, vSphere unconfigured) with explicit markers the LLM can reference
+- [x] **CTX-05**: Context builder reads from existing Handler state (cache and mutex-protected infrastructure state) without making additional API calls
 
 ### Domain Expertise
 
@@ -98,11 +98,11 @@ Deferred to Phase 2 (Scenario Execution via Chat).
 | PROV-02     | Phase 1 | Complete |
 | PROV-03     | Phase 1 | Complete |
 | PROV-04     | Phase 1 | Complete |
-| CTX-01      | Phase 2 | Pending |
-| CTX-02      | Phase 2 | Pending |
-| CTX-03      | Phase 2 | Pending |
-| CTX-04      | Phase 2 | Pending |
-| CTX-05      | Phase 2 | Pending |
+| CTX-01      | Phase 2 | Complete |
+| CTX-02      | Phase 2 | Complete |
+| CTX-03      | Phase 2 | Complete |
+| CTX-04      | Phase 2 | Complete |
+| CTX-05      | Phase 2 | Complete |
 | DOM-01      | Phase 3 | Pending |
 | DOM-02      | Phase 3 | Pending |
 | DOM-03      | Phase 3 | Pending |

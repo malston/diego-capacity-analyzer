@@ -5,34 +5,35 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators can have a conversation with a domain expert that sees their live capacity data -- turning raw metrics into actionable procurement guidance.
-**Current focus:** Phase 1: Provider Foundation
+**Current focus:** Phase 2: Context Builder
 
 ## Current Position
 
-Phase: 1 of 8 (Provider Foundation) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-02-24 -- Completed 01-03-PLAN.md (AI provider wiring)
+Phase: 2 of 8 (Context Builder)
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-02-24 -- Completed 02-01-PLAN.md (BuildContext function)
 
-Progress: [██░░░░░░░░] 12%
+Progress: [██░░░░░░░░] 16%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3
+- Total plans completed: 4
 - Average duration: 3 min
-- Total execution time: 9 min
+- Total execution time: 12 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
 | 01    | 3     | 9 min | 3 min    |
+| 02    | 1     | 3 min | 3 min    |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (2 min), 01-02 (4 min), 01-03 (3 min)
+- Last 5 plans: 01-01 (2 min), 01-02 (4 min), 01-03 (3 min), 02-01 (3 min)
 - Trend: stable
 
 _Updated after each plan completion_
@@ -54,6 +55,10 @@ Recent decisions affecting current work:
 - 01-03: AI provider initialized after Handler construction via setter (matching SetSessionService pattern)
 - 01-03: Startup validation: exit on unknown AI_PROVIDER or missing AI_API_KEY
 - 01-03: Nil-based feature gating: chatProvider != nil determines AI availability
+- 02-01: Top-N apps capped at 10 (fits token budget with room; const for easy tuning)
+- 02-01: Segment sort: shared first, then alphabetical (predictable output ordering)
+- 02-01: vCPU ratio flag at >4:1 [HIGH], >8:1 [CRITICAL] (matches models.CPURiskLevel thresholds)
+- 02-01: CF API status checks both Apps and Cells length (either suffices to confirm connectivity)
 
 ### Pending Todos
 
@@ -66,5 +71,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 01-03-PLAN.md (Phase 01 complete)
-Resume file: .planning/phases/01-provider-foundation/01-03-SUMMARY.md
+Stopped at: Completed 02-01-PLAN.md
+Resume file: .planning/phases/02-context-builder/02-01-SUMMARY.md
