@@ -805,21 +805,21 @@ func TestBuildContext_TokenBudget(t *testing.T) {
 
 	cells := make([]models.DiegoCell, 0, 19)
 	// 8 shared cells
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		cells = append(cells, models.DiegoCell{
 			ID: fmt.Sprintf("shared-%d", i), MemoryMB: 32768,
 			AllocatedMB: 20000 + i*1000, UsedMB: 15000 + i*500, IsolationSegment: "",
 		})
 	}
 	// 6 iso-prod cells
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		cells = append(cells, models.DiegoCell{
 			ID: fmt.Sprintf("prod-%d", i), MemoryMB: 32768,
 			AllocatedMB: 22000 + i*500, UsedMB: 18000 + i*300, IsolationSegment: "iso-prod",
 		})
 	}
 	// 5 iso-staging cells
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		cells = append(cells, models.DiegoCell{
 			ID: fmt.Sprintf("staging-%d", i), MemoryMB: 16384,
 			AllocatedMB: 10000 + i*500, UsedMB: 8000 + i*300, IsolationSegment: "iso-staging",
