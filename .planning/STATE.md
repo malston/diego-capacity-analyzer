@@ -5,35 +5,35 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators can have a conversation with a domain expert that sees their live capacity data -- turning raw metrics into actionable procurement guidance.
-**Current focus:** Phase 2: Context Builder
+**Current focus:** Phase 3: System Prompt
 
 ## Current Position
 
-Phase: 2 of 8 (Context Builder)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-02-24 -- Completed 02-01-PLAN.md (BuildContext function)
+Phase: 3 of 8 (System Prompt)
+Plan: 1 of N in current phase
+Status: Ready
+Last activity: 2026-02-24 -- Completed 02-02-PLAN.md (Context Builder edge-case tests)
 
-Progress: [██░░░░░░░░] 16%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 3 min
-- Total execution time: 12 min
+- Total execution time: 15 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
 | 01    | 3     | 9 min | 3 min    |
-| 02    | 1     | 3 min | 3 min    |
+| 02    | 2     | 6 min | 3 min    |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (2 min), 01-02 (4 min), 01-03 (3 min), 02-01 (3 min)
+- Last 5 plans: 01-02 (4 min), 01-03 (3 min), 02-01 (3 min), 02-02 (3 min)
 - Trend: stable
 
 _Updated after each plan completion_
@@ -59,6 +59,9 @@ Recent decisions affecting current work:
 - 02-01: Segment sort: shared first, then alphabetical (predictable output ordering)
 - 02-01: vCPU ratio flag at >4:1 [HIGH], >8:1 [CRITICAL] (matches models.CPURiskLevel thresholds)
 - 02-01: CF API status checks both Apps and Cells length (either suffices to confirm connectivity)
+- 02-02: All 4 edge-case tests passed immediately -- Plan 02-01 handles credential safety, aggregation, markers, and token budget
+- 02-02: Credential safety uses belt-and-suspenders: compile-time type constraint + runtime sentinel scan
+- 02-02: InfrastructureState.Name not rendered in output -- only cluster names appear
 
 ### Pending Todos
 
@@ -71,5 +74,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 02-01-PLAN.md
-Resume file: .planning/phases/02-context-builder/02-01-SUMMARY.md
+Stopped at: Completed 02-02-PLAN.md
+Resume file: .planning/phases/02-context-builder/02-02-SUMMARY.md
