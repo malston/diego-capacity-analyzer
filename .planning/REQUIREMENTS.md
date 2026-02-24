@@ -9,7 +9,7 @@ Requirements for Phase 1 release. Each maps to roadmap phases.
 
 ### Provider Infrastructure
 
-- [ ] **PROV-01**: Backend exposes a `ChatProvider` interface with streaming support that decouples LLM interaction from HTTP handling
+- [x] **PROV-01**: Backend exposes a `ChatProvider` interface with streaming support that decouples LLM interaction from HTTP handling
 - [ ] **PROV-02**: Anthropic Claude provider implementation streams token-by-token responses using the official `anthropic-sdk-go` SDK
 - [ ] **PROV-03**: Provider is configured via `AI_PROVIDER` and `AI_API_KEY` environment variables with validation at startup
 - [ ] **PROV-04**: When `AI_PROVIDER` is unset, the advisor feature is completely disabled and the health endpoint reports `ai_configured: false`
@@ -94,7 +94,7 @@ Deferred to Phase 2 (Scenario Execution via Chat).
 
 | Requirement | Phase   | Status  |
 | ----------- | ------- | ------- |
-| PROV-01     | Phase 1 | Pending |
+| PROV-01     | Phase 1 | Complete |
 | PROV-02     | Phase 1 | Pending |
 | PROV-03     | Phase 1 | Pending |
 | PROV-04     | Phase 1 | Pending |
