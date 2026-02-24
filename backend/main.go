@@ -20,6 +20,7 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/backend/logger"
 	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
 	"github.com/markalston/diego-capacity-analyzer/backend/services"
+	"github.com/markalston/diego-capacity-analyzer/backend/services/ai"
 )
 
 func main() {
@@ -163,6 +164,22 @@ func main() {
 	// Initialize handlers
 	h := handlers.NewHandler(cfg, c)
 	h.SetSessionService(sessionService)
+
+	// Initialize AI provider (optional)
+	if cfg.AIProvider == "" {
+		slog.Info("AI provider not configured, advisor feature disabled")
+	} else if cfg.AIProvider == "anthropic" {
+		if cfg.AIAPIKey == "" {
+			slog.Error("AI_API_KEY required when AI_PROVIDER is set", "provider", cfg.AIProvider)
+			os.Exit(1)
+		}
+		chatProvider := ai.NewAnthropicProvider(cfg.AIAPIKey, ai.ChatConfig{})
+		h.SetChatProvider(chatProvider)
+		slog.Info("AI provider initialized", "provider", cfg.AIProvider)
+	} else {
+		slog.Error("Unknown AI_PROVIDER value", "provider", cfg.AIProvider)
+		os.Exit(1)
+	}
 
 	// Register all routes with middleware
 	mux := http.NewServeMux()
