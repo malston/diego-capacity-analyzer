@@ -31,10 +31,10 @@ Requirements for Phase 1 release. Each maps to roadmap phases.
 
 ### Chat Endpoint
 
-- [ ] **CHAT-01**: `POST /api/v1/chat` accepts a JSON body with conversation messages and returns an SSE stream of token events
-- [ ] **CHAT-02**: Chat endpoint requires authentication (same middleware as all other endpoints)
-- [ ] **CHAT-03**: Chat endpoint is rate-limited to 10 requests per minute per user
-- [ ] **CHAT-04**: Chat endpoint returns structured JSON errors (not SSE) for pre-stream failures (auth, rate limit, missing provider, missing API key)
+- [x] **CHAT-01**: `POST /api/v1/chat` accepts a JSON body with conversation messages and returns an SSE stream of token events
+- [x] **CHAT-02**: Chat endpoint requires authentication (same middleware as all other endpoints)
+- [x] **CHAT-03**: Chat endpoint is rate-limited to 10 requests per minute per user
+- [x] **CHAT-04**: Chat endpoint returns structured JSON errors (not SSE) for pre-stream failures (auth, rate limit, missing provider, missing API key)
 - [ ] **CHAT-05**: Chat endpoint includes idle timeout detection so streaming does not hang indefinitely on provider failure
 
 ### Chat Panel UI
@@ -107,10 +107,10 @@ Deferred to Phase 2 (Scenario Execution via Chat).
 | DOM-02      | Phase 3 | Complete |
 | DOM-03      | Phase 3 | Complete |
 | DOM-04      | Phase 3 | Complete |
-| CHAT-01     | Phase 4 | Pending |
-| CHAT-02     | Phase 4 | Pending |
-| CHAT-03     | Phase 4 | Pending |
-| CHAT-04     | Phase 4 | Pending |
+| CHAT-01     | Phase 4 | Complete |
+| CHAT-02     | Phase 4 | Complete |
+| CHAT-03     | Phase 4 | Complete |
+| CHAT-04     | Phase 4 | Complete |
 | CHAT-05     | Phase 4 | Pending |
 | UI-01       | Phase 5 | Pending |
 | UI-02       | Phase 5 | Pending |
