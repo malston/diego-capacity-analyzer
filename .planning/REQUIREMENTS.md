@@ -94,47 +94,47 @@ Deferred to Phase 2 (Scenario Execution via Chat).
 
 | Requirement | Phase   | Status  |
 | ----------- | ------- | ------- |
-| PROV-01     | Phase ? | Pending |
-| PROV-02     | Phase ? | Pending |
-| PROV-03     | Phase ? | Pending |
-| PROV-04     | Phase ? | Pending |
-| CTX-01      | Phase ? | Pending |
-| CTX-02      | Phase ? | Pending |
-| CTX-03      | Phase ? | Pending |
-| CTX-04      | Phase ? | Pending |
-| CTX-05      | Phase ? | Pending |
-| DOM-01      | Phase ? | Pending |
-| DOM-02      | Phase ? | Pending |
-| DOM-03      | Phase ? | Pending |
-| DOM-04      | Phase ? | Pending |
-| CHAT-01     | Phase ? | Pending |
-| CHAT-02     | Phase ? | Pending |
-| CHAT-03     | Phase ? | Pending |
-| CHAT-04     | Phase ? | Pending |
-| CHAT-05     | Phase ? | Pending |
-| UI-01       | Phase ? | Pending |
-| UI-02       | Phase ? | Pending |
-| UI-03       | Phase ? | Pending |
-| UI-04       | Phase ? | Pending |
-| UI-05       | Phase ? | Pending |
-| UI-06       | Phase ? | Pending |
-| UI-07       | Phase ? | Pending |
-| UI-08       | Phase ? | Pending |
-| UI-09       | Phase ? | Pending |
-| DEG-01      | Phase ? | Pending |
-| DEG-02      | Phase ? | Pending |
-| DEG-03      | Phase ? | Pending |
-| POL-01      | Phase ? | Pending |
-| POL-02      | Phase ? | Pending |
-| POL-03      | Phase ? | Pending |
+| PROV-01     | Phase 1 | Pending |
+| PROV-02     | Phase 1 | Pending |
+| PROV-03     | Phase 1 | Pending |
+| PROV-04     | Phase 1 | Pending |
+| CTX-01      | Phase 2 | Pending |
+| CTX-02      | Phase 2 | Pending |
+| CTX-03      | Phase 2 | Pending |
+| CTX-04      | Phase 2 | Pending |
+| CTX-05      | Phase 2 | Pending |
+| DOM-01      | Phase 3 | Pending |
+| DOM-02      | Phase 3 | Pending |
+| DOM-03      | Phase 3 | Pending |
+| DOM-04      | Phase 3 | Pending |
+| CHAT-01     | Phase 4 | Pending |
+| CHAT-02     | Phase 4 | Pending |
+| CHAT-03     | Phase 4 | Pending |
+| CHAT-04     | Phase 4 | Pending |
+| CHAT-05     | Phase 4 | Pending |
+| UI-01       | Phase 5 | Pending |
+| UI-02       | Phase 5 | Pending |
+| UI-03       | Phase 5 | Pending |
+| UI-04       | Phase 5 | Pending |
+| UI-05       | Phase 5 | Pending |
+| UI-06       | Phase 6 | Pending |
+| UI-07       | Phase 6 | Pending |
+| UI-08       | Phase 6 | Pending |
+| UI-09       | Phase 6 | Pending |
+| DEG-01      | Phase 7 | Pending |
+| DEG-02      | Phase 7 | Pending |
+| DEG-03      | Phase 7 | Pending |
+| POL-01      | Phase 8 | Pending |
+| POL-02      | Phase 8 | Pending |
+| POL-03      | Phase 8 | Pending |
 
 **Coverage:**
 
 - v1 requirements: 33 total
-- Mapped to phases: 0
-- Unmapped: 33 (pending roadmap creation)
+- Mapped to phases: 33
+- Unmapped: 0
 
 ---
 
 _Requirements defined: 2026-02-24_
-_Last updated: 2026-02-24 after initial definition_
+_Last updated: 2026-02-24 after roadmap creation_
