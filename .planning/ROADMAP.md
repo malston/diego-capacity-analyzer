@@ -55,12 +55,12 @@ Plans:
 3. Context builder includes scenario comparison results when a scenario has been run
 4. Context builder inserts explicit markers for missing data sources (e.g., "BOSH data: unavailable") that the LLM can reference in its responses
 5. Serialized context contains zero credential values -- enforced by a unit test that checks output against known credential field values
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- BuildContext function with ContextInput type, section writers, and table-driven tests (TDD)
+- [ ] 02-02-PLAN.md -- Credential safety, segment aggregation accuracy, marker completeness, and token budget tests (TDD)
 
 ### Phase 3: Domain Expertise
 
@@ -171,13 +171,13 @@ Plans:
 **Execution Order:**
 Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
-| Phase                   | Plans Complete | Status      | Completed |
-| ----------------------- | -------------- | ----------- | --------- |
+| Phase                   | Plans Complete | Status      | Completed  |
+| ----------------------- | -------------- | ----------- | ---------- |
 | 1. Provider Foundation  | 2/3            | Complete    | 2026-02-24 |
-| 2. Context Builder      | 0/0            | Not started | -         |
-| 3. Domain Expertise     | 0/0            | Not started | -         |
-| 4. Chat Endpoint        | 0/0            | Not started | -         |
-| 5. Chat Panel Core      | 0/0            | Not started | -         |
-| 6. Chat Panel UX        | 0/0            | Not started | -         |
-| 7. Graceful Degradation | 0/0            | Not started | -         |
-| 8. Polish               | 0/0            | Not started | -         |
+| 2. Context Builder      | 0/2            | Not started | -          |
+| 3. Domain Expertise     | 0/0            | Not started | -          |
+| 4. Chat Endpoint        | 0/0            | Not started | -          |
+| 5. Chat Panel Core      | 0/0            | Not started | -          |
+| 6. Chat Panel UX        | 0/0            | Not started | -          |
+| 7. Graceful Degradation | 0/0            | Not started | -          |
+| 8. Polish               | 0/0            | Not started | -          |
