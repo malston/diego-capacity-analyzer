@@ -91,12 +91,12 @@ Plans:
 3. Requests exceeding 10/min per user receive a JSON 429 error with retry-after guidance
 4. Pre-stream failures (auth, rate limit, missing provider, bad request) return structured JSON errors; SSE streaming only begins after all preconditions pass
 5. Streaming does not hang indefinitely -- idle timeout terminates the stream if no tokens arrive within a configured window
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- SSE streaming chat endpoint with pre-stream validation, context snapshot, and basic streaming (TDD)
+- [ ] 04-02-PLAN.md -- Idle timeout, max duration, and client disconnect handling (TDD)
 
 ### Phase 5: Chat Panel Core
 
