@@ -231,3 +231,79 @@ func TestLoadConfig_URLSchemePrefixing(t *testing.T) {
 		t.Errorf("Expected BOSHEnvironment to have https:// prefix, got %s", cfg.BOSHEnvironment)
 	}
 }
+
+func TestLoadConfig_AIProviderDefaults(t *testing.T) {
+	t.Cleanup(withCleanCFEnv(t))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.AIProvider != "" {
+		t.Errorf("Expected AIProvider empty by default, got %q", cfg.AIProvider)
+	}
+	if cfg.AIAPIKey != "" {
+		t.Errorf("Expected AIAPIKey empty by default, got %q", cfg.AIAPIKey)
+	}
+}
+
+func TestLoadConfig_AIProviderFromEnv(t *testing.T) {
+	tests := []struct {
+		name           string
+		env            map[string]string
+		wantProvider   string
+		wantKey        string
+		wantConfigured bool
+	}{
+		{
+			name:           "both set",
+			env:            map[string]string{"AI_PROVIDER": "anthropic", "AI_API_KEY": "test-key"},
+			wantProvider:   "anthropic",
+			wantKey:        "test-key",
+			wantConfigured: true,
+		},
+		{
+			name:           "provider only",
+			env:            map[string]string{"AI_PROVIDER": "anthropic"},
+			wantProvider:   "anthropic",
+			wantKey:        "",
+			wantConfigured: false,
+		},
+		{
+			name:           "key only",
+			env:            map[string]string{"AI_API_KEY": "test-key"},
+			wantProvider:   "",
+			wantKey:        "test-key",
+			wantConfigured: false,
+		},
+		{
+			name:           "neither set",
+			env:            nil,
+			wantProvider:   "",
+			wantKey:        "",
+			wantConfigured: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(withCleanCFEnvAndExtra(t, tt.env))
+
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Expected no error, got %v", err)
+			}
+
+			if cfg.AIProvider != tt.wantProvider {
+				t.Errorf("AIProvider = %q, want %q", cfg.AIProvider, tt.wantProvider)
+			}
+			if cfg.AIAPIKey != tt.wantKey {
+				t.Errorf("AIAPIKey = %q, want %q", cfg.AIAPIKey, tt.wantKey)
+			}
+			if cfg.AIConfigured() != tt.wantConfigured {
+				t.Errorf("AIConfigured() = %v, want %v", cfg.AIConfigured(), tt.wantConfigured)
+			}
+		})
+	}
+}

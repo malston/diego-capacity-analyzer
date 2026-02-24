@@ -56,11 +56,20 @@ type Config struct {
 	VSphereDatacenter string
 	VSphereInsecure   bool
 	VSphereCacheTTL   int // seconds, default 300 (5 min)
+
+	// AI Provider (optional)
+	AIProvider string
+	AIAPIKey   string
 }
 
 // VSphereConfigured returns true if vSphere credentials are set
 func (c *Config) VSphereConfigured() bool {
 	return c.VSphereHost != "" && c.VSphereUsername != "" && c.VSpherePassword != "" && c.VSphereDatacenter != ""
+}
+
+// AIConfigured returns true if an AI provider and API key are both set
+func (c *Config) AIConfigured() bool {
+	return c.AIProvider != "" && c.AIAPIKey != ""
 }
 
 func Load() (*Config, error) {
@@ -103,6 +112,9 @@ func Load() (*Config, error) {
 		VSphereDatacenter: os.Getenv("VSPHERE_DATACENTER"),
 		VSphereInsecure:   getEnvBool("VSPHERE_INSECURE", false),
 		VSphereCacheTTL:   getEnvInt("VSPHERE_CACHE_TTL", 300),
+
+		AIProvider: os.Getenv("AI_PROVIDER"),
+		AIAPIKey:   os.Getenv("AI_API_KEY"),
 	}
 
 	// Validate required fields
