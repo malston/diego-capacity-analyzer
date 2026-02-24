@@ -6,11 +6,14 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 )
+
+const maxUserScenarios = 1000
 
 // CompareScenario compares current infrastructure against a proposed scenario.
 // HTTP method validation handled by Go 1.22+ router pattern matching.
@@ -49,7 +52,14 @@ func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r)
 	if claims != nil {
 		h.userScenariosMutex.Lock()
-		h.userScenarios[claims.Username] = &comparison
+		if len(h.userScenarios) >= maxUserScenarios {
+			slog.Warn("user scenarios map at capacity, skipping storage",
+				"username", claims.Username,
+				"capacity", maxUserScenarios,
+			)
+		} else {
+			h.userScenarios[claims.Username] = &comparison
+		}
 		h.userScenariosMutex.Unlock()
 	}
 

@@ -11,7 +11,13 @@ type Message struct {
 	Content string
 }
 
-// TokenEvent carries a streaming token or terminal signal.
+// TokenEvent carries a streaming token or terminal signal from the AI provider.
+//
+// Semantics:
+//   - Text != "": a content token to forward to the client.
+//   - Done == true && Err == nil: stream completed normally; StopReason and Usage are populated.
+//   - Err != nil: terminal error; the stream will not produce further events.
+//     Done is always false on error events.
 type TokenEvent struct {
 	Text       string
 	Done       bool

@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -161,6 +162,8 @@ func TestLoadConfig_RateLimitInvalidValue(t *testing.T) {
 		{"zero value", "RATE_LIMIT_AUTH", "0"},
 		{"negative value", "RATE_LIMIT_REFRESH", "-1"},
 		{"exceeds max", "RATE_LIMIT_DEFAULT", "10001"},
+		{"chat zero", "RATE_LIMIT_CHAT", "0"},
+		{"chat exceeds max", "RATE_LIMIT_CHAT", "10001"},
 	}
 
 	for _, tt := range tests {
@@ -292,13 +295,6 @@ func TestLoadConfig_AIProviderFromEnv(t *testing.T) {
 			wantConfigured: true,
 		},
 		{
-			name:           "provider only",
-			env:            map[string]string{"AI_PROVIDER": "anthropic"},
-			wantProvider:   "anthropic",
-			wantKey:        "",
-			wantConfigured: false,
-		},
-		{
 			name:           "key only",
 			env:            map[string]string{"AI_API_KEY": "test-key"},
 			wantProvider:   "",
@@ -333,5 +329,19 @@ func TestLoadConfig_AIProviderFromEnv(t *testing.T) {
 				t.Errorf("AIConfigured() = %v, want %v", cfg.AIConfigured(), tt.wantConfigured)
 			}
 		})
+	}
+}
+
+func TestLoadConfig_AIProviderWithoutKey(t *testing.T) {
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"AI_PROVIDER": "anthropic",
+	}))
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Expected error for AI_PROVIDER set without AI_API_KEY, got nil")
+	}
+	if !strings.Contains(err.Error(), "AI_API_KEY") {
+		t.Errorf("Expected error mentioning AI_API_KEY, got: %v", err)
 	}
 }

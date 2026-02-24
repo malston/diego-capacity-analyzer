@@ -17,6 +17,7 @@ import (
 )
 
 const maxChatMessages = 50
+const maxMessageContentBytes = 32 * 1024 // 32KB per message
 
 // ChatRequest is the POST body for /api/v1/chat.
 type ChatRequest struct {
@@ -139,6 +140,15 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 			h.writeError(w, "Message content must not be empty", http.StatusBadRequest)
 			return
 		}
+		if len(msg.Content) > maxMessageContentBytes {
+			h.writeError(w, "Message content exceeds 32KB limit", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if req.Messages[len(req.Messages)-1].Role != "user" {
+		h.writeError(w, "Last message must be from 'user'", http.StatusBadRequest)
+		return
 	}
 
 	// Phase 2: Context snapshot
@@ -156,9 +166,14 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	// Disable write deadline for long-lived streaming connection
+	// Disable read/write deadlines for long-lived streaming connection
 	rc := http.NewResponseController(w)
-	rc.SetWriteDeadline(time.Time{})
+	if err := rc.SetWriteDeadline(time.Time{}); err != nil {
+		slog.Warn("failed to clear write deadline", "error", err)
+	}
+	if err := rc.SetReadDeadline(time.Time{}); err != nil {
+		slog.Warn("failed to clear read deadline", "error", err)
+	}
 
 	// Convert ChatMessages to ai.Messages
 	messages := make([]ai.Message, len(req.Messages))
@@ -195,19 +210,32 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 		select {
 		case event, chanOpen := <-tokenCh:
 			if !chanOpen {
-				// Channel closed without a done event
+				// Channel closed without a done event -- provider ended unexpectedly
+				slog.Error("AI provider channel closed without done event",
+					"username", claims.Username,
+					"tokens_sent", seq,
+				)
+				if err := writeSSEEvent(w, flusher, "error", ErrorPayload{
+					Code:    "provider_error",
+					Message: "AI provider terminated unexpectedly",
+				}); err != nil {
+					slog.Warn("failed to write SSE error for channel close", "error", err)
+				}
 				return
 			}
 
 			if event.Err != nil {
-				slog.Warn("AI provider error during streaming",
+				slog.Error("AI provider error during streaming",
 					"error", event.Err,
+					"username", claims.Username,
 					"messages", len(req.Messages),
 				)
-				writeSSEEvent(w, flusher, "error", ErrorPayload{
+				if err := writeSSEEvent(w, flusher, "error", ErrorPayload{
 					Code:    "provider_error",
 					Message: event.Err.Error(),
-				})
+				}); err != nil {
+					slog.Warn("failed to write SSE error event", "error", err)
+				}
 				return
 			}
 
@@ -219,19 +247,24 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 						OutputTokens: event.Usage.OutputTokens,
 					}
 				}
-				writeSSEEvent(w, flusher, "done", DonePayload{
+				if err := writeSSEEvent(w, flusher, "done", DonePayload{
 					StopReason: event.StopReason,
 					Usage:      usage,
-				})
+				}); err != nil {
+					slog.Warn("failed to write SSE done event", "error", err)
+				}
 				return
 			}
 
 			if event.Text != "" {
 				seq++
-				writeSSEEvent(w, flusher, "token", TokenPayload{
+				if err := writeSSEEvent(w, flusher, "token", TokenPayload{
 					Text: event.Text,
 					Seq:  seq,
-				})
+				}); err != nil {
+					// Connection lost -- stop writing
+					return
+				}
 			}
 
 			// Reset idle timer after each event (safe drain pattern)
@@ -244,20 +277,24 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 			idleTimer.Reset(idleTimeout)
 
 		case <-idleTimer.C:
-			writeSSEEvent(w, flusher, "error", ErrorPayload{
+			if err := writeSSEEvent(w, flusher, "error", ErrorPayload{
 				Code:    "timeout",
 				Message: "No response from AI provider within timeout window",
-			})
+			}); err != nil {
+				slog.Warn("failed to write SSE idle timeout event", "error", err)
+			}
 			return
 
 		case <-ctx.Done():
 			// Determine if max duration fired or client disconnected
 			select {
 			case <-maxDurationExceeded:
-				writeSSEEvent(w, flusher, "error", ErrorPayload{
+				if err := writeSSEEvent(w, flusher, "error", ErrorPayload{
 					Code:    "timeout",
 					Message: "Response exceeded maximum duration",
-				})
+				}); err != nil {
+					slog.Warn("failed to write SSE max duration event", "error", err)
+				}
 			default:
 				// Client disconnected -- no one to send to
 			}

@@ -138,6 +138,11 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("CF_PASSWORD is required")
 	}
 
+	// Validate AI provider configuration: if a provider is set, an API key is required
+	if cfg.AIProvider != "" && cfg.AIAPIKey == "" {
+		return nil, fmt.Errorf("AI_API_KEY is required when AI_PROVIDER is set")
+	}
+
 	// Validate rate limit values
 	for _, rl := range []struct {
 		name  string

@@ -167,14 +167,11 @@ func main() {
 	h := handlers.NewHandler(cfg, c)
 	h.SetSessionService(sessionService)
 
-	// Initialize AI provider (optional)
+	// Initialize AI provider (optional -- config.Load validates that AIAPIKey is
+	// present when AIProvider is set, so we only check provider name here)
 	if cfg.AIProvider == "" {
 		slog.Info("AI provider not configured, advisor feature disabled")
 	} else if cfg.AIProvider == "anthropic" {
-		if cfg.AIAPIKey == "" {
-			slog.Error("AI_API_KEY required when AI_PROVIDER is set", "provider", cfg.AIProvider)
-			os.Exit(1)
-		}
 		chatProvider := ai.NewAnthropicProvider(cfg.AIAPIKey, ai.ChatConfig{
 			MaxTokens: 4096,
 			Model:     cfg.AIModel,

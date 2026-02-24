@@ -61,7 +61,7 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message, opts .
 		for stream.Next() {
 			event := stream.Current()
 			if err := accumulated.Accumulate(event); err != nil {
-				p.send(ctx, ch, TokenEvent{Err: err, Done: true})
+				p.send(ctx, ch, TokenEvent{Err: err})
 				return
 			}
 
@@ -75,7 +75,7 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message, opts .
 		}
 
 		if err := stream.Err(); err != nil {
-			p.send(ctx, ch, TokenEvent{Err: err, Done: true})
+			p.send(ctx, ch, TokenEvent{Err: err})
 			return
 		}
 

@@ -294,6 +294,56 @@ func TestChat_EmptyContent(t *testing.T) {
 	}
 }
 
+func TestChat_ContentTooLarge(t *testing.T) {
+	h := newChatTestHandler(&mockChatProvider{})
+
+	// Create a message with content exceeding 32KB
+	largeContent := strings.Repeat("a", maxMessageContentBytes+1)
+	body := fmt.Sprintf(`{"messages":[{"role":"user","content":"%s"}]}`, largeContent)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = middleware.WithUserClaims(req, testClaims)
+	w := httptest.NewRecorder()
+
+	h.Chat(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+
+	var resp models.ErrorResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode error response: %v", err)
+	}
+	if !strings.Contains(resp.Error, "32KB") {
+		t.Errorf("expected error mentioning '32KB', got %q", resp.Error)
+	}
+}
+
+func TestChat_LastMessageMustBeUser(t *testing.T) {
+	h := newChatTestHandler(&mockChatProvider{})
+
+	body := `{"messages":[{"role":"user","content":"hello"},{"role":"assistant","content":"hi"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = middleware.WithUserClaims(req, testClaims)
+	w := httptest.NewRecorder()
+
+	h.Chat(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+
+	var resp models.ErrorResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode error response: %v", err)
+	}
+	if !strings.Contains(resp.Error, "Last message") {
+		t.Errorf("expected error mentioning 'Last message', got %q", resp.Error)
+	}
+}
+
 // --- SSE streaming tests ---
 // These tests use httptest.NewServer to get a real TCP connection that
 // supports http.Flusher (httptest.NewRecorder does not).
@@ -759,7 +809,7 @@ func TestChat_ClientDisconnect(t *testing.T) {
 
 func TestChat_MidStreamProviderError(t *testing.T) {
 	// Provider sends 2 tokens then an error. Verify 2 token events + 1 error event.
-	// Also verify slog.Warn was called with message count.
+	// Also verify slog.Error was called with message count and username.
 
 	// Capture log output
 	var logBuf bytes.Buffer
@@ -821,6 +871,9 @@ func TestChat_MidStreamProviderError(t *testing.T) {
 	}
 	if !strings.Contains(logOutput, "AI provider error") {
 		t.Errorf("expected log output to contain 'AI provider error', got:\n%s", logOutput)
+	}
+	if !strings.Contains(logOutput, "username=testuser") {
+		t.Errorf("expected log output to contain 'username=testuser', got:\n%s", logOutput)
 	}
 }
 
@@ -936,5 +989,154 @@ func TestChat_SystemPromptIncludesScenario(t *testing.T) {
 	// Verify specific cell count from the scenario appears in the context table
 	if !strings.Contains(cfg.System, "| Cells | 6 | 10 | +4 |") {
 		t.Errorf("expected system prompt to contain scenario cell count table row, got:\n%s", cfg.System)
+	}
+}
+
+// --- Scenario storage tests ---
+
+// setupInfrastructure loads manual infrastructure into the handler so CompareScenario
+// has state to compare against.
+func setupInfrastructure(h *Handler) {
+	h.infraMutex.Lock()
+	h.infrastructureState = &models.InfrastructureState{
+		Source:         "manual",
+		TotalMemoryGB:  256,
+		TotalHostCount: 4,
+		Clusters: []models.ClusterState{
+			{
+				Name:              "test-cluster",
+				HostCount:         4,
+				MemoryGB:          256,
+				HAStatus:          "ok",
+				DiegoCellCount:    6,
+				DiegoCellMemoryGB: 32,
+				DiegoCellCPU:      4,
+			},
+		},
+	}
+	h.infraMutex.Unlock()
+}
+
+func TestCompareScenario_StoresForAuthenticatedUser(t *testing.T) {
+	mock := &mockChatProvider{
+		events: []ai.TokenEvent{
+			{Done: true, StopReason: "end_turn", Usage: &ai.Usage{}},
+		},
+	}
+	h := newChatTestHandler(mock)
+	setupInfrastructure(h)
+
+	// Call CompareScenario with authenticated request
+	scenarioBody := `{"proposed_cell_memory_gb": 64, "proposed_cell_cpu": 4, "proposed_cell_count": 10}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenario/compare", strings.NewReader(scenarioBody))
+	req.Header.Set("Content-Type", "application/json")
+	req = middleware.WithUserClaims(req, testClaims)
+	w := httptest.NewRecorder()
+
+	h.CompareScenario(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("CompareScenario returned %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify scenario was stored for this user
+	h.userScenariosMutex.RLock()
+	stored := h.userScenarios[testClaims.Username]
+	h.userScenariosMutex.RUnlock()
+	if stored == nil {
+		t.Fatal("expected scenario to be stored for authenticated user, got nil")
+	}
+	if stored.Proposed.CellCount != 10 {
+		t.Errorf("expected stored Proposed.CellCount=10, got %d", stored.Proposed.CellCount)
+	}
+
+	// Now call Chat and verify the stored scenario appears in the system prompt
+	ts := httptest.NewServer(withTestAuth(h.Chat))
+	defer ts.Close()
+
+	chatBody := `{"messages":[{"role":"user","content":"analyze scenario"}]}`
+	resp, err := http.Post(ts.URL, "application/json", strings.NewReader(chatBody))
+	if err != nil {
+		t.Fatalf("Chat request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	cfg := mock.getCapturedConfig()
+	if !strings.Contains(cfg.System, "Current vs proposed capacity changes") {
+		t.Errorf("expected system prompt to contain scenario data after CompareScenario, got:\n%s", cfg.System)
+	}
+}
+
+func TestCompareScenario_UnauthenticatedDoesNotStore(t *testing.T) {
+	h := newChatTestHandler(&mockChatProvider{})
+	setupInfrastructure(h)
+
+	scenarioBody := `{"proposed_cell_memory_gb": 64, "proposed_cell_cpu": 4, "proposed_cell_count": 10}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenario/compare", strings.NewReader(scenarioBody))
+	req.Header.Set("Content-Type", "application/json")
+	// No user claims attached
+	w := httptest.NewRecorder()
+
+	h.CompareScenario(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("CompareScenario returned %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify no scenario was stored
+	h.userScenariosMutex.RLock()
+	count := len(h.userScenarios)
+	h.userScenariosMutex.RUnlock()
+	if count != 0 {
+		t.Errorf("expected 0 stored scenarios for unauthenticated request, got %d", count)
+	}
+}
+
+func TestCompareScenario_UsersGetIsolatedScenarios(t *testing.T) {
+	mock := &mockChatProvider{
+		events: []ai.TokenEvent{
+			{Done: true, StopReason: "end_turn", Usage: &ai.Usage{}},
+		},
+	}
+	h := newChatTestHandler(mock)
+	setupInfrastructure(h)
+
+	userA := &middleware.UserClaims{Username: "alice", UserID: "alice-id", Role: "viewer"}
+	userB := &middleware.UserClaims{Username: "bob", UserID: "bob-id", Role: "viewer"}
+
+	// Alice compares with 10 cells
+	scenarioA := `{"proposed_cell_memory_gb": 64, "proposed_cell_cpu": 4, "proposed_cell_count": 10}`
+	reqA := httptest.NewRequest(http.MethodPost, "/api/v1/scenario/compare", strings.NewReader(scenarioA))
+	reqA.Header.Set("Content-Type", "application/json")
+	reqA = middleware.WithUserClaims(reqA, userA)
+	wA := httptest.NewRecorder()
+	h.CompareScenario(wA, reqA)
+	if wA.Code != http.StatusOK {
+		t.Fatalf("CompareScenario for alice returned %d", wA.Code)
+	}
+
+	// Bob compares with 20 cells
+	scenarioB := `{"proposed_cell_memory_gb": 64, "proposed_cell_cpu": 4, "proposed_cell_count": 20}`
+	reqB := httptest.NewRequest(http.MethodPost, "/api/v1/scenario/compare", strings.NewReader(scenarioB))
+	reqB.Header.Set("Content-Type", "application/json")
+	reqB = middleware.WithUserClaims(reqB, userB)
+	wB := httptest.NewRecorder()
+	h.CompareScenario(wB, reqB)
+	if wB.Code != http.StatusOK {
+		t.Fatalf("CompareScenario for bob returned %d", wB.Code)
+	}
+
+	// Verify isolation
+	h.userScenariosMutex.RLock()
+	aliceScenario := h.userScenarios["alice"]
+	bobScenario := h.userScenarios["bob"]
+	h.userScenariosMutex.RUnlock()
+
+	if aliceScenario == nil || bobScenario == nil {
+		t.Fatal("expected both users to have stored scenarios")
+	}
+	if aliceScenario.Proposed.CellCount != 10 {
+		t.Errorf("alice: expected Proposed.CellCount=10, got %d", aliceScenario.Proposed.CellCount)
+	}
+	if bobScenario.Proposed.CellCount != 20 {
+		t.Errorf("bob: expected Proposed.CellCount=20, got %d", bobScenario.Proposed.CellCount)
 	}
 }
