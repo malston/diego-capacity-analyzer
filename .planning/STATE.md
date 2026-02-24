@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators can have a conversation with a domain expert that sees their live capacity data -- turning raw metrics into actionable procurement guidance.
-**Current focus:** Phase 4: Chat Endpoint
+**Current focus:** Phase 4: Chat Endpoint (Complete)
 
 ## Current Position
 
-Phase: 4 of 8 (Chat Endpoint)
-Plan: 2 of 2 in current phase
-Status: In Progress
-Last activity: 2026-02-24 -- Completed 04-01-PLAN.md (SSE streaming chat endpoint)
+Phase: 4 of 8 (Chat Endpoint) -- COMPLETE
+Plan: 2 of 2 in current phase (all plans complete)
+Status: Phase Complete
+Last activity: 2026-02-24 -- Completed 04-02-PLAN.md (streaming timeouts and cancellation)
 
-Progress: [████░░░░░░] 35%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 3 min
-- Total execution time: 22 min
+- Total execution time: 26 min
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [████░░░░░░] 35%
 | 01    | 3     | 9 min | 3 min    |
 | 02    | 2     | 6 min | 3 min    |
 | 03    | 1     | 2 min | 2 min    |
-| 04    | 1     | 5 min | 5 min    |
+| 04    | 2     | 9 min | 4.5 min  |
 
 **Recent Trend:**
 
-- Last 5 plans: 02-01 (3 min), 02-02 (3 min), 03-01 (2 min), 04-01 (5 min)
+- Last 5 plans: 02-02 (3 min), 03-01 (2 min), 04-01 (5 min), 04-02 (4 min)
 - Trend: stable
 
 _Updated after each plan completion_
@@ -71,6 +71,9 @@ Recent decisions affecting current work:
 - 04-01: No Role restriction on chat route -- any authenticated user can chat (trivial to tighten later)
 - 04-01: LogCacheAvailable derived by checking if any app has ActualMB > 0 in cached dashboard
 - 04-01: maxRequestBodySize reused from infrastructure.go (package-level const, not redeclared)
+- 04-02: Config fields are int seconds (minimum 1s granularity); tests use 1-second timeouts for reasonable speed
+- 04-02: maxDurationExceeded channel (not atomic.Bool) distinguishes max-duration from client disconnect in ctx.Done case
+- 04-02: Test helper newChatTestHandler sets production-default timeout values (30s idle, 300s max) to avoid zero-value timer issues
 
 ### Pending Todos
 
@@ -83,5 +86,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 04-01-PLAN.md
-Resume file: .planning/phases/04-chat-endpoint/04-01-SUMMARY.md
+Stopped at: Completed 04-02-PLAN.md (Phase 4 complete)
+Resume file: .planning/phases/04-chat-endpoint/04-02-SUMMARY.md

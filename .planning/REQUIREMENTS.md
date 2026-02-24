@@ -35,7 +35,7 @@ Requirements for Phase 1 release. Each maps to roadmap phases.
 - [x] **CHAT-02**: Chat endpoint requires authentication (same middleware as all other endpoints)
 - [x] **CHAT-03**: Chat endpoint is rate-limited to 10 requests per minute per user
 - [x] **CHAT-04**: Chat endpoint returns structured JSON errors (not SSE) for pre-stream failures (auth, rate limit, missing provider, missing API key)
-- [ ] **CHAT-05**: Chat endpoint includes idle timeout detection so streaming does not hang indefinitely on provider failure
+- [x] **CHAT-05**: Chat endpoint includes idle timeout detection so streaming does not hang indefinitely on provider failure
 
 ### Chat Panel UI
 
@@ -111,7 +111,7 @@ Deferred to Phase 2 (Scenario Execution via Chat).
 | CHAT-02     | Phase 4 | Complete |
 | CHAT-03     | Phase 4 | Complete |
 | CHAT-04     | Phase 4 | Complete |
-| CHAT-05     | Phase 4 | Pending |
+| CHAT-05     | Phase 4 | Complete |
 | UI-01       | Phase 5 | Pending |
 | UI-02       | Phase 5 | Pending |
 | UI-03       | Phase 5 | Pending |
