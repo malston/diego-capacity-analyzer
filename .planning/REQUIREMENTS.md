@@ -24,10 +24,10 @@ Requirements for Phase 1 release. Each maps to roadmap phases.
 
 ### Domain Expertise
 
-- [ ] **DOM-01**: System prompt encodes TAS/Diego capacity planning knowledge: N-1 redundancy, HA Admission Control, vCPU:pCPU ratios, cell sizing heuristics, isolation segment tradeoffs
-- [ ] **DOM-02**: System prompt frames analysis in procurement terms: lead times, budget cycles, growth planning, headroom targets
-- [ ] **DOM-03**: System prompt instructs the LLM to acknowledge data gaps rather than hallucinate when information is missing
-- [ ] **DOM-04**: System prompt instructs the LLM to reference specific data values from context when making claims
+- [x] **DOM-01**: System prompt encodes TAS/Diego capacity planning knowledge: N-1 redundancy, HA Admission Control, vCPU:pCPU ratios, cell sizing heuristics, isolation segment tradeoffs
+- [x] **DOM-02**: System prompt frames analysis in procurement terms: lead times, budget cycles, growth planning, headroom targets
+- [x] **DOM-03**: System prompt instructs the LLM to acknowledge data gaps rather than hallucinate when information is missing
+- [x] **DOM-04**: System prompt instructs the LLM to reference specific data values from context when making claims
 
 ### Chat Endpoint
 
@@ -103,10 +103,10 @@ Deferred to Phase 2 (Scenario Execution via Chat).
 | CTX-03      | Phase 2 | Complete |
 | CTX-04      | Phase 2 | Complete |
 | CTX-05      | Phase 2 | Complete |
-| DOM-01      | Phase 3 | Pending |
-| DOM-02      | Phase 3 | Pending |
-| DOM-03      | Phase 3 | Pending |
-| DOM-04      | Phase 3 | Pending |
+| DOM-01      | Phase 3 | Complete |
+| DOM-02      | Phase 3 | Complete |
+| DOM-03      | Phase 3 | Complete |
+| DOM-04      | Phase 3 | Complete |
 | CHAT-01     | Phase 4 | Pending |
 | CHAT-02     | Phase 4 | Pending |
 | CHAT-03     | Phase 4 | Pending |

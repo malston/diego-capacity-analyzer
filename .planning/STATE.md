@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators can have a conversation with a domain expert that sees their live capacity data -- turning raw metrics into actionable procurement guidance.
-**Current focus:** Phase 3: System Prompt
+**Current focus:** Phase 4: Chat Endpoint
 
 ## Current Position
 
-Phase: 3 of 8 (System Prompt)
+Phase: 4 of 8 (Chat Endpoint)
 Plan: 1 of N in current phase
 Status: Ready
-Last activity: 2026-02-24 -- Completed 02-02-PLAN.md (Context Builder edge-case tests)
+Last activity: 2026-02-24 -- Completed 03-01-PLAN.md (System prompt with domain expertise)
 
-Progress: [██░░░░░░░░] 20%
+Progress: [███░░░░░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
+- Total plans completed: 6
 - Average duration: 3 min
-- Total execution time: 15 min
+- Total execution time: 17 min
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [██░░░░░░░░] 20%
 | ----- | ----- | ----- | -------- |
 | 01    | 3     | 9 min | 3 min    |
 | 02    | 2     | 6 min | 3 min    |
+| 03    | 1     | 2 min | 2 min    |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-02 (4 min), 01-03 (3 min), 02-01 (3 min), 02-02 (3 min)
+- Last 5 plans: 01-03 (3 min), 02-01 (3 min), 02-02 (3 min), 03-01 (2 min)
 - Trend: stable
 
 _Updated after each plan completion_
@@ -62,6 +63,10 @@ Recent decisions affecting current work:
 - 02-02: All 4 edge-case tests passed immediately -- Plan 02-01 handles credential safety, aggregation, markers, and token budget
 - 02-02: Credential safety uses belt-and-suspenders: compile-time type constraint + runtime sentinel scan
 - 02-02: InfrastructureState.Name not rendered in output -- only cluster names appear
+- 03-01: Prompt uses XML tags for section delineation per Anthropic best practices (domain_knowledge, procurement_framing, response_rules, data_gap_handling)
+- 03-01: Measured instruction language per Claude 4.6 guidance -- no excessive MUST/ALWAYS/NEVER emphasis
+- 03-01: Materiality-based gap handling with general rules plus examples (not exhaustive per-marker if/then rules)
+- 03-01: Static prompt is ~3900 chars (~975 tokens), well under 10000-char budget
 
 ### Pending Todos
 
@@ -74,5 +79,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 02-02-PLAN.md
-Resume file: .planning/phases/02-context-builder/02-02-SUMMARY.md
+Stopped at: Completed 03-01-PLAN.md
+Resume file: .planning/phases/03-domain-expertise/03-01-SUMMARY.md
