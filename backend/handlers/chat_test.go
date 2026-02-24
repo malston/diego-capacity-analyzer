@@ -399,6 +399,11 @@ func TestChat_SystemPromptIncludesContext(t *testing.T) {
 		},
 	}
 	h := newChatTestHandler(mock)
+	// Enable vSphere so the infrastructure section renders cluster data
+	h.cfg.VSphereHost = "vcenter.example.com"
+	h.cfg.VSphereUsername = "admin"
+	h.cfg.VSpherePassword = "secret"
+	h.cfg.VSphereDatacenter = "DC-1"
 
 	// Populate cache with dashboard data including apps with actual memory
 	dashboard := models.DashboardResponse{
