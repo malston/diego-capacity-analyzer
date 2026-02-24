@@ -73,11 +73,11 @@ Plans:
 2. System prompt frames analysis in procurement terms: lead times, budget cycles, growth planning, and headroom targets
 3. When context contains missing-data markers, the LLM acknowledges gaps rather than hallucinating (verified by manual testing with incomplete context)
 4. LLM references specific data values from the provided context when making claims (verified by manual testing with known infrastructure state)
-   **Plans**: TBD
+   **Plans**: 1 plan
 
 Plans:
 
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md -- System prompt const with TAS/Diego domain knowledge, procurement framing, gap handling, and BuildSystemPrompt composition (TDD)
 
 ### Phase 4: Chat Endpoint
 
