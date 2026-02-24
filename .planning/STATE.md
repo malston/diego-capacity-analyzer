@@ -9,31 +9,31 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 1 of 8 (Provider Foundation)
-Plan: 2 of 3 in current phase
-Status: Executing
-Last activity: 2026-02-24 -- Completed 01-02-PLAN.md (Anthropic provider implementation)
+Phase: 1 of 8 (Provider Foundation) -- COMPLETE
+Plan: 3 of 3 in current phase
+Status: Phase Complete
+Last activity: 2026-02-24 -- Completed 01-03-PLAN.md (AI provider wiring)
 
-Progress: [██░░░░░░░░] 8%
+Progress: [██░░░░░░░░] 12%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 2
+- Total plans completed: 3
 - Average duration: 3 min
-- Total execution time: 6 min
+- Total execution time: 9 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
-| 01    | 2     | 6 min | 3 min    |
+| 01    | 3     | 9 min | 3 min    |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (2 min), 01-02 (4 min)
-- Trend: -
+- Last 5 plans: 01-01 (2 min), 01-02 (4 min), 01-03 (3 min)
+- Trend: stable
 
 _Updated after each plan completion_
 
@@ -51,6 +51,9 @@ Recent decisions affecting current work:
 - 01-02: Default model updated to Claude Sonnet 4.5 (plan's 3.7 Sonnet reached EOL Feb 19 2026)
 - 01-02: SDK client stored as value type (anthropic.Client), not pointer
 - 01-02: System prompt not defaulted in resolveConfig -- per-request only
+- 01-03: AI provider initialized after Handler construction via setter (matching SetSessionService pattern)
+- 01-03: Startup validation: exit on unknown AI_PROVIDER or missing AI_API_KEY
+- 01-03: Nil-based feature gating: chatProvider != nil determines AI availability
 
 ### Pending Todos
 
@@ -63,5 +66,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 01-02-PLAN.md
-Resume file: .planning/phases/01-provider-foundation/01-02-SUMMARY.md
+Stopped at: Completed 01-03-PLAN.md (Phase 01 complete)
+Resume file: .planning/phases/01-provider-foundation/01-03-SUMMARY.md
