@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 	"github.com/markalston/diego-capacity-analyzer/backend/services/ai"
 )
@@ -65,7 +66,7 @@ func writeSSEEvent(w http.ResponseWriter, flusher http.Flusher, eventType string
 
 // buildChatSystemPrompt snapshots the current infrastructure state and builds
 // a system prompt combining domain expertise with live context data.
-func (h *Handler) buildChatSystemPrompt() string {
+func (h *Handler) buildChatSystemPrompt(username string) string {
 	input := ai.ContextInput{
 		BOSHConfigured:    h.boshClient != nil,
 		VSphereConfigured: h.cfg.VSphereConfigured(),
@@ -88,6 +89,10 @@ func (h *Handler) buildChatSystemPrompt() string {
 	input.Infra = h.infrastructureState
 	h.infraMutex.RUnlock()
 
+	h.userScenariosMutex.RLock()
+	input.Scenario = h.userScenarios[username]
+	h.userScenariosMutex.RUnlock()
+
 	ctx := ai.BuildContext(input)
 	return ai.BuildSystemPrompt(ctx)
 }
@@ -97,6 +102,12 @@ func (h *Handler) buildChatSystemPrompt() string {
 // infrastructure context. Phase 3 streams SSE token events from the AI provider.
 func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 	// Phase 1: Pre-stream validation (JSON errors via h.writeError)
+
+	claims := middleware.GetUserClaims(r)
+	if claims == nil {
+		h.writeError(w, "authentication required for AI advisor", http.StatusUnauthorized)
+		return
+	}
 
 	if h.chatProvider == nil {
 		h.writeError(w, "AI advisor not configured", http.StatusServiceUnavailable)
@@ -131,7 +142,7 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Phase 2: Context snapshot
-	systemPrompt := h.buildChatSystemPrompt()
+	systemPrompt := h.buildChatSystemPrompt(claims.Username)
 
 	// Phase 3: SSE streaming
 	flusher, ok := w.(http.Flusher)

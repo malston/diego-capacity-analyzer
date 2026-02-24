@@ -60,6 +60,7 @@ type Config struct {
 	// AI Provider (optional)
 	AIProvider        string
 	AIAPIKey          string
+	AIModel           string
 	AIIdleTimeoutSecs int // AI streaming idle timeout (default: 30)
 	AIMaxDurationSecs int // AI streaming max duration (default: 300)
 
@@ -120,6 +121,7 @@ func Load() (*Config, error) {
 
 		AIProvider:        os.Getenv("AI_PROVIDER"),
 		AIAPIKey:          os.Getenv("AI_API_KEY"),
+		AIModel:           getEnv("AI_MODEL", "claude-sonnet-4-5-20250514"),
 		AIIdleTimeoutSecs: getEnvInt("AI_IDLE_TIMEOUT_SECS", 30),
 		AIMaxDurationSecs: getEnvInt("AI_MAX_DURATION_SECS", 300),
 		RateLimitChat:     getEnvInt("RATE_LIMIT_CHAT", 10),

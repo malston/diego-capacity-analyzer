@@ -175,9 +175,12 @@ func main() {
 			slog.Error("AI_API_KEY required when AI_PROVIDER is set", "provider", cfg.AIProvider)
 			os.Exit(1)
 		}
-		chatProvider := ai.NewAnthropicProvider(cfg.AIAPIKey, ai.ChatConfig{})
+		chatProvider := ai.NewAnthropicProvider(cfg.AIAPIKey, ai.ChatConfig{
+			MaxTokens: 4096,
+			Model:     cfg.AIModel,
+		})
 		h.SetChatProvider(chatProvider)
-		slog.Info("AI provider initialized", "provider", cfg.AIProvider)
+		slog.Info("AI provider initialized", "provider", cfg.AIProvider, "model", cfg.AIModel)
 	} else {
 		slog.Error("Unknown AI_PROVIDER value", "provider", cfg.AIProvider)
 		os.Exit(1)

@@ -28,14 +28,17 @@ type Handler struct {
 	sessionService      *services.SessionService
 	chatProvider        ai.ChatProvider
 	infraMutex          sync.RWMutex
+	userScenarios       map[string]*models.ScenarioComparison
+	userScenariosMutex  sync.RWMutex
 }
 
 func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 	h := &Handler{
-		cfg:          cfg,
-		cache:        cache,
-		scenarioCalc: services.NewScenarioCalculator(),
-		planningCalc: services.NewPlanningCalculator(),
+		cfg:           cfg,
+		cache:         cache,
+		scenarioCalc:  services.NewScenarioCalculator(),
+		planningCalc:  services.NewPlanningCalculator(),
+		userScenarios: make(map[string]*models.ScenarioComparison),
 	}
 
 	// CF client is optional (for testing)

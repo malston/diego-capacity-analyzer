@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 )
 
@@ -43,6 +44,14 @@ func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
 
 	// Add recommendations based on current state
 	comparison.Recommendations = models.GenerateRecommendations(*state)
+
+	// Store scenario result for authenticated users so the AI advisor can reference it
+	claims := middleware.GetUserClaims(r)
+	if claims != nil {
+		h.userScenariosMutex.Lock()
+		h.userScenarios[claims.Username] = &comparison
+		h.userScenariosMutex.Unlock()
+	}
 
 	h.writeJSON(w, http.StatusOK, comparison)
 }

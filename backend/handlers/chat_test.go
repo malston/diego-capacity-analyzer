@@ -928,12 +928,13 @@ func TestChat_SystemPromptIncludesScenario(t *testing.T) {
 	if cfg.System == "" {
 		t.Fatal("expected system prompt to be set, got empty string")
 	}
-	// The scenario section should contain cell count data, not the "no scenario" message
-	if strings.Contains(cfg.System, "No scenario comparison has been run") {
-		t.Error("expected system prompt to contain scenario data, but got 'No scenario comparison has been run'")
+	// Verify the scenario comparison section renders with actual data (cell counts from
+	// the stored scenario), not the placeholder message for no scenario.
+	if !strings.Contains(cfg.System, "Current vs proposed capacity changes") {
+		t.Errorf("expected system prompt to contain 'Current vs proposed capacity changes', got:\n%s", cfg.System)
 	}
-	// Verify the scenario section renders with the proposed cell count
-	if !strings.Contains(cfg.System, "Scenario Comparison") {
-		t.Errorf("expected system prompt to contain 'Scenario Comparison', got:\n%s", cfg.System)
+	// Verify specific cell count from the scenario appears in the context table
+	if !strings.Contains(cfg.System, "| Cells | 6 | 10 | +4 |") {
+		t.Errorf("expected system prompt to contain scenario cell count table row, got:\n%s", cfg.System)
 	}
 }
