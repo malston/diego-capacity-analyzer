@@ -56,9 +56,13 @@ func (m *mockChatProvider) getCapturedConfig() ai.ChatConfig {
 
 // newChatTestHandler creates a Handler suitable for chat tests.
 // It bypasses NewHandler to avoid requiring CF/BOSH/vSphere clients.
+// Timeout fields use production defaults (30s idle, 300s max duration).
 func newChatTestHandler(provider ai.ChatProvider) *Handler {
 	c := cache.New(5 * time.Minute)
-	cfg := &config.Config{}
+	cfg := &config.Config{
+		AIIdleTimeoutSecs: 30,
+		AIMaxDurationSecs: 300,
+	}
 	return &Handler{
 		cfg:          cfg,
 		cache:        c,

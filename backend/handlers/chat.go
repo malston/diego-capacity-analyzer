@@ -4,6 +4,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -157,8 +158,26 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ctx := r.Context()
+	// Create a cancelable context so max duration and client disconnect
+	// both propagate to the provider via context cancellation.
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	tokenCh := h.chatProvider.Chat(ctx, messages, ai.WithSystem(systemPrompt))
+
+	// Max duration timer: caps total stream wall-clock time.
+	// When it fires, it signals via maxDurationExceeded before canceling the context.
+	maxDurationExceeded := make(chan struct{})
+	maxDuration := time.AfterFunc(time.Duration(h.cfg.AIMaxDurationSecs)*time.Second, func() {
+		close(maxDurationExceeded)
+		cancel()
+	})
+	defer maxDuration.Stop()
+
+	// Idle timer: fires if no token arrives within the idle window.
+	idleTimeout := time.Duration(h.cfg.AIIdleTimeoutSecs) * time.Second
+	idleTimer := time.NewTimer(idleTimeout)
+	defer idleTimer.Stop()
 
 	var seq int
 	for {
@@ -204,8 +223,33 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 				})
 			}
 
+			// Reset idle timer after each event (safe drain pattern)
+			if !idleTimer.Stop() {
+				select {
+				case <-idleTimer.C:
+				default:
+				}
+			}
+			idleTimer.Reset(idleTimeout)
+
+		case <-idleTimer.C:
+			writeSSEEvent(w, flusher, "error", ErrorPayload{
+				Code:    "timeout",
+				Message: "No response from AI provider within timeout window",
+			})
+			return
+
 		case <-ctx.Done():
-			// Client disconnected
+			// Determine if max duration fired or client disconnected
+			select {
+			case <-maxDurationExceeded:
+				writeSSEEvent(w, flusher, "error", ErrorPayload{
+					Code:    "timeout",
+					Message: "Response exceeded maximum duration",
+				})
+			default:
+				// Client disconnected -- no one to send to
+			}
 			return
 		}
 	}
