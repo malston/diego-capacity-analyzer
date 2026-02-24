@@ -17,6 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Context Builder** - Serialize infrastructure/dashboard/scenario state for the LLM without leaking credentials
 - [x] **Phase 3: Domain Expertise** - System prompt encoding TAS/Diego capacity planning knowledge and procurement framing
 - [x] **Phase 4: Chat Endpoint** - SSE streaming endpoint with auth, rate limiting, error handling, and timeout protection (completed 2026-02-24)
+- [ ] **Phase 4.1: Chat Endpoint Hardening** - INSERTED: Wire scenario context, enforce chat auth, set explicit provider defaults (gap closure)
 - [ ] **Phase 5: Chat Panel Core** - Side panel with streaming Markdown display and multi-turn conversation threading
 - [ ] **Phase 6: Chat Panel UX** - Loading states, error handling, conversation reset, and starter prompts
 - [ ] **Phase 7: Graceful Degradation** - CF-only operation, data gap messaging, and adaptive starter prompts
@@ -98,6 +99,23 @@ Plans:
 - [ ] 04-01-PLAN.md -- SSE streaming chat endpoint with pre-stream validation, context snapshot, and basic streaming (TDD)
 - [ ] 04-02-PLAN.md -- Idle timeout, max duration, and client disconnect handling (TDD)
 
+### Phase 4.1: Chat Endpoint Hardening (INSERTED -- gap closure)
+
+**Goal**: Close integration and tech debt gaps found in milestone v1.0 audit: wire scenario comparison into AI context, enforce authentication on chat endpoint, and set explicit provider defaults
+**Depends on**: Phase 4
+**Requirements**: CTX-03 (E2E flow), CHAT-02 (auth enforcement), PROV-02 (provider defaults)
+**Gap Closure**: Closes MISS-01, GAP-01, GAP-02 from v1.0-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+
+1. After running `POST /api/v1/scenario/compare`, subsequent chat messages include the scenario comparison data in the AI context (not "No scenario comparison has been run")
+2. When `AUTH_MODE=optional`, the chat handler returns 401 for unauthenticated requests (AI feature requires auth regardless of global auth mode)
+3. `AnthropicProvider` is initialized with explicit `MaxTokens` and `Model` values in `main.go`, not zero-value defaults
+   **Plans**: 1 plan
+
+Plans:
+
+- [ ] 04.1-01-PLAN.md -- Wire scenario context, enforce chat auth, set provider defaults (TDD)
+
 ### Phase 5: Chat Panel Core
 
 **Goal**: Operators see a side panel in the dashboard with streaming Markdown display and can have multi-turn conversations with the advisor
@@ -169,15 +187,16 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 4.1 -> 5 -> 6 -> 7 -> 8
 
-| Phase                   | Plans Complete | Status      | Completed  |
-| ----------------------- | -------------- | ----------- | ---------- |
-| 1. Provider Foundation  | 3/3            | Complete    | 2026-02-24 |
-| 2. Context Builder      | 2/2            | Complete    | 2026-02-24 |
-| 3. Domain Expertise     | 1/1            | Complete    | 2026-02-24 |
-| 4. Chat Endpoint        | 0/0            | Complete    | 2026-02-24 |
-| 5. Chat Panel Core      | 0/0            | Not started | -          |
-| 6. Chat Panel UX        | 0/0            | Not started | -          |
-| 7. Graceful Degradation | 0/0            | Not started | -          |
-| 8. Polish               | 0/0            | Not started | -          |
+| Phase                       | Plans Complete | Status      | Completed  |
+| --------------------------- | -------------- | ----------- | ---------- |
+| 1. Provider Foundation      | 3/3            | Complete    | 2026-02-24 |
+| 2. Context Builder          | 2/2            | Complete    | 2026-02-24 |
+| 3. Domain Expertise         | 1/1            | Complete    | 2026-02-24 |
+| 4. Chat Endpoint            | 0/0            | Complete    | 2026-02-24 |
+| 4.1 Chat Endpoint Hardening | 0/1            | Not started | -          |
+| 5. Chat Panel Core          | 0/0            | Not started | -          |
+| 6. Chat Panel UX            | 0/0            | Not started | -          |
+| 7. Graceful Degradation     | 0/0            | Not started | -          |
+| 8. Polish                   | 0/0            | Not started | -          |
