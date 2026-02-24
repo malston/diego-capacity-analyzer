@@ -1,5 +1,5 @@
 // ABOUTME: SSE streaming chat handler for AI capacity advisor
-// ABOUTME: Validates requests, snapshots infrastructure context, and streams token events
+// ABOUTME: Enforces auth, validates requests, snapshots infrastructure and scenario context, streams token events
 
 package handlers
 
