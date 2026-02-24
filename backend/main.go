@@ -144,19 +144,21 @@ func main() {
 			"auth":    middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitAuth, window), middleware.ClientIP),
 			"refresh": middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitRefresh, window), middleware.SessionKey),
 			"write":   middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitWrite, window), middleware.UserOrIP),
+			"chat":    middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitChat, window), middleware.UserOrIP),
 			"":        middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitDefault, window), middleware.UserOrIP),
 		}
 		slog.Info("Rate limiting enabled",
 			"auth", cfg.RateLimitAuth,
 			"refresh", cfg.RateLimitRefresh,
 			"write", cfg.RateLimitWrite,
+			"chat", cfg.RateLimitChat,
 			"default", cfg.RateLimitDefault,
 		)
 	} else {
 		// All tiers map to a nil-limiter no-op
 		noOp := middleware.RateLimit(nil, nil)
 		rateLimiters = map[string]func(http.HandlerFunc) http.HandlerFunc{
-			"auth": noOp, "refresh": noOp, "write": noOp, "": noOp,
+			"auth": noOp, "refresh": noOp, "write": noOp, "chat": noOp, "": noOp,
 		}
 		slog.Info("Rate limiting disabled")
 	}

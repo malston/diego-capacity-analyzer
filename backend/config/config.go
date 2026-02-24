@@ -58,8 +58,13 @@ type Config struct {
 	VSphereCacheTTL   int // seconds, default 300 (5 min)
 
 	// AI Provider (optional)
-	AIProvider string
-	AIAPIKey   string
+	AIProvider        string
+	AIAPIKey          string
+	AIIdleTimeoutSecs int // AI streaming idle timeout (default: 30)
+	AIMaxDurationSecs int // AI streaming max duration (default: 300)
+
+	// Rate Limiting (chat)
+	RateLimitChat int // Requests per minute for chat endpoint (default: 10)
 }
 
 // VSphereConfigured returns true if vSphere credentials are set
@@ -113,8 +118,11 @@ func Load() (*Config, error) {
 		VSphereInsecure:   getEnvBool("VSPHERE_INSECURE", false),
 		VSphereCacheTTL:   getEnvInt("VSPHERE_CACHE_TTL", 300),
 
-		AIProvider: os.Getenv("AI_PROVIDER"),
-		AIAPIKey:   os.Getenv("AI_API_KEY"),
+		AIProvider:        os.Getenv("AI_PROVIDER"),
+		AIAPIKey:          os.Getenv("AI_API_KEY"),
+		AIIdleTimeoutSecs: getEnvInt("AI_IDLE_TIMEOUT_SECS", 30),
+		AIMaxDurationSecs: getEnvInt("AI_MAX_DURATION_SECS", 300),
+		RateLimitChat:     getEnvInt("RATE_LIMIT_CHAT", 10),
 	}
 
 	// Validate required fields
@@ -137,6 +145,7 @@ func Load() (*Config, error) {
 		{"RATE_LIMIT_REFRESH", cfg.RateLimitRefresh},
 		{"RATE_LIMIT_WRITE", cfg.RateLimitWrite},
 		{"RATE_LIMIT_DEFAULT", cfg.RateLimitDefault},
+		{"RATE_LIMIT_CHAT", cfg.RateLimitChat},
 	} {
 		if rl.value < 1 || rl.value > 10000 {
 			return nil, fmt.Errorf("%s must be between 1 and 10000, got %d", rl.name, rl.value)
