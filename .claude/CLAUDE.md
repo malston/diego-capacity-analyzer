@@ -291,6 +291,18 @@ make frontend-test-coverage     # With coverage report
 7. Backend aggregates data and returns dashboard/planning response
 8. Frontend renders capacity analysis and recommendations
 
+## Planning Artifacts
+
+The `.planning/` directory contains GSD workflow artifacts (research, roadmaps, phase plans, verification reports). These are development aids, not deployable code.
+
+**Branch workflow:**
+
+1. Commit `.planning/` on feature branches so planning context is available during development
+2. Before merging to main, add `.planning/` to `.gitignore` and run `git rm -r --cached .planning/` in the merge commit
+3. Do NOT squash planning commits out of history -- they provide valuable audit trail
+
+This keeps planning visible during feature work but clean on main.
+
 <claude-mem-context>
 
 </claude-mem-context>
