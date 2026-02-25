@@ -39,10 +39,10 @@ Requirements for Phase 1 release. Each maps to roadmap phases.
 
 ### Chat Panel UI
 
-- [ ] **UI-01**: Side panel slides in from the right as an overlay on all screen sizes
-- [ ] **UI-02**: Panel toggle button appears in the dashboard header only when `ai_configured` is true
+- [x] **UI-01**: Side panel slides in from the right as an overlay on all screen sizes
+- [x] **UI-02**: Panel toggle button appears in the dashboard header only when `ai_configured` is true
 - [x] **UI-03**: Streaming chat displays tokens as they arrive with smooth rendering (no re-render storms)
-- [ ] **UI-04**: Assistant messages render Markdown (headers, lists, bold, code blocks, tables)
+- [x] **UI-04**: Assistant messages render Markdown (headers, lists, bold, code blocks, tables)
 - [x] **UI-05**: Conversation maintains multi-turn threading within the session (full history sent with each request)
 - [ ] **UI-06**: User can clear/reset the conversation to start fresh
 - [ ] **UI-07**: Loading/thinking indicator appears between sending a message and receiving the first token
@@ -112,10 +112,10 @@ Deferred to Phase 2 (Scenario Execution via Chat).
 | CHAT-03     | Phase 4 | Complete |
 | CHAT-04     | Phase 4 | Complete |
 | CHAT-05     | Phase 4 | Complete |
-| UI-01       | Phase 5 | Pending |
-| UI-02       | Phase 5 | Pending |
+| UI-01       | Phase 5 | Complete |
+| UI-02       | Phase 5 | Complete |
 | UI-03       | Phase 5 | Complete |
-| UI-04       | Phase 5 | Pending |
+| UI-04       | Phase 5 | Complete |
 | UI-05       | Phase 5 | Complete |
 | UI-06       | Phase 6 | Pending |
 | UI-07       | Phase 6 | Pending |
