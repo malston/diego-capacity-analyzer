@@ -157,3 +157,28 @@ func TestLogRequest_CapturesStatusCode(t *testing.T) {
 		t.Errorf("Status = %d, want %d", rec.Code, http.StatusCreated)
 	}
 }
+
+func TestResponseWriter_ImplementsFlusher(t *testing.T) {
+	rec := httptest.NewRecorder()
+	var w http.ResponseWriter = &responseWriter{ResponseWriter: rec, statusCode: http.StatusOK}
+
+	// The wrapped writer must satisfy http.Flusher so SSE streaming
+	// works through the logging middleware.
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		t.Fatal("responseWriter must implement http.Flusher for SSE support")
+	}
+
+	// Flush should not panic
+	flusher.Flush()
+}
+
+func TestResponseWriter_Unwrap(t *testing.T) {
+	rec := httptest.NewRecorder()
+	wrapped := &responseWriter{ResponseWriter: rec, statusCode: http.StatusOK}
+
+	got := wrapped.Unwrap()
+	if got != rec {
+		t.Error("Unwrap should return the underlying ResponseWriter")
+	}
+}
