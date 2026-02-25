@@ -24,6 +24,7 @@ import Header from "./components/Header";
 import MetricCards from "./components/MetricCards";
 import WhatIfPanel from "./components/WhatIfPanel";
 import CellDetailTable from "./components/CellDetailTable";
+import ChatPanel from "./components/chat/ChatPanel";
 import { mockData } from "./data/mockData";
 import { calculateWhatIfMetrics } from "./utils/metricsCalculations";
 import "./TASCapacityAnalyzer.css";
@@ -47,6 +48,7 @@ const TASCapacityAnalyzer = () => {
   const [error, setError] = useState(null);
   const [errorDetail, setErrorDetail] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const devMode = isDevMode();
 
   // Load real CF data from backend
@@ -263,6 +265,8 @@ Check browser console (F12) for details.`;
         onTestConnection={testConnection}
         onRefresh={loadCFData}
         devMode={devMode}
+        chatOpen={chatOpen}
+        onChatToggle={() => setChatOpen((prev) => !prev)}
       />
 
       {/* Dashboard Controls (segment filter and What-If toggle) */}
@@ -554,6 +558,9 @@ Check browser console (F12) for details.`;
           Built for platform engineers by platform engineers
         </p>
       </footer>
+
+      {/* AI Advisor Chat Panel */}
+      <ChatPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
   );
 };
