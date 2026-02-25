@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -161,6 +162,8 @@ func TestLoadConfig_RateLimitInvalidValue(t *testing.T) {
 		{"zero value", "RATE_LIMIT_AUTH", "0"},
 		{"negative value", "RATE_LIMIT_REFRESH", "-1"},
 		{"exceeds max", "RATE_LIMIT_DEFAULT", "10001"},
+		{"chat zero", "RATE_LIMIT_CHAT", "0"},
+		{"chat exceeds max", "RATE_LIMIT_CHAT", "10001"},
 	}
 
 	for _, tt := range tests {
@@ -229,5 +232,209 @@ func TestLoadConfig_URLSchemePrefixing(t *testing.T) {
 
 	if cfg.BOSHEnvironment != "https://10.0.0.6:25555" {
 		t.Errorf("Expected BOSHEnvironment to have https:// prefix, got %s", cfg.BOSHEnvironment)
+	}
+}
+
+func TestLoadConfig_AIProviderDefaults(t *testing.T) {
+	t.Cleanup(withCleanCFEnv(t))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.AIProvider != "" {
+		t.Errorf("Expected AIProvider empty by default, got %q", cfg.AIProvider)
+	}
+	if cfg.AIAPIKey != "" {
+		t.Errorf("Expected AIAPIKey empty by default, got %q", cfg.AIAPIKey)
+	}
+}
+
+func TestConfig_AIModelDefault(t *testing.T) {
+	t.Cleanup(withCleanCFEnv(t))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.AIModel != "claude-sonnet-4-5-20250514" {
+		t.Errorf("Expected default AIModel 'claude-sonnet-4-5-20250514', got %q", cfg.AIModel)
+	}
+}
+
+func TestConfig_AIModelFromEnv(t *testing.T) {
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"AI_MODEL": "custom-model",
+	}))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.AIModel != "custom-model" {
+		t.Errorf("Expected AIModel 'custom-model', got %q", cfg.AIModel)
+	}
+}
+
+func TestLoadConfig_AIProviderFromEnv(t *testing.T) {
+	tests := []struct {
+		name           string
+		env            map[string]string
+		wantProvider   string
+		wantKey        string
+		wantConfigured bool
+	}{
+		{
+			name:           "both set",
+			env:            map[string]string{"AI_PROVIDER": "anthropic", "AI_API_KEY": "test-key"},
+			wantProvider:   "anthropic",
+			wantKey:        "test-key",
+			wantConfigured: true,
+		},
+		{
+			name:           "key only",
+			env:            map[string]string{"AI_API_KEY": "test-key"},
+			wantProvider:   "",
+			wantKey:        "test-key",
+			wantConfigured: false,
+		},
+		{
+			name:           "neither set",
+			env:            nil,
+			wantProvider:   "",
+			wantKey:        "",
+			wantConfigured: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(withCleanCFEnvAndExtra(t, tt.env))
+
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Expected no error, got %v", err)
+			}
+
+			if cfg.AIProvider != tt.wantProvider {
+				t.Errorf("AIProvider = %q, want %q", cfg.AIProvider, tt.wantProvider)
+			}
+			if cfg.AIAPIKey != tt.wantKey {
+				t.Errorf("AIAPIKey = %q, want %q", cfg.AIAPIKey, tt.wantKey)
+			}
+			if cfg.AIConfigured() != tt.wantConfigured {
+				t.Errorf("AIConfigured() = %v, want %v", cfg.AIConfigured(), tt.wantConfigured)
+			}
+		})
+	}
+}
+
+func TestLoadConfig_AIProviderWithoutKey(t *testing.T) {
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"AI_PROVIDER": "anthropic",
+	}))
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Expected error for AI_PROVIDER set without AI_API_KEY, got nil")
+	}
+	if !strings.Contains(err.Error(), "AI_API_KEY") {
+		t.Errorf("Expected error mentioning AI_API_KEY, got: %v", err)
+	}
+}
+
+func TestLoadConfig_AIProviderUnknown(t *testing.T) {
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"AI_PROVIDER": "openai",
+		"AI_API_KEY":  "test-key",
+	}))
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Expected error for unknown AI_PROVIDER, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown AI_PROVIDER") {
+		t.Errorf("Expected error mentioning 'unknown AI_PROVIDER', got: %v", err)
+	}
+}
+
+func TestLoadConfig_AITimeoutValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     map[string]string
+		wantErr string
+	}{
+		{
+			name: "zero idle timeout",
+			env: map[string]string{
+				"AI_PROVIDER":          "anthropic",
+				"AI_API_KEY":           "test-key",
+				"AI_IDLE_TIMEOUT_SECS": "0",
+			},
+			wantErr: "AI_IDLE_TIMEOUT_SECS",
+		},
+		{
+			name: "negative idle timeout",
+			env: map[string]string{
+				"AI_PROVIDER":          "anthropic",
+				"AI_API_KEY":           "test-key",
+				"AI_IDLE_TIMEOUT_SECS": "-5",
+			},
+			wantErr: "AI_IDLE_TIMEOUT_SECS",
+		},
+		{
+			name: "zero max duration",
+			env: map[string]string{
+				"AI_PROVIDER":          "anthropic",
+				"AI_API_KEY":           "test-key",
+				"AI_MAX_DURATION_SECS": "0",
+			},
+			wantErr: "AI_MAX_DURATION_SECS",
+		},
+		{
+			name: "negative max duration",
+			env: map[string]string{
+				"AI_PROVIDER":          "anthropic",
+				"AI_API_KEY":           "test-key",
+				"AI_MAX_DURATION_SECS": "-10",
+			},
+			wantErr: "AI_MAX_DURATION_SECS",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(withCleanCFEnvAndExtra(t, tt.env))
+
+			_, err := Load()
+			if err == nil {
+				t.Fatalf("Expected error for %s, got nil", tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("Expected error mentioning %s, got: %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestLoadConfig_AITimeoutDefaults(t *testing.T) {
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"AI_PROVIDER": "anthropic",
+		"AI_API_KEY":  "test-key",
+	}))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.AIIdleTimeoutSecs != 30 {
+		t.Errorf("Expected default AIIdleTimeoutSecs 30, got %d", cfg.AIIdleTimeoutSecs)
+	}
+	if cfg.AIMaxDurationSecs != 300 {
+		t.Errorf("Expected default AIMaxDurationSecs 300, got %d", cfg.AIMaxDurationSecs)
 	}
 }

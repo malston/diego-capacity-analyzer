@@ -14,8 +14,9 @@ import (
 // Health returns API health status including CF, BOSH, and cache status.
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]interface{}{
-		"cf_api":   "ok",
-		"bosh_api": "not_configured",
+		"cf_api":        "ok",
+		"bosh_api":      "not_configured",
+		"ai_configured": h.chatProvider != nil,
 		"cache_status": map[string]bool{
 			"cells_cached": false,
 			"apps_cached":  false,

@@ -20,6 +20,7 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/backend/logger"
 	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
 	"github.com/markalston/diego-capacity-analyzer/backend/services"
+	"github.com/markalston/diego-capacity-analyzer/backend/services/ai"
 )
 
 func main() {
@@ -143,19 +144,21 @@ func main() {
 			"auth":    middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitAuth, window), middleware.ClientIP),
 			"refresh": middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitRefresh, window), middleware.SessionKey),
 			"write":   middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitWrite, window), middleware.UserOrIP),
+			"chat":    middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitChat, window), middleware.UserOrIP),
 			"":        middleware.RateLimit(middleware.NewRateLimiter(cfg.RateLimitDefault, window), middleware.UserOrIP),
 		}
 		slog.Info("Rate limiting enabled",
 			"auth", cfg.RateLimitAuth,
 			"refresh", cfg.RateLimitRefresh,
 			"write", cfg.RateLimitWrite,
+			"chat", cfg.RateLimitChat,
 			"default", cfg.RateLimitDefault,
 		)
 	} else {
 		// All tiers map to a nil-limiter no-op
 		noOp := middleware.RateLimit(nil, nil)
 		rateLimiters = map[string]func(http.HandlerFunc) http.HandlerFunc{
-			"auth": noOp, "refresh": noOp, "write": noOp, "": noOp,
+			"auth": noOp, "refresh": noOp, "write": noOp, "chat": noOp, "": noOp,
 		}
 		slog.Info("Rate limiting disabled")
 	}
@@ -163,6 +166,18 @@ func main() {
 	// Initialize handlers
 	h := handlers.NewHandler(cfg, c)
 	h.SetSessionService(sessionService)
+
+	// Initialize AI provider (optional -- config.Load validates provider name and API key)
+	if cfg.AIProvider == "" {
+		slog.Info("AI provider not configured, advisor feature disabled")
+	} else {
+		chatProvider := ai.NewAnthropicProvider(cfg.AIAPIKey, ai.ChatConfig{
+			MaxTokens: 4096,
+			Model:     cfg.AIModel,
+		})
+		h.SetChatProvider(chatProvider)
+		slog.Info("AI provider initialized", "provider", cfg.AIProvider, "model", cfg.AIModel)
+	}
 
 	// Register all routes with middleware
 	mux := http.NewServeMux()

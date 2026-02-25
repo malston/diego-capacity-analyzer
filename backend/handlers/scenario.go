@@ -6,10 +6,14 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
+	"github.com/markalston/diego-capacity-analyzer/backend/middleware"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 )
+
+const maxUserScenarios = 1000
 
 // CompareScenario compares current infrastructure against a proposed scenario.
 // HTTP method validation handled by Go 1.22+ router pattern matching.
@@ -43,6 +47,24 @@ func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
 
 	// Add recommendations based on current state
 	comparison.Recommendations = models.GenerateRecommendations(*state)
+
+	// Store scenario result for authenticated users so the AI advisor can reference it.
+	// Existing users can always update their scenario; only new insertions are refused
+	// when the map is at capacity.
+	claims := middleware.GetUserClaims(r)
+	if claims != nil {
+		h.userScenariosMutex.Lock()
+		_, exists := h.userScenarios[claims.Username]
+		if !exists && len(h.userScenarios) >= maxUserScenarios {
+			slog.Warn("user scenarios map at capacity, cannot store for new user",
+				"username", claims.Username,
+				"capacity", maxUserScenarios,
+			)
+		} else {
+			h.userScenarios[claims.Username] = &comparison
+		}
+		h.userScenariosMutex.Unlock()
+	}
 
 	h.writeJSON(w, http.StatusOK, comparison)
 }

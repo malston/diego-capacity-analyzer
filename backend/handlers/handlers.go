@@ -13,6 +13,7 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/backend/config"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 	"github.com/markalston/diego-capacity-analyzer/backend/services"
+	"github.com/markalston/diego-capacity-analyzer/backend/services/ai"
 )
 
 type Handler struct {
@@ -25,15 +26,19 @@ type Handler struct {
 	scenarioCalc        *services.ScenarioCalculator
 	planningCalc        *services.PlanningCalculator
 	sessionService      *services.SessionService
+	chatProvider        ai.ChatProvider
 	infraMutex          sync.RWMutex
+	userScenarios       map[string]*models.ScenarioComparison
+	userScenariosMutex  sync.RWMutex
 }
 
 func NewHandler(cfg *config.Config, cache *cache.Cache) *Handler {
 	h := &Handler{
-		cfg:          cfg,
-		cache:        cache,
-		scenarioCalc: services.NewScenarioCalculator(),
-		planningCalc: services.NewPlanningCalculator(),
+		cfg:           cfg,
+		cache:         cache,
+		scenarioCalc:  services.NewScenarioCalculator(),
+		planningCalc:  services.NewPlanningCalculator(),
+		userScenarios: make(map[string]*models.ScenarioComparison),
 	}
 
 	// CF client is optional (for testing)
@@ -100,4 +105,9 @@ func (h *Handler) writeErrorWithDetails(w http.ResponseWriter, message, details 
 // SetSessionService sets the session service for auth handlers
 func (h *Handler) SetSessionService(svc *services.SessionService) {
 	h.sessionService = svc
+}
+
+// SetChatProvider sets the AI chat provider for advisor endpoints
+func (h *Handler) SetChatProvider(p ai.ChatProvider) {
+	h.chatProvider = p
 }

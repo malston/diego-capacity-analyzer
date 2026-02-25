@@ -14,7 +14,18 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/backend/config"
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 	"github.com/markalston/diego-capacity-analyzer/backend/services"
+	"github.com/markalston/diego-capacity-analyzer/backend/services/ai"
 )
+
+// stubChatProvider satisfies ai.ChatProvider for health endpoint tests.
+// Tests verify the health response shape (ai_configured true/false), not provider behavior.
+type stubChatProvider struct{}
+
+func (stubChatProvider) Chat(_ context.Context, _ []ai.Message, _ ...ai.Option) <-chan ai.TokenEvent {
+	ch := make(chan ai.TokenEvent)
+	close(ch)
+	return ch
+}
 
 // setupMockBOSHServer creates a mock BOSH API server that returns cells with no UsedMB
 func setupMockBOSHServer(cellsWithNoUsedMB bool) *httptest.Server {
@@ -308,6 +319,63 @@ func TestHealthHandler_WithBOSH(t *testing.T) {
 	}
 }
 
+func TestHealthHandler_AIConfiguredFalse(t *testing.T) {
+	cfg := &config.Config{
+		CFAPIUrl:   "https://api.test.com",
+		CFUsername: "admin",
+		CFPassword: "secret",
+	}
+	c := cache.New(5 * time.Minute)
+	h := NewHandler(cfg, c)
+
+	req := httptest.NewRequest("GET", "/api/health", nil)
+	w := httptest.NewRecorder()
+
+	h.Health(w, req)
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	aiConfigured, ok := resp["ai_configured"]
+	if !ok {
+		t.Fatal("Expected ai_configured field in health response")
+	}
+	if aiConfigured != false {
+		t.Errorf("Expected ai_configured false when no provider set, got %v", aiConfigured)
+	}
+}
+
+func TestHealthHandler_AIConfiguredTrue(t *testing.T) {
+	cfg := &config.Config{
+		CFAPIUrl:   "https://api.test.com",
+		CFUsername: "admin",
+		CFPassword: "secret",
+	}
+	c := cache.New(5 * time.Minute)
+	h := NewHandler(cfg, c)
+	h.SetChatProvider(stubChatProvider{})
+
+	req := httptest.NewRequest("GET", "/api/health", nil)
+	w := httptest.NewRecorder()
+
+	h.Health(w, req)
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	aiConfigured, ok := resp["ai_configured"]
+	if !ok {
+		t.Fatal("Expected ai_configured field in health response")
+	}
+	if aiConfigured != true {
+		t.Errorf("Expected ai_configured true when provider set, got %v", aiConfigured)
+	}
+}
+
 func TestDashboardHandler_NoBOSH(t *testing.T) {
 	cfServer, uaaServer := setupMockCFServer()
 	defer cfServer.Close()
@@ -558,7 +626,7 @@ func TestHandleManualInfrastructure_CPURiskLevels(t *testing.T) {
 						Name:              "cluster-01",
 						HostCount:         tt.hostCount,
 						MemoryGBPerHost:   1024,
-						CPUThreadsPerHost:   tt.cpuCoresPerHost,
+						CPUThreadsPerHost: tt.cpuCoresPerHost,
 						DiegoCellCount:    tt.cellCount,
 						DiegoCellMemoryGB: 32,
 						DiegoCellCPU:      tt.cellCPU,

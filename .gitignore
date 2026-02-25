@@ -40,6 +40,9 @@ bosh-*.yml
 settings.local.json
 cli/diego-capacity
 
+# Planning artifacts (kept on feature branches, excluded from main)
+.planning/
+
 # Agent
 .agent/
 

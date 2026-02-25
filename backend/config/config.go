@@ -56,11 +56,26 @@ type Config struct {
 	VSphereDatacenter string
 	VSphereInsecure   bool
 	VSphereCacheTTL   int // seconds, default 300 (5 min)
+
+	// AI Provider (optional)
+	AIProvider        string
+	AIAPIKey          string
+	AIModel           string
+	AIIdleTimeoutSecs int // AI streaming idle timeout (default: 30)
+	AIMaxDurationSecs int // AI streaming max duration (default: 300)
+
+	// Rate Limiting (chat)
+	RateLimitChat int // Requests per minute for chat endpoint (default: 10)
 }
 
 // VSphereConfigured returns true if vSphere credentials are set
 func (c *Config) VSphereConfigured() bool {
 	return c.VSphereHost != "" && c.VSphereUsername != "" && c.VSpherePassword != "" && c.VSphereDatacenter != ""
+}
+
+// AIConfigured returns true if an AI provider and API key are both set
+func (c *Config) AIConfigured() bool {
+	return c.AIProvider != "" && c.AIAPIKey != ""
 }
 
 func Load() (*Config, error) {
@@ -103,6 +118,13 @@ func Load() (*Config, error) {
 		VSphereDatacenter: os.Getenv("VSPHERE_DATACENTER"),
 		VSphereInsecure:   getEnvBool("VSPHERE_INSECURE", false),
 		VSphereCacheTTL:   getEnvInt("VSPHERE_CACHE_TTL", 300),
+
+		AIProvider:        os.Getenv("AI_PROVIDER"),
+		AIAPIKey:          os.Getenv("AI_API_KEY"),
+		AIModel:           getEnv("AI_MODEL", "claude-sonnet-4-5-20250514"),
+		AIIdleTimeoutSecs: getEnvInt("AI_IDLE_TIMEOUT_SECS", 30),
+		AIMaxDurationSecs: getEnvInt("AI_MAX_DURATION_SECS", 300),
+		RateLimitChat:     getEnvInt("RATE_LIMIT_CHAT", 10),
 	}
 
 	// Validate required fields
@@ -116,6 +138,27 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("CF_PASSWORD is required")
 	}
 
+	// Validate AI provider configuration
+	if cfg.AIProvider != "" {
+		// Only "anthropic" is supported
+		if cfg.AIProvider != "anthropic" {
+			return nil, fmt.Errorf("unknown AI_PROVIDER %q, supported values: anthropic", cfg.AIProvider)
+		}
+		if cfg.AIAPIKey == "" {
+			return nil, fmt.Errorf("AI_API_KEY is required when AI_PROVIDER is set")
+		}
+	}
+
+	// Validate AI timeout values: must be positive to prevent immediate timeout/cancellation
+	if cfg.AIProvider != "" {
+		if cfg.AIIdleTimeoutSecs < 1 {
+			return nil, fmt.Errorf("AI_IDLE_TIMEOUT_SECS must be positive, got %d", cfg.AIIdleTimeoutSecs)
+		}
+		if cfg.AIMaxDurationSecs < 1 {
+			return nil, fmt.Errorf("AI_MAX_DURATION_SECS must be positive, got %d", cfg.AIMaxDurationSecs)
+		}
+	}
+
 	// Validate rate limit values
 	for _, rl := range []struct {
 		name  string
@@ -125,6 +168,7 @@ func Load() (*Config, error) {
 		{"RATE_LIMIT_REFRESH", cfg.RateLimitRefresh},
 		{"RATE_LIMIT_WRITE", cfg.RateLimitWrite},
 		{"RATE_LIMIT_DEFAULT", cfg.RateLimitDefault},
+		{"RATE_LIMIT_CHAT", cfg.RateLimitChat},
 	} {
 		if rl.value < 1 || rl.value > 10000 {
 			return nil, fmt.Errorf("%s must be between 1 and 10000, got %d", rl.name, rl.value)
