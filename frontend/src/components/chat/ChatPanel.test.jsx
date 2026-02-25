@@ -14,6 +14,7 @@ vi.mock("../../hooks/useChatStream", () => ({
   useChatStream: vi.fn(() => ({
     messages: [],
     isStreaming: false,
+    error: null,
     sendMessage: vi.fn(),
   })),
 }));
@@ -106,6 +107,7 @@ describe("ChatPanel", () => {
         },
       ],
       isStreaming: false,
+      error: null,
       sendMessage: vi.fn(),
     });
 
@@ -115,11 +117,39 @@ describe("ChatPanel", () => {
     expect(screen.getByText("Hi there!")).toBeInTheDocument();
   });
 
+  it("renders error banner when error is set", () => {
+    useChatStream.mockReturnValue({
+      messages: [],
+      isStreaming: false,
+      error: "Connection lost",
+      sendMessage: vi.fn(),
+    });
+
+    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    expect(screen.getByText("Connection lost")).toBeInTheDocument();
+  });
+
+  it("does not render error banner when error is null", () => {
+    useChatStream.mockReturnValue({
+      messages: [],
+      isStreaming: false,
+      error: null,
+      sendMessage: vi.fn(),
+    });
+
+    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    // No red error banner present
+    expect(screen.queryByText("Connection lost")).not.toBeInTheDocument();
+  });
+
   it("calls sendMessage when user types and presses Enter", async () => {
     const sendMessage = vi.fn();
     useChatStream.mockReturnValue({
       messages: [],
       isStreaming: false,
+      error: null,
       sendMessage,
     });
 
@@ -178,6 +208,23 @@ describe("ChatToggle", () => {
 
   it("renders nothing when health fetch fails", async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error("network"));
+
+    const { container } = render(
+      <ChatToggle isOpen={false} onToggle={vi.fn()} />,
+    );
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    expect(container.querySelector("button")).not.toBeInTheDocument();
+  });
+
+  it("renders nothing when health returns non-OK HTTP status", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+    });
 
     const { container } = render(
       <ChatToggle isOpen={false} onToggle={vi.fn()} />,

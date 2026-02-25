@@ -1,5 +1,5 @@
 // ABOUTME: Overlay chat panel with slide-in animation, backdrop, and responsive layout
-// ABOUTME: Manages panel lifecycle, body scroll lock, and abort on close
+// ABOUTME: Manages panel lifecycle, body scroll lock, and escape-to-close
 
 import { useEffect, useCallback } from "react";
 import { X } from "lucide-react";
@@ -8,7 +8,7 @@ import ChatMessages from "./ChatMessages";
 import ChatInput from "./ChatInput";
 
 const ChatPanel = ({ isOpen, onClose }) => {
-  const { messages, isStreaming, sendMessage } = useChatStream();
+  const { messages, isStreaming, error, sendMessage } = useChatStream();
 
   // Body scroll lock when panel is open
   useEffect(() => {
@@ -73,6 +73,13 @@ const ChatPanel = ({ isOpen, onClose }) => {
             <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
+
+        {/* Error banner */}
+        {error && (
+          <div className="px-4 py-2 bg-red-500/10 border-b border-red-500/30 text-red-400 text-xs flex-shrink-0">
+            {error}
+          </div>
+        )}
 
         {/* Messages */}
         <ChatMessages messages={messages} isStreaming={isStreaming} />

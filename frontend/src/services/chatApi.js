@@ -3,11 +3,14 @@
 
 import { withCSRFToken } from "../utils/csrf.js";
 
+const API_URL = import.meta.env.VITE_API_URL || "";
+
 /**
  * Parse a single SSE event text block into { type, data }.
  *
  * @param {string} raw - Raw SSE event text (lines between double newlines)
- * @returns {{ type: string, data: any } | null} Parsed event or null if no data line
+ * @returns {{ type: string, data: any } | null} Parsed event, or null if no
+ *   data line is present or if the data line contains malformed JSON
  */
 export function parseSSEEvent(raw) {
   const lines = raw.split("\n");
@@ -26,7 +29,12 @@ export function parseSSEEvent(raw) {
     return null;
   }
 
-  return { type, data: JSON.parse(dataLine) };
+  try {
+    return { type, data: JSON.parse(dataLine) };
+  } catch {
+    console.warn("Skipping malformed SSE data:", dataLine);
+    return null;
+  }
 }
 
 /**
@@ -44,7 +52,7 @@ export async function* streamChat(messages, signal) {
     "Content-Type": "application/json",
   });
 
-  const response = await fetch("/api/v1/chat", {
+  const response = await fetch(`${API_URL}/api/v1/chat`, {
     method: "POST",
     headers,
     credentials: "include",
@@ -61,6 +69,10 @@ export async function* streamChat(messages, signal) {
       // Response body is not JSON
     }
     throw new Error(message || `Chat request failed: ${response.status}`);
+  }
+
+  if (!response.body) {
+    throw new Error("Response body is not readable (streaming not supported)");
   }
 
   const reader = response.body.getReader();

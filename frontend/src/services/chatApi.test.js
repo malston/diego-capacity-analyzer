@@ -36,6 +36,21 @@ describe("parseSSEEvent", () => {
     const result = parseSSEEvent(raw);
     expect(result).toEqual({ type: "message", data: { text: "hi" } });
   });
+
+  it("returns null on malformed JSON data", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const raw = "event: token\ndata: {not valid json}";
+    const result = parseSSEEvent(raw);
+
+    expect(result).toBeNull();
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Skipping malformed SSE data:",
+      "{not valid json}",
+    );
+
+    warnSpy.mockRestore();
+  });
 });
 
 describe("streamChat", () => {
@@ -144,6 +159,36 @@ describe("streamChat", () => {
     await expect(gen.next()).rejects.toThrow(TypeError);
   });
 
+  it("discards trailing buffer without terminator", async () => {
+    // Stream ends with data in buffer that never gets a \n\n terminator
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: mockReadableStream([
+        'event: token\ndata: {"text":"ok"}\n\nevent: token\ndata: {"text":"trailing"}',
+      ]),
+    });
+
+    const events = [];
+    for await (const event of streamChat([{ role: "user", content: "hi" }])) {
+      events.push(event);
+    }
+
+    // Only the first event (terminated by \n\n) should be yielded
+    expect(events).toEqual([{ type: "token", data: { text: "ok" } }]);
+  });
+
+  it("throws when response.body is null", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: null,
+    });
+
+    const gen = streamChat([{ role: "user", content: "hi" }]);
+    await expect(gen.next()).rejects.toThrow(
+      "Response body is not readable (streaming not supported)",
+    );
+  });
+
   it("includes CSRF header and credentials in request", async () => {
     // Set up CSRF cookie
     Object.defineProperty(document, "cookie", {
@@ -163,7 +208,7 @@ describe("streamChat", () => {
     }
 
     expect(global.fetch).toHaveBeenCalledWith(
-      "/api/v1/chat",
+      expect.stringContaining("/api/v1/chat"),
       expect.objectContaining({
         method: "POST",
         credentials: "include",

@@ -1,4 +1,4 @@
-// ABOUTME: Header component with title, user info, settings, and tab navigation
+// ABOUTME: Header component with title, user info, settings, chat toggle, and tab navigation
 // ABOUTME: Handles logout, tab switching, and settings panel for TAS Capacity Analyzer
 
 import { Server, Activity, Zap, LogOut, User } from "lucide-react";

@@ -130,6 +130,7 @@ describe("useChatStream", () => {
   it("silently catches AbortError", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
+    // eslint-disable-next-line require-yield
     streamChat.mockImplementation(async function* () {
       const error = new Error("aborted");
       error.name = "AbortError";
@@ -149,6 +150,7 @@ describe("useChatStream", () => {
   it("logs non-abort errors to console", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
+    // eslint-disable-next-line require-yield
     streamChat.mockImplementation(async function* () {
       throw new Error("network failure");
     });
@@ -164,5 +166,92 @@ describe("useChatStream", () => {
       expect.any(Error),
     );
     expect(result.current.isStreaming).toBe(false);
+  });
+
+  it("sets error state on non-abort errors", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // eslint-disable-next-line require-yield
+    streamChat.mockImplementation(async function* () {
+      throw new Error("server exploded");
+    });
+
+    const { result } = renderHook(() => useChatStream());
+
+    expect(result.current.error).toBeNull();
+
+    await act(async () => {
+      await result.current.sendMessage("test");
+    });
+
+    expect(result.current.error).toBe("server exploded");
+  });
+
+  it("preserves partial content when SSE error event occurs mid-stream", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    streamChat.mockImplementation(async function* () {
+      yield { type: "token", data: { text: "partial " } };
+      yield { type: "token", data: { text: "content" } };
+      yield { type: "error", data: { message: "rate limited" } };
+    });
+
+    const { result } = renderHook(() => useChatStream());
+
+    await act(async () => {
+      await result.current.sendMessage("test");
+    });
+
+    // Partial content preserved in assistant message
+    expect(result.current.messages[1].content).toBe("partial content");
+    // Error state set from the thrown error
+    expect(result.current.error).toBe("rate limited");
+    expect(result.current.isStreaming).toBe(false);
+  });
+
+  it("clears error on next sendMessage", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // First call errors
+    // eslint-disable-next-line require-yield
+    streamChat.mockImplementationOnce(async function* () {
+      throw new Error("fail");
+    });
+
+    const { result } = renderHook(() => useChatStream());
+
+    await act(async () => {
+      await result.current.sendMessage("first");
+    });
+
+    expect(result.current.error).toBe("fail");
+
+    // Second call succeeds
+    streamChat.mockImplementationOnce(async function* () {
+      yield { type: "done", data: {} };
+    });
+
+    await act(async () => {
+      await result.current.sendMessage("second");
+    });
+
+    expect(result.current.error).toBeNull();
+  });
+
+  it("does not set error on AbortError", async () => {
+    // eslint-disable-next-line require-yield
+    streamChat.mockImplementation(async function* () {
+      const error = new Error("aborted");
+      error.name = "AbortError";
+      throw error;
+    });
+
+    const { result } = renderHook(() => useChatStream());
+
+    await act(async () => {
+      await result.current.sendMessage("test");
+    });
+
+    expect(result.current.error).toBeNull();
   });
 });

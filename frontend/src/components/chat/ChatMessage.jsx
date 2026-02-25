@@ -111,7 +111,7 @@ const markdownComponents = {
 const ChatMessage = React.memo(({ message, isStreaming, tick }) => {
   const isAssistant = message.role === "assistant";
   const plugins = useMemo(() => ({ code }), []);
-  // Force tick into dependency to refresh timestamps
+  // Reference tick prop so changes trigger React.memo re-render, refreshing relative timestamps
   void tick;
 
   return (

@@ -31,6 +31,8 @@ func (rw *responseWriter) WriteHeader(code int) {
 func (rw *responseWriter) Flush() {
 	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
+	} else {
+		slog.Warn("ResponseWriter does not implement http.Flusher; Flush is a no-op")
 	}
 }
 
