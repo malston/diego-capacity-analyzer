@@ -345,3 +345,96 @@ func TestLoadConfig_AIProviderWithoutKey(t *testing.T) {
 		t.Errorf("Expected error mentioning AI_API_KEY, got: %v", err)
 	}
 }
+
+func TestLoadConfig_AIProviderUnknown(t *testing.T) {
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"AI_PROVIDER": "openai",
+		"AI_API_KEY":  "test-key",
+	}))
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Expected error for unknown AI_PROVIDER, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown AI_PROVIDER") {
+		t.Errorf("Expected error mentioning 'unknown AI_PROVIDER', got: %v", err)
+	}
+}
+
+func TestLoadConfig_AITimeoutValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     map[string]string
+		wantErr string
+	}{
+		{
+			name: "zero idle timeout",
+			env: map[string]string{
+				"AI_PROVIDER":          "anthropic",
+				"AI_API_KEY":           "test-key",
+				"AI_IDLE_TIMEOUT_SECS": "0",
+			},
+			wantErr: "AI_IDLE_TIMEOUT_SECS",
+		},
+		{
+			name: "negative idle timeout",
+			env: map[string]string{
+				"AI_PROVIDER":          "anthropic",
+				"AI_API_KEY":           "test-key",
+				"AI_IDLE_TIMEOUT_SECS": "-5",
+			},
+			wantErr: "AI_IDLE_TIMEOUT_SECS",
+		},
+		{
+			name: "zero max duration",
+			env: map[string]string{
+				"AI_PROVIDER":          "anthropic",
+				"AI_API_KEY":           "test-key",
+				"AI_MAX_DURATION_SECS": "0",
+			},
+			wantErr: "AI_MAX_DURATION_SECS",
+		},
+		{
+			name: "negative max duration",
+			env: map[string]string{
+				"AI_PROVIDER":          "anthropic",
+				"AI_API_KEY":           "test-key",
+				"AI_MAX_DURATION_SECS": "-10",
+			},
+			wantErr: "AI_MAX_DURATION_SECS",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(withCleanCFEnvAndExtra(t, tt.env))
+
+			_, err := Load()
+			if err == nil {
+				t.Fatalf("Expected error for %s, got nil", tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("Expected error mentioning %s, got: %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestLoadConfig_AITimeoutDefaults(t *testing.T) {
+	t.Cleanup(withCleanCFEnvAndExtra(t, map[string]string{
+		"AI_PROVIDER": "anthropic",
+		"AI_API_KEY":  "test-key",
+	}))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.AIIdleTimeoutSecs != 30 {
+		t.Errorf("Expected default AIIdleTimeoutSecs 30, got %d", cfg.AIIdleTimeoutSecs)
+	}
+	if cfg.AIMaxDurationSecs != 300 {
+		t.Errorf("Expected default AIMaxDurationSecs 300, got %d", cfg.AIMaxDurationSecs)
+	}
+}

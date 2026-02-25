@@ -48,12 +48,15 @@ func (h *Handler) CompareScenario(w http.ResponseWriter, r *http.Request) {
 	// Add recommendations based on current state
 	comparison.Recommendations = models.GenerateRecommendations(*state)
 
-	// Store scenario result for authenticated users so the AI advisor can reference it
+	// Store scenario result for authenticated users so the AI advisor can reference it.
+	// Existing users can always update their scenario; only new insertions are refused
+	// when the map is at capacity.
 	claims := middleware.GetUserClaims(r)
 	if claims != nil {
 		h.userScenariosMutex.Lock()
-		if len(h.userScenarios) >= maxUserScenarios {
-			slog.Warn("user scenarios map at capacity, skipping storage",
+		_, exists := h.userScenarios[claims.Username]
+		if !exists && len(h.userScenarios) >= maxUserScenarios {
+			slog.Warn("user scenarios map at capacity, cannot store for new user",
 				"username", claims.Username,
 				"capacity", maxUserScenarios,
 			)

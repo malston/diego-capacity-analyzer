@@ -1140,3 +1140,78 @@ func TestCompareScenario_UsersGetIsolatedScenarios(t *testing.T) {
 		t.Errorf("bob: expected Proposed.CellCount=20, got %d", bobScenario.Proposed.CellCount)
 	}
 }
+
+func TestCompareScenario_ExistingUserCanUpdateAtCapacity(t *testing.T) {
+	h := newChatTestHandler(&mockChatProvider{})
+	setupInfrastructure(h)
+
+	// Pre-fill map to exactly maxUserScenarios with one slot belonging to our test user
+	h.userScenariosMutex.Lock()
+	h.userScenarios["testuser"] = &models.ScenarioComparison{
+		Proposed: models.ScenarioResult{CellCount: 5},
+	}
+	for i := 1; i < maxUserScenarios; i++ {
+		h.userScenarios[fmt.Sprintf("filler-%d", i)] = &models.ScenarioComparison{}
+	}
+	h.userScenariosMutex.Unlock()
+
+	if len(h.userScenarios) != maxUserScenarios {
+		t.Fatalf("pre-condition: expected %d entries, got %d", maxUserScenarios, len(h.userScenarios))
+	}
+
+	// Existing user should be able to update even at capacity
+	body := `{"proposed_cell_memory_gb": 64, "proposed_cell_cpu": 4, "proposed_cell_count": 20}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenario/compare", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = middleware.WithUserClaims(req, testClaims)
+	w := httptest.NewRecorder()
+
+	h.CompareScenario(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("CompareScenario returned %d: %s", w.Code, w.Body.String())
+	}
+
+	h.userScenariosMutex.RLock()
+	stored := h.userScenarios["testuser"]
+	h.userScenariosMutex.RUnlock()
+
+	if stored == nil {
+		t.Fatal("expected scenario to be updated for existing user at capacity")
+	}
+	if stored.Proposed.CellCount != 20 {
+		t.Errorf("expected updated Proposed.CellCount=20, got %d", stored.Proposed.CellCount)
+	}
+}
+
+func TestCompareScenario_NewUserBlockedAtCapacity(t *testing.T) {
+	h := newChatTestHandler(&mockChatProvider{})
+	setupInfrastructure(h)
+
+	// Fill map to exactly maxUserScenarios (none belonging to our test user)
+	h.userScenariosMutex.Lock()
+	for i := 0; i < maxUserScenarios; i++ {
+		h.userScenarios[fmt.Sprintf("other-%d", i)] = &models.ScenarioComparison{}
+	}
+	h.userScenariosMutex.Unlock()
+
+	// New user should be blocked from inserting
+	body := `{"proposed_cell_memory_gb": 64, "proposed_cell_cpu": 4, "proposed_cell_count": 10}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenario/compare", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = middleware.WithUserClaims(req, testClaims)
+	w := httptest.NewRecorder()
+
+	h.CompareScenario(w, req)
+	// Request still succeeds (scenario comparison is returned), storage is just skipped
+	if w.Code != http.StatusOK {
+		t.Fatalf("CompareScenario returned %d: %s", w.Code, w.Body.String())
+	}
+
+	h.userScenariosMutex.RLock()
+	stored := h.userScenarios["testuser"]
+	h.userScenariosMutex.RUnlock()
+
+	if stored != nil {
+		t.Error("expected new user's scenario to NOT be stored when map is at capacity")
+	}
+}

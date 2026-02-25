@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -60,7 +61,9 @@ func writeSSEEvent(w http.ResponseWriter, flusher http.Flusher, eventType string
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, payload)
+	if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, payload); err != nil {
+		return err
+	}
 	flusher.Flush()
 	return nil
 }
@@ -117,6 +120,11 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 
 	var req ChatRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxRequestBodySize)).Decode(&req); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			h.writeError(w, "Request body too large", http.StatusBadRequest)
+			return
+		}
 		h.writeError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}

@@ -138,9 +138,25 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("CF_PASSWORD is required")
 	}
 
-	// Validate AI provider configuration: if a provider is set, an API key is required
-	if cfg.AIProvider != "" && cfg.AIAPIKey == "" {
-		return nil, fmt.Errorf("AI_API_KEY is required when AI_PROVIDER is set")
+	// Validate AI provider configuration
+	if cfg.AIProvider != "" {
+		// Only "anthropic" is supported
+		if cfg.AIProvider != "anthropic" {
+			return nil, fmt.Errorf("unknown AI_PROVIDER %q, supported values: anthropic", cfg.AIProvider)
+		}
+		if cfg.AIAPIKey == "" {
+			return nil, fmt.Errorf("AI_API_KEY is required when AI_PROVIDER is set")
+		}
+	}
+
+	// Validate AI timeout values: must be positive to prevent immediate timeout/cancellation
+	if cfg.AIProvider != "" {
+		if cfg.AIIdleTimeoutSecs < 1 {
+			return nil, fmt.Errorf("AI_IDLE_TIMEOUT_SECS must be positive, got %d", cfg.AIIdleTimeoutSecs)
+		}
+		if cfg.AIMaxDurationSecs < 1 {
+			return nil, fmt.Errorf("AI_MAX_DURATION_SECS must be positive, got %d", cfg.AIMaxDurationSecs)
+		}
 	}
 
 	// Validate rate limit values

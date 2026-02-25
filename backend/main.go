@@ -167,20 +167,16 @@ func main() {
 	h := handlers.NewHandler(cfg, c)
 	h.SetSessionService(sessionService)
 
-	// Initialize AI provider (optional -- config.Load validates that AIAPIKey is
-	// present when AIProvider is set, so we only check provider name here)
+	// Initialize AI provider (optional -- config.Load validates provider name and API key)
 	if cfg.AIProvider == "" {
 		slog.Info("AI provider not configured, advisor feature disabled")
-	} else if cfg.AIProvider == "anthropic" {
+	} else {
 		chatProvider := ai.NewAnthropicProvider(cfg.AIAPIKey, ai.ChatConfig{
 			MaxTokens: 4096,
 			Model:     cfg.AIModel,
 		})
 		h.SetChatProvider(chatProvider)
 		slog.Info("AI provider initialized", "provider", cfg.AIProvider, "model", cfg.AIModel)
-	} else {
-		slog.Error("Unknown AI_PROVIDER value", "provider", cfg.AIProvider)
-		os.Exit(1)
 	}
 
 	// Register all routes with middleware
