@@ -108,11 +108,9 @@ const markdownComponents = {
   hr: () => <hr className="border-slate-700 my-3" />,
 };
 
-const ChatMessage = React.memo(({ message, isStreaming, tick }) => {
+const ChatMessage = React.memo(({ message, isStreaming, tick: _tick }) => {
   const isAssistant = message.role === "assistant";
   const plugins = useMemo(() => ({ code }), []);
-  // Reference tick prop so changes trigger React.memo re-render, refreshing relative timestamps
-  void tick;
 
   return (
     <div

@@ -99,8 +99,9 @@ describe("ChatPanel", () => {
   it("displays messages from useChatStream", () => {
     useChatStream.mockReturnValue({
       messages: [
-        { role: "user", content: "Hello", timestamp: Date.now() },
+        { id: "msg-1", role: "user", content: "Hello", timestamp: Date.now() },
         {
+          id: "msg-2",
           role: "assistant",
           content: "Hi there!",
           timestamp: Date.now(),
@@ -335,8 +336,9 @@ describe("ChatMessages", () => {
 
   it("renders messages when provided", () => {
     const messages = [
-      { role: "user", content: "Hello", timestamp: Date.now() },
+      { id: "msg-1", role: "user", content: "Hello", timestamp: Date.now() },
       {
+        id: "msg-2",
         role: "assistant",
         content: "World",
         timestamp: Date.now(),

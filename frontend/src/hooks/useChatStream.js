@@ -4,11 +4,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { streamChat } from "../services/chatApi.js";
 
+let nextMessageId = 0;
+
 /**
  * Custom hook for managing chat conversation state and streaming.
  *
  * @returns {{
- *   messages: Array<{ role: string, content: string, timestamp: number }>,
+ *   messages: Array<{ id: string, role: string, content: string, timestamp: number }>,
  *   isStreaming: boolean,
  *   error: string | null,
  *   sendMessage: (text: string) => Promise<void>
@@ -23,15 +25,18 @@ export function useChatStream() {
   messagesRef.current = messages;
 
   const sendMessage = useCallback(async (text) => {
+    const now = Date.now();
     const userMessage = {
+      id: `msg-${now}-${nextMessageId++}`,
       role: "user",
       content: text,
-      timestamp: Date.now(),
+      timestamp: now,
     };
     const assistantMessage = {
+      id: `msg-${now}-${nextMessageId++}`,
       role: "assistant",
       content: "",
-      timestamp: Date.now(),
+      timestamp: now,
     };
 
     setMessages((prev) => [...prev, userMessage, assistantMessage]);

@@ -50,6 +50,11 @@ describe("useChatStream", () => {
       content: "",
     });
     expect(result.current.messages[0].timestamp).toBeTypeOf("number");
+    expect(result.current.messages[0].id).toBeTypeOf("string");
+    expect(result.current.messages[1].id).toBeTypeOf("string");
+    expect(result.current.messages[0].id).not.toBe(
+      result.current.messages[1].id,
+    );
   });
 
   it("appends tokens to assistant message content", async () => {

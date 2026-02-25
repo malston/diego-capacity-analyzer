@@ -560,7 +560,9 @@ Check browser console (F12) for details.`;
       </footer>
 
       {/* AI Advisor Chat Panel */}
-      <ChatPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+      {chatOpen && (
+        <ChatPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+      )}
     </div>
   );
 };

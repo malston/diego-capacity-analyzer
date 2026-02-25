@@ -46,6 +46,7 @@ const ChatPanel = ({ isOpen, onClose }) => {
       className={`fixed inset-0 z-40 ${isOpen ? "" : "pointer-events-none"}`}
       role="dialog"
       aria-label="AI Advisor"
+      aria-modal="true"
       aria-hidden={!isOpen}
     >
       {/* Backdrop */}

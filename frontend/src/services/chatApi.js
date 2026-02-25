@@ -98,6 +98,9 @@ export async function* streamChat(messages, signal) {
         }
       }
     }
+
+    // Flush any remaining multi-byte sequences from the decoder
+    buffer += decoder.decode();
   } finally {
     reader.releaseLock();
   }

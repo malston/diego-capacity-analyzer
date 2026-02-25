@@ -54,7 +54,7 @@ const ChatMessages = React.memo(({ messages, isStreaming }) => {
     >
       {messages.map((message, index) => (
         <ChatMessage
-          key={index}
+          key={message.id}
           message={message}
           isStreaming={
             isStreaming &&
