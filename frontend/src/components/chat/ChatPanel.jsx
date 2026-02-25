@@ -58,7 +58,7 @@ const ChatPanel = ({ isOpen, onClose }) => {
       />
       {/* Panel */}
       <div
-        className={`absolute top-0 right-0 h-full w-full sm:w-[440px] bg-slate-900 border-l border-slate-700
+        className={`absolute top-0 right-0 h-full w-full md:w-[440px] bg-slate-900 border-l border-slate-700
           transform transition-transform duration-300 ease-out flex flex-col
           ${isOpen ? "translate-x-0" : "translate-x-full"}`}
       >
