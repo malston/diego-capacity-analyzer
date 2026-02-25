@@ -126,9 +126,6 @@ func TestChat_AuthRequired_WithCredentials(t *testing.T) {
 	h := newChatTestHandler(mock)
 
 	body := `{"messages":[{"role":"user","content":"hello"}]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = middleware.WithUserClaims(req, testClaims)
 
 	// Use httptest.NewServer so SSE streaming works (httptest.NewRecorder does not support Flusher)
 	ts := httptest.NewServer(withTestAuth(h.Chat))
