@@ -1,0 +1,222 @@
+// ABOUTME: Unit tests for SSE transport and event parsing
+// ABOUTME: Verifies chunk buffering, event type parsing, error handling, and abort support
+
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { parseSSEEvent, streamChat } from "./chatApi";
+
+describe("parseSSEEvent", () => {
+  it("parses a token event", () => {
+    const raw = 'event: token\ndata: {"text":"hello"}';
+    const result = parseSSEEvent(raw);
+    expect(result).toEqual({ type: "token", data: { text: "hello" } });
+  });
+
+  it("parses a done event", () => {
+    const raw = 'event: done\ndata: {"usage":{"tokens":42}}';
+    const result = parseSSEEvent(raw);
+    expect(result).toEqual({ type: "done", data: { usage: { tokens: 42 } } });
+  });
+
+  it("parses an error event", () => {
+    const raw = 'event: error\ndata: {"message":"rate limited"}';
+    const result = parseSSEEvent(raw);
+    expect(result).toEqual({
+      type: "error",
+      data: { message: "rate limited" },
+    });
+  });
+
+  it("returns null when no data line is present", () => {
+    const raw = "event: token";
+    expect(parseSSEEvent(raw)).toBeNull();
+  });
+
+  it("defaults to message type when no event line is present", () => {
+    const raw = 'data: {"text":"hi"}';
+    const result = parseSSEEvent(raw);
+    expect(result).toEqual({ type: "message", data: { text: "hi" } });
+  });
+
+  it("returns null on malformed JSON data", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const raw = "event: token\ndata: {not valid json}";
+    const result = parseSSEEvent(raw);
+
+    expect(result).toBeNull();
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Skipping malformed SSE data:",
+      "{not valid json}",
+    );
+
+    warnSpy.mockRestore();
+  });
+});
+
+describe("streamChat", () => {
+  let originalFetch;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Create a mock ReadableStream from an array of string chunks.
+   */
+  function mockReadableStream(chunks) {
+    let index = 0;
+    return {
+      getReader() {
+        return {
+          read() {
+            if (index < chunks.length) {
+              const value = new TextEncoder().encode(chunks[index]);
+              index++;
+              return Promise.resolve({ done: false, value });
+            }
+            return Promise.resolve({ done: true });
+          },
+          releaseLock() {},
+        };
+      },
+    };
+  }
+
+  it("yields correct token events in order", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: mockReadableStream([
+        'event: token\ndata: {"text":"Hello"}\n\nevent: token\ndata: {"text":" world"}\n\nevent: done\ndata: {}\n\n',
+      ]),
+    });
+
+    const events = [];
+    for await (const event of streamChat([{ role: "user", content: "hi" }])) {
+      events.push(event);
+      if (event.type === "done") break;
+    }
+
+    expect(events).toEqual([
+      { type: "token", data: { text: "Hello" } },
+      { type: "token", data: { text: " world" } },
+      { type: "done", data: {} },
+    ]);
+  });
+
+  it("handles chunk boundary splits", async () => {
+    // Event split across two reads
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: mockReadableStream([
+        'event: token\ndata: {"tex',
+        't":"split"}\n\nevent: done\ndata: {}\n\n',
+      ]),
+    });
+
+    const events = [];
+    for await (const event of streamChat([{ role: "user", content: "test" }])) {
+      events.push(event);
+      if (event.type === "done") break;
+    }
+
+    expect(events).toEqual([
+      { type: "token", data: { text: "split" } },
+      { type: "done", data: {} },
+    ]);
+  });
+
+  it("throws on non-OK response with error message from body", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: () => Promise.resolve({ error: "AI provider unavailable" }),
+    });
+
+    const gen = streamChat([{ role: "user", content: "hi" }]);
+    await expect(gen.next()).rejects.toThrow("AI provider unavailable");
+  });
+
+  it("throws on non-OK response with status when body has no error", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: () => Promise.reject(new Error("not json")),
+    });
+
+    const gen = streamChat([{ role: "user", content: "hi" }]);
+    await expect(gen.next()).rejects.toThrow("Chat request failed: 500");
+  });
+
+  it("throws on network error", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const gen = streamChat([{ role: "user", content: "hi" }]);
+    await expect(gen.next()).rejects.toThrow(TypeError);
+  });
+
+  it("discards trailing buffer without terminator", async () => {
+    // Stream ends with data in buffer that never gets a \n\n terminator
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: mockReadableStream([
+        'event: token\ndata: {"text":"ok"}\n\nevent: token\ndata: {"text":"trailing"}',
+      ]),
+    });
+
+    const events = [];
+    for await (const event of streamChat([{ role: "user", content: "hi" }])) {
+      events.push(event);
+    }
+
+    // Only the first event (terminated by \n\n) should be yielded
+    expect(events).toEqual([{ type: "token", data: { text: "ok" } }]);
+  });
+
+  it("throws when response.body is null", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: null,
+    });
+
+    const gen = streamChat([{ role: "user", content: "hi" }]);
+    await expect(gen.next()).rejects.toThrow(
+      "Response body is not readable (streaming not supported)",
+    );
+  });
+
+  it("includes CSRF header and credentials in request", async () => {
+    // Set up CSRF cookie
+    Object.defineProperty(document, "cookie", {
+      value: "DIEGO_CSRF=test-token-123",
+      writable: true,
+    });
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: mockReadableStream(["event: done\ndata: {}\n\n"]),
+    });
+
+    const gen = streamChat([{ role: "user", content: "hi" }]);
+    // Consume all events
+    for await (const event of gen) {
+      if (event.type === "done") break;
+    }
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/chat"),
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "X-CSRF-Token": "test-token-123",
+        }),
+      }),
+    );
+  });
+});

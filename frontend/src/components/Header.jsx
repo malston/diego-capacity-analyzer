@@ -1,8 +1,9 @@
-// ABOUTME: Header component with title, user info, settings, and tab navigation
+// ABOUTME: Header component with title, user info, settings, chat toggle, and tab navigation
 // ABOUTME: Handles logout, tab switching, and settings panel for TAS Capacity Analyzer
 
-import { Server, Activity, Zap, LogOut, User } from 'lucide-react';
-import SettingsPanel from './SettingsPanel';
+import { Server, Activity, Zap, LogOut, User } from "lucide-react";
+import SettingsPanel from "./SettingsPanel";
+import ChatToggle from "./chat/ChatToggle";
 
 const Header = ({
   user,
@@ -16,10 +17,12 @@ const Header = ({
   onTestConnection,
   onRefresh,
   devMode = false,
+  chatOpen = false,
+  onChatToggle,
 }) => {
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: Activity },
-    { id: 'scenarios', label: 'Capacity Planning', icon: Zap },
+    { id: "dashboard", label: "Dashboard", icon: Activity },
+    { id: "scenarios", label: "Capacity Planning", icon: Zap },
   ];
 
   return (
@@ -33,11 +36,16 @@ const Header = ({
             <h1 className="text-4xl font-bold title-font bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
               TAS Capacity Analyzer
             </h1>
-            <p className="text-slate-400 text-sm mt-1">Real-time diego cell capacity and density optimization</p>
+            <p className="text-slate-400 text-sm mt-1">
+              Real-time diego cell capacity and density optimization
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* AI Advisor Toggle */}
+          <ChatToggle isOpen={chatOpen} onToggle={onChatToggle} />
+
           {/* Settings Panel */}
           <SettingsPanel
             useMockData={useMockData}
@@ -77,8 +85,8 @@ const Header = ({
             aria-controls={`${id}-panel`}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeTab === id
-                ? 'bg-blue-500 text-white'
-                : 'bg-slate-800/50 text-slate-300 border border-slate-700 hover:border-blue-500'
+                ? "bg-blue-500 text-white"
+                : "bg-slate-800/50 text-slate-300 border border-slate-700 hover:border-blue-500"
             }`}
           >
             <Icon className="w-4 h-4 inline mr-2" aria-hidden="true" />

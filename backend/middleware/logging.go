@@ -13,6 +13,7 @@ import (
 )
 
 // responseWriter wraps http.ResponseWriter to capture the status code.
+// It preserves http.Flusher support so SSE streaming works through the wrapper.
 type responseWriter struct {
 	http.ResponseWriter
 	statusCode int
@@ -21,6 +22,23 @@ type responseWriter struct {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+// Flush delegates to the underlying ResponseWriter if it implements http.Flusher.
+// Without this, SSE endpoints fail because Go interface embedding only promotes
+// methods from the embedded interface type (http.ResponseWriter), not additional
+// interfaces (http.Flusher) that the concrete value may implement.
+func (rw *responseWriter) Flush() {
+	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	} else {
+		slog.Warn("ResponseWriter does not implement http.Flusher; Flush is a no-op")
+	}
+}
+
+// Unwrap returns the underlying ResponseWriter for http.NewResponseController.
+func (rw *responseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
 }
 
 // LogRequest logs HTTP requests with timing and correlation ID.
