@@ -103,6 +103,54 @@ func TestBuildSystemPromptIncludesContext(t *testing.T) {
 	}
 }
 
+func TestSystemPromptContainsUrgencyTiers(t *testing.T) {
+	lower := strings.ToLower(systemPrompt)
+	urgencyTerms := []string{
+		"70%",
+		"80%",
+		"90%",
+		"expedite",
+		"burst capacity",
+	}
+	for _, term := range urgencyTerms {
+		if !strings.Contains(lower, strings.ToLower(term)) {
+			t.Errorf("system prompt missing urgency tier term: %s", term)
+		}
+	}
+}
+
+func TestSystemPromptContainsBudgetJustification(t *testing.T) {
+	lower := strings.ToLower(systemPrompt)
+	// At least one of these business-impact terms must be present
+	businessTerms := []string{
+		"deployment failure",
+		"sla",
+		"developer velocity",
+	}
+	found := 0
+	for _, term := range businessTerms {
+		if strings.Contains(lower, term) {
+			found++
+		}
+	}
+	if found < 3 {
+		t.Errorf("system prompt should contain all budget justification terms (deployment failure, SLA, developer velocity), found %d of 3", found)
+	}
+}
+
+func TestSystemPromptNoCalendarReferences(t *testing.T) {
+	lower := strings.ToLower(systemPrompt)
+	calendarTerms := []string{
+		"q1", "q2", "q3", "q4",
+		"fiscal year",
+	}
+	for _, term := range calendarTerms {
+		if strings.Contains(lower, term) {
+			t.Errorf("system prompt should not contain calendar-specific reference %q; use relative timing instead", term)
+		}
+	}
+}
+
 func TestBuildSystemPromptEmptyContext(t *testing.T) {
 	result := BuildSystemPrompt("")
 	if !strings.Contains(result, "<infrastructure_context>") {
