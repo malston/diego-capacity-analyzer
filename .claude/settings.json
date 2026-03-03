@@ -18,6 +18,7 @@
     ]
   },
   "enabledPlugins": {
+    "automatic-code-review@claude-skillz": true,
     "backend-api-security@claude-code-workflows": true,
     "backend-development@claude-code-workflows": true,
     "code-documentation@claude-code-workflows": true,
@@ -27,5 +28,13 @@
     "playwright@claude-plugins-official": true,
     "tdd-workflows@claude-code-workflows": true,
     "ui-design@claude-code-workflows": true
+  },
+  "automaticCodeReview": {
+    "enabled": true,
+    "fileExtensions": [
+      "ts",
+      "tsx"
+    ],
+    "rulesFile": ".claude/automatic-code-review/rules.md"
   }
 }
