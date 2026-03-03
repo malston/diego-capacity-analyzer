@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-03T17:59:01.621Z"
-last_activity: 2026-03-03 -- Plan 07-01 completed (data_sources in health endpoint)
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-03-03T19:45:10.658Z"
+last_activity: 2026-03-03 -- Plan 07-02 completed (data source banner and adaptive prompts)
 progress:
   total_phases: 9
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 15
-  completed_plans: 14
-  percent: 93
+  completed_plans: 15
+  percent: 100
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators can have a conversation with a domain expert that sees their live capacity data -- turning raw metrics into actionable procurement guidance.
-**Current focus:** Phase 6 complete. Ready for Phase 7: Graceful Degradation.
+**Current focus:** Phase 7 complete. Ready for Phase 8: Polish.
 
 ## Current Position
 
-Phase: 7 of 8 (Graceful Degradation)
-Plan: 1 of 2 in current phase
-Status: Plan 07-01 complete, ready for Plan 07-02
-Last activity: 2026-03-03 -- Plan 07-01 completed (data_sources in health endpoint)
+Phase: 7 of 8 (Graceful Degradation) -- Complete
+Plan: 2 of 2 in current phase
+Status: Phase 7 complete, ready for Phase 8
+Last activity: 2026-03-03 -- Plan 07-02 completed (data source banner and adaptive prompts)
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: ~4 min
-- Total execution time: 54 min
+- Total execution time: 59 min
 
 **By Phase:**
 
@@ -51,11 +51,11 @@ Progress: [█████████░] 93%
 | 04.1  | 1     | 9 min | 9 min    |
 | 05    | 2     | ~34 min | ~17 min  |
 | 06    | 2     | 13 min  | 6.5 min  |
-| 07    | 1     | 2 min   | 2 min    |
+| 07    | 2     | 7 min   | 3.5 min  |
 
 **Recent Trend:**
 
-- Last 5 plans: 05-02 (~30 min, includes human verify), 06-01 (5 min), 06-02 (8 min, includes human verify), 07-01 (2 min)
+- Last 5 plans: 06-01 (5 min), 06-02 (8 min, includes human verify), 07-01 (2 min), 07-02 (5 min, includes human verify)
 - Trend: stable
 
 _Updated after each plan completion_
@@ -114,6 +114,10 @@ Recent decisions affecting current work:
 - 06-02: InlineError renders below last message in message flow (replaced top-level error banner)
 - [Phase 07]: Log cache availability derived by inspecting cached dashboard for apps with ActualMB > 0 (same logic as chat.go)
 - [Phase 07]: Nil guard on h.cfg before calling VSphereConfigured() to prevent panic in test handlers
+- [Phase 07]: ALL_PROMPTS tagged with requires field for declarative source-aware prompt filtering
+- [Phase 07]: getAvailablePrompts returns original prompts when dataSources is null (fallback before health loads)
+- [Phase 07]: DataSourceBanner excludes log_cache from banner text (not operator-actionable)
+- [Phase 07]: Health fetched on [isOpen] dep for resilience if parent rendering strategy changes
 
 ### Pending Todos
 
@@ -125,6 +129,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03T17:59:01.619Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-03-03T19:45:10.652Z
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None

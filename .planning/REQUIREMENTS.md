@@ -53,7 +53,7 @@ Requirements for Phase 1 release. Each maps to roadmap phases.
 
 - [x] **DEG-01**: Advisor works with CF-only data when BOSH and vSphere are unavailable
 - [x] **DEG-02**: Advisor explicitly tells the operator which data sources are missing and what analysis it cannot perform
-- [ ] **DEG-03**: Starter prompts adapt to available data (do not suggest vSphere-dependent questions when vSphere is unconfigured)
+- [x] **DEG-03**: Starter prompts adapt to available data (do not suggest vSphere-dependent questions when vSphere is unconfigured)
 
 ### Polish
 
@@ -123,7 +123,7 @@ Deferred to Phase 2 (Scenario Execution via Chat).
 | UI-09       | Phase 6 | Complete |
 | DEG-01      | Phase 7 | Complete |
 | DEG-02      | Phase 7 | Complete |
-| DEG-03      | Phase 7 | Pending |
+| DEG-03      | Phase 7 | Complete |
 | POL-01      | Phase 8 | Pending |
 | POL-02      | Phase 8 | Pending |
 | POL-03      | Phase 8 | Pending |
