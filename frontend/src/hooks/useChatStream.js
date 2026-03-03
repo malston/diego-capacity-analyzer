@@ -49,13 +49,13 @@ export function useChatStream() {
       timestamp: now,
     };
 
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
-    setIsStreaming(true);
-    setError(null);
-
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+
+    setMessages((prev) => [...prev, userMessage, assistantMessage]);
+    setIsStreaming(true);
+    setError(null);
 
     // Build conversation array for backend: strip timestamps
     const conversation = [...messagesRef.current, userMessage].map(
@@ -94,8 +94,10 @@ export function useChatStream() {
         }
       }
     } finally {
-      setIsStreaming(false);
-      abortRef.current = null;
+      if (abortRef.current === controller) {
+        setIsStreaming(false);
+        abortRef.current = null;
+      }
     }
   }, []);
 
