@@ -68,12 +68,10 @@ describe("stripMarkdown", () => {
     expect(stripMarkdown("> This is a quote")).toBe("This is a quote");
   });
 
-  it("strips unordered list markers", () => {
+  it("strips unordered list markers entirely", () => {
     const input = "- Item 1\n- Item 2\n* Item 3";
     const result = stripMarkdown(input);
-    expect(result).toContain("Item 1");
-    expect(result).toContain("Item 2");
-    expect(result).toContain("Item 3");
+    expect(result).toBe("Item 1\nItem 2\nItem 3");
   });
 
   it("strips ordered list markers", () => {
@@ -121,6 +119,35 @@ describe("stripMarkdown", () => {
 
   it("passes through plain text unchanged", () => {
     expect(stripMarkdown("Just plain text")).toBe("Just plain text");
+  });
+
+  it("preserves snake_case identifiers when stripping italic underscores", () => {
+    expect(stripMarkdown("The diego_cell_count metric")).toBe(
+      "The diego_cell_count metric",
+    );
+  });
+
+  it("strips italic underscores at word boundaries", () => {
+    expect(stripMarkdown("This is _italic_ text")).toBe("This is italic text");
+  });
+
+  it("preserves underscores in identifiers within sentences", () => {
+    expect(stripMarkdown("Check max_memory_usage and cpu_percent values")).toBe(
+      "Check max_memory_usage and cpu_percent values",
+    );
+  });
+
+  it("preserves code content inside fenced code blocks from markdown stripping", () => {
+    const input = "```python\ndef __init__(self, *args):\n    pass\n```";
+    const result = stripMarkdown(input);
+    expect(result).toContain("__init__");
+    expect(result).toContain("*args");
+  });
+
+  it("preserves inline code content from markdown stripping", () => {
+    expect(stripMarkdown("Use `**bold**` for emphasis")).toBe(
+      "Use **bold** for emphasis",
+    );
   });
 
   it("handles mixed markdown content", () => {

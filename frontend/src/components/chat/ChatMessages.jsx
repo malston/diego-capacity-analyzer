@@ -127,6 +127,8 @@ const ChatMessages = React.memo(
     const shouldAutoScroll = useRef(true);
     const [tick, setTick] = useState(0);
     const [feedbackState, setFeedbackState] = useState({});
+    const feedbackStateRef = useRef(feedbackState);
+    feedbackStateRef.current = feedbackState;
 
     // Reset feedback state when conversation is cleared (React docs pattern:
     // adjust state during render instead of useEffect to avoid cascading renders)
@@ -140,21 +142,21 @@ const ChatMessages = React.memo(
 
     const handleFeedback = useCallback(
       (messageIndex, rating) => {
-        setFeedbackState((prev) => {
-          const current = prev[messageIndex];
-          const newRating = current === rating ? "none" : rating;
+        const current = feedbackStateRef.current[messageIndex];
+        const newRating = current === rating ? "none" : rating;
 
-          // Derive truncated question from preceding user message
-          let truncatedQuestion = "";
-          for (let i = messageIndex - 1; i >= 0; i--) {
-            if (messages[i].role === "user") {
-              truncatedQuestion = messages[i].content.slice(0, 100);
-              break;
-            }
+        // Derive truncated question from preceding user message
+        let truncatedQuestion = "";
+        for (let i = messageIndex - 1; i >= 0; i--) {
+          if (messages[i].role === "user") {
+            truncatedQuestion = messages[i].content.slice(0, 100);
+            break;
           }
+        }
 
-          sendFeedback({ messageIndex, rating: newRating, truncatedQuestion });
+        sendFeedback({ messageIndex, rating: newRating, truncatedQuestion });
 
+        setFeedbackState((prev) => {
           const next = { ...prev };
           if (newRating === "none") {
             delete next[messageIndex];

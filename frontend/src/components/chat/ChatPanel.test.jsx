@@ -1063,7 +1063,13 @@ describe("ChatMessage - Action bar", () => {
     const actionBar = copyButton.closest("[data-testid='action-bar']");
     expect(actionBar).toBeInTheDocument();
     expect(actionBar.className).toContain("md:opacity-0");
+    expect(actionBar.className).toContain("md:pointer-events-none");
     expect(actionBar.className).toContain("md:group-hover:opacity-100");
+    expect(actionBar.className).toContain("md:group-hover:pointer-events-auto");
+    expect(actionBar.className).toContain("md:group-focus-within:opacity-100");
+    expect(actionBar.className).toContain(
+      "md:group-focus-within:pointer-events-auto",
+    );
   });
 
   it("copies stripped markdown to clipboard on copy button click", async () => {

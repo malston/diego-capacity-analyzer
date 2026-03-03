@@ -266,7 +266,7 @@ const ChatMessage = React.memo(
         {showActionBar && (
           <div
             data-testid="action-bar"
-            className="absolute top-2 right-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-slate-800 border border-slate-600 rounded-md px-1 py-0.5"
+            className="absolute top-2 right-2 md:opacity-0 md:pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto md:group-focus-within:opacity-100 md:group-focus-within:pointer-events-auto transition-opacity flex items-center gap-0.5 bg-slate-800 border border-slate-600 rounded-md px-1 py-0.5"
           >
             <CopyButton content={message.content} />
             <FeedbackButtons
