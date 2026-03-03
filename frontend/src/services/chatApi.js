@@ -84,9 +84,9 @@ export async function* streamChat(messages, signal) {
     let message;
     try {
       const body = await response.json();
-      message = body.error;
-    } catch {
-      // Response body is not JSON
+      message = typeof body?.error === "string" ? body.error : undefined;
+    } catch (parseErr) {
+      console.warn("Could not parse error response body:", parseErr.message);
     }
     const type = response.status === 429 ? "rate_limit" : "server";
     throw new ChatError(

@@ -77,8 +77,11 @@ export function useChatStream() {
         } else if (event.type === "done") {
           break;
         } else if (event.type === "error") {
-          const mappedType = SSE_ERROR_TYPE_MAP[event.data.code] || "server";
-          throw new ChatError(event.data.message, mappedType);
+          const mappedType = SSE_ERROR_TYPE_MAP[event.data.code];
+          if (!mappedType && event.data.code) {
+            console.warn("Unmapped SSE error code:", event.data.code);
+          }
+          throw new ChatError(event.data.message, mappedType || "server");
         }
       }
     } catch (err) {
@@ -102,6 +105,7 @@ export function useChatStream() {
       abortRef.current = null;
     }
     setMessages([]);
+    messagesRef.current = [];
     setIsStreaming(false);
     setError(null);
   }, []);
@@ -110,14 +114,9 @@ export function useChatStream() {
     const currentMessages = messagesRef.current;
     if (currentMessages.length === 0) return;
 
-    // Find the last user message
-    let lastUserIndex = -1;
-    for (let i = currentMessages.length - 1; i >= 0; i--) {
-      if (currentMessages[i].role === "user") {
-        lastUserIndex = i;
-        break;
-      }
-    }
+    const lastUserIndex = currentMessages.findLastIndex(
+      (m) => m.role === "user",
+    );
     if (lastUserIndex === -1) return;
 
     const lastUserContent = currentMessages[lastUserIndex].content;

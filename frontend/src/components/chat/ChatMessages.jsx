@@ -37,7 +37,7 @@ const STARTER_PROMPTS = [
 ];
 
 const InlineError = ({ error, onRetry }) => (
-  <div className="flex items-start gap-2 px-4 py-3 text-sm">
+  <div role="alert" className="flex items-start gap-2 px-4 py-3 text-sm">
     <AlertTriangle
       className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5"
       aria-hidden="true"
@@ -97,7 +97,7 @@ const ChatMessages = React.memo(
           <div className="flex flex-wrap justify-center gap-2 max-w-sm">
             {STARTER_PROMPTS.map((prompt, i) => (
               <button
-                key={i}
+                key={prompt.label}
                 onClick={() => onPromptClick(prompt.question)}
                 className="px-3 py-1.5 text-xs text-blue-400 border border-blue-500/30 rounded-full hover:bg-blue-500/10 hover:border-blue-500/50 transition-colors"
               >
