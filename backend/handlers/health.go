@@ -27,6 +27,25 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		resp["bosh_api"] = "ok"
 	}
 
+	// Derive data source availability for frontend degradation logic
+	logCacheAvailable := false
+	if cached, found := h.cache.Get("dashboard:all"); found {
+		if dashboard, ok := cached.(models.DashboardResponse); ok {
+			for _, app := range dashboard.Apps {
+				if app.ActualMB > 0 {
+					logCacheAvailable = true
+					break
+				}
+			}
+		}
+	}
+
+	resp["data_sources"] = map[string]bool{
+		"bosh":      h.boshClient != nil,
+		"vsphere":   h.cfg != nil && h.cfg.VSphereConfigured(),
+		"log_cache": logCacheAvailable,
+	}
+
 	h.writeJSON(w, http.StatusOK, resp)
 }
 
