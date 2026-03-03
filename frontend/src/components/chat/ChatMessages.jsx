@@ -1,7 +1,7 @@
 // ABOUTME: Scrollable chat message list with sticky-bottom auto-scroll, data source banner
 // ABOUTME: Manages scroll position during streaming and periodic timestamp updates
 // ABOUTME: Renders adaptive starter prompts in empty state based on available data sources
-// ABOUTME: Exports DataSourceBanner for persistent amber info banner when BOSH/vSphere unavailable
+// ABOUTME: Exports DataSourceBanner for amber info banner when BOSH/vSphere unavailable
 
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { Bot, AlertTriangle, Info } from "lucide-react";

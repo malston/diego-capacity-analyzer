@@ -648,7 +648,7 @@ describe("ChatMessages - Adaptive starter prompts", () => {
     expect(screen.getByText("Plan for growth")).toBeInTheDocument();
   });
 
-  it("renders all prompts including vsphere-dependent when all sources available", () => {
+  it("renders first 4 matching prompts when all sources available (maxPrompts cap)", () => {
     render(
       <ChatMessages
         messages={[]}
@@ -664,6 +664,11 @@ describe("ChatMessages - Adaptive starter prompts", () => {
     expect(screen.getByText("Plan for growth")).toBeInTheDocument();
     expect(screen.getByText("Review cell sizing")).toBeInTheDocument();
     expect(screen.getByText("Check HA readiness")).toBeInTheDocument();
+
+    // Verify maxPrompts=4 cap: 5th+ prompts should not render
+    const buttons = screen.getAllByRole("button");
+    expect(buttons).toHaveLength(4);
+    expect(screen.queryByText("Assess app density")).not.toBeInTheDocument();
   });
 
   it("always renders at least 3 starter prompt chips regardless of dataSources", () => {
@@ -874,6 +879,75 @@ describe("ChatPanel - Data source fetch", () => {
       expect(
         screen.getByText("BOSH and vSphere data unavailable"),
       ).toBeInTheDocument();
+    });
+  });
+
+  it("assumes degraded when health endpoint returns non-OK status", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+    });
+
+    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("BOSH and vSphere data unavailable"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("treats missing data_sources in health response as null fallback", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ai_configured: true }),
+    });
+
+    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    // With null dataSources fallback, banner should not appear
+    expect(screen.queryByText(/data unavailable/)).not.toBeInTheDocument();
+
+    // Default prompts should show (null fallback shows original set)
+    expect(screen.getByText("Assess current capacity")).toBeInTheDocument();
+  });
+
+  it("does not apply stale fetch when panel closes before response", async () => {
+    let resolveHealth;
+    global.fetch = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveHealth = resolve;
+        }),
+    );
+
+    const { rerender } = render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    // Close panel before fetch resolves
+    rerender(<ChatPanel isOpen={false} onClose={vi.fn()} />);
+
+    // Resolve the fetch after panel is closed
+    resolveHealth({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data_sources: { bosh: false, vsphere: false, log_cache: false },
+        }),
+    });
+
+    // Give time for any state updates to process
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Re-open the panel -- should start fresh, not use stale data
+    rerender(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    // The second fetch should have been made
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(2);
     });
   });
 });

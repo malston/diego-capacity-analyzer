@@ -23,21 +23,32 @@ const ChatPanel = ({ isOpen, onClose }) => {
   // Fetch data source availability on each panel open
   useEffect(() => {
     if (!isOpen) return;
+    const controller = new AbortController();
     const fetchDataSources = async () => {
       try {
         const apiURL = import.meta.env.VITE_API_URL || "";
         const response = await fetch(`${apiURL}/api/v1/health`, {
           credentials: "include",
+          signal: controller.signal,
         });
         if (response.ok) {
           const data = await response.json();
           setDataSources(data.data_sources || null);
+        } else {
+          console.warn(
+            `Health endpoint returned ${response.status}, assuming degraded data sources`,
+          );
+          setDataSources({ bosh: false, vsphere: false, log_cache: false });
         }
-      } catch {
-        setDataSources({ bosh: false, vsphere: false, log_cache: false });
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.warn("Failed to fetch data source availability", err);
+          setDataSources({ bosh: false, vsphere: false, log_cache: false });
+        }
       }
     };
     fetchDataSources();
+    return () => controller.abort();
   }, [isOpen]);
 
   // Body scroll lock when panel is open

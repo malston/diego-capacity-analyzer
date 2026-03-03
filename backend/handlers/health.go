@@ -27,20 +27,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		resp["bosh_api"] = "ok"
 	}
 
-	// Derive data source availability for frontend degradation logic
-	logCacheAvailable := false
-	if h.cache != nil {
-		if cached, found := h.cache.Get("dashboard:all"); found {
-			if dashboard, ok := cached.(models.DashboardResponse); ok {
-				for _, app := range dashboard.Apps {
-					if app.ActualMB > 0 {
-						logCacheAvailable = true
-						break
-					}
-				}
-			}
-		}
-	}
+	logCacheAvailable := h.isLogCacheAvailable()
 
 	resp["data_sources"] = map[string]bool{
 		"bosh":      h.boshClient != nil,
@@ -49,6 +36,25 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.writeJSON(w, http.StatusOK, resp)
+}
+
+// isLogCacheAvailable checks cached dashboard data for any app with actual
+// memory metrics. ActualMB > 0 indicates Log Cache was reachable when the
+// dashboard was built, since that field is populated from Log Cache envelope data.
+func (h *Handler) isLogCacheAvailable() bool {
+	if h.cache == nil {
+		return false
+	}
+	if cached, found := h.cache.Get("dashboard:all"); found {
+		if dashboard, ok := cached.(models.DashboardResponse); ok {
+			for _, app := range dashboard.Apps {
+				if app.ActualMB > 0 {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // Dashboard returns live dashboard data including cells, apps, and segments.
