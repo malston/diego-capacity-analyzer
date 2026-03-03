@@ -121,6 +121,32 @@ const LoadingDots = () => (
   </div>
 );
 
+function MessageContent({ message, isStreaming, plugins }) {
+  if (message.role !== "assistant") {
+    return (
+      <p className="text-sm text-slate-200 whitespace-pre-wrap">
+        {message.content}
+      </p>
+    );
+  }
+
+  if (message.content === "" && isStreaming) {
+    return <LoadingDots />;
+  }
+
+  return (
+    <div className="streamdown-content">
+      <Streamdown
+        plugins={plugins}
+        components={markdownComponents}
+        isAnimating={isStreaming}
+      >
+        {message.content}
+      </Streamdown>
+    </div>
+  );
+}
+
 const ChatMessage = React.memo(({ message, isStreaming, tick: _tick }) => {
   const isAssistant = message.role === "assistant";
   const plugins = useMemo(() => ({ code }), []);
@@ -141,25 +167,11 @@ const ChatMessage = React.memo(({ message, isStreaming, tick: _tick }) => {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        {isAssistant ? (
-          message.content === "" && isStreaming ? (
-            <LoadingDots />
-          ) : (
-            <div className="streamdown-content">
-              <Streamdown
-                plugins={plugins}
-                components={markdownComponents}
-                isAnimating={isStreaming}
-              >
-                {message.content}
-              </Streamdown>
-            </div>
-          )
-        ) : (
-          <p className="text-sm text-slate-200 whitespace-pre-wrap">
-            {message.content}
-          </p>
-        )}
+        <MessageContent
+          message={message}
+          isStreaming={isStreaming}
+          plugins={plugins}
+        />
         <span className="text-xs text-slate-500 mt-1 block">
           {formatRelativeTime(message.timestamp)}
         </span>

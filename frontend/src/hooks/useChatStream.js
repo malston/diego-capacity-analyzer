@@ -1,5 +1,5 @@
 // ABOUTME: React hook managing chat conversation state and SSE streaming lifecycle
-// ABOUTME: Handles message accumulation, token appending, abort, error classification, reset, and retry
+// ABOUTME: Handles message accumulation, token appending, abort, error propagation, reset, and retry
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { streamChat, ChatError } from "../services/chatApi.js";
@@ -53,6 +53,7 @@ export function useChatStream() {
     setIsStreaming(true);
     setError(null);
 
+    if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -110,26 +111,22 @@ export function useChatStream() {
     if (currentMessages.length === 0) return;
 
     // Find the last user message
-    let lastUserContent = null;
+    let lastUserIndex = -1;
     for (let i = currentMessages.length - 1; i >= 0; i--) {
       if (currentMessages[i].role === "user") {
-        lastUserContent = currentMessages[i].content;
+        lastUserIndex = i;
         break;
       }
     }
-    if (lastUserContent === null) return;
+    if (lastUserIndex === -1) return;
 
-    // Remove the last assistant message
-    setMessages((prev) => {
-      const updated = [...prev];
-      for (let i = updated.length - 1; i >= 0; i--) {
-        if (updated[i].role === "assistant") {
-          updated.splice(i, 1);
-          break;
-        }
-      }
-      return updated;
-    });
+    const lastUserContent = currentMessages[lastUserIndex].content;
+
+    // Remove both the last user message and any assistant message after it
+    const cleaned = currentMessages.slice(0, lastUserIndex);
+    setMessages(cleaned);
+    // Sync ref so sendMessage reads the cleaned conversation (not stale state)
+    messagesRef.current = cleaned;
     setError(null);
 
     await sendMessage(lastUserContent);

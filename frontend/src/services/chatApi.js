@@ -96,7 +96,10 @@ export async function* streamChat(messages, signal) {
   }
 
   if (!response.body) {
-    throw new Error("Response body is not readable (streaming not supported)");
+    throw new ChatError(
+      "Response body is not readable (streaming not supported)",
+      "server",
+    );
   }
 
   const reader = response.body.getReader();
@@ -105,7 +108,16 @@ export async function* streamChat(messages, signal) {
 
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      let result;
+      try {
+        result = await reader.read();
+      } catch (err) {
+        if (err instanceof TypeError) {
+          throw new ChatError("Connection lost", "network");
+        }
+        throw err;
+      }
+      const { done, value } = result;
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
