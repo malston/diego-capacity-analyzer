@@ -45,9 +45,9 @@ Requirements for Phase 1 release. Each maps to roadmap phases.
 - [x] **UI-04**: Assistant messages render Markdown (headers, lists, bold, code blocks, tables)
 - [x] **UI-05**: Conversation maintains multi-turn threading within the session (full history sent with each request)
 - [x] **UI-06**: User can clear/reset the conversation to start fresh
-- [ ] **UI-07**: Loading/thinking indicator appears between sending a message and receiving the first token
+- [x] **UI-07**: Loading/thinking indicator appears between sending a message and receiving the first token
 - [x] **UI-08**: Error messages display user-friendly text with a "Try again" action for LLM API failures, rate limits, timeouts, and network errors
-- [ ] **UI-09**: Static starter prompts appear when conversation is empty, suggesting questions based on common capacity planning concerns
+- [x] **UI-09**: Static starter prompts appear when conversation is empty, suggesting questions based on common capacity planning concerns
 
 ### Graceful Degradation
 
@@ -118,9 +118,9 @@ Deferred to Phase 2 (Scenario Execution via Chat).
 | UI-04       | Phase 5 | Complete |
 | UI-05       | Phase 5 | Complete |
 | UI-06       | Phase 6 | Complete |
-| UI-07       | Phase 6 | Pending |
+| UI-07       | Phase 6 | Complete |
 | UI-08       | Phase 6 | Complete |
-| UI-09       | Phase 6 | Pending |
+| UI-09       | Phase 6 | Complete |
 | DEG-01      | Phase 7 | Pending |
 | DEG-02      | Phase 7 | Pending |
 | DEG-03      | Phase 7 | Pending |

@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators can have a conversation with a domain expert that sees their live capacity data -- turning raw metrics into actionable procurement guidance.
-**Current focus:** Phase 6: Chat Panel UX -- Plan 1 complete, Plan 2 next.
+**Current focus:** Phase 6 complete. Ready for Phase 7: Graceful Degradation.
 
 ## Current Position
 
-Phase: 6 of 8 (Chat Panel UX)
-Plan: 1 of 2 in current phase
-Status: Plan 06-01 complete, ready for Plan 06-02
-Last activity: 2026-03-03 -- Plan 06-01 completed (error classification, reset, retry)
+Phase: 7 of 8 (Graceful Degradation)
+Plan: 0 of 0 in current phase (plans not yet created)
+Status: Phase 6 complete, ready for Phase 7 planning
+Last activity: 2026-03-03 -- Plan 06-02 completed (loading dots, inline errors, reset button, starter prompts)
 
-Progress: [████████░░] 75%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 4 min
-- Total execution time: 44 min
+- Total execution time: 52 min
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [████████░░] 75%
 | 04    | 2     | 9 min | 4.5 min  |
 | 04.1  | 1     | 9 min | 9 min    |
 | 05    | 2     | ~34 min | ~17 min  |
-| 06    | 1     | 5 min   | 5 min    |
+| 06    | 2     | 13 min  | 6.5 min  |
 
 **Recent Trend:**
 
-- Last 5 plans: 04.1-01 (9 min), 05-01 (4 min), 05-02 (~30 min, includes human verify), 06-01 (5 min)
+- Last 5 plans: 05-01 (4 min), 05-02 (~30 min, includes human verify), 06-01 (5 min), 06-02 (8 min, includes human verify)
 - Trend: stable
 
 _Updated after each plan completion_
@@ -92,6 +92,9 @@ Recent decisions affecting current work:
 - 06-01: SSE_ERROR_TYPE_MAP as a constant map for SSE code-to-type translation (extensible, testable)
 - 06-01: retryLastMessage reads from messagesRef.current to avoid stale closure issues
 - 06-01: clearConversation aborts before resetting state to prevent orphaned stream writes
+- 06-02: MessageSquarePlus icon for reset button (user feedback: "new conversation" better conveys the action than RotateCcw "undo")
+- 06-02: Four starter prompts covering capacity assessment, growth planning, cell sizing, and HA readiness
+- 06-02: InlineError renders below last message in message flow (replaced top-level error banner)
 
 ### Pending Todos
 
@@ -104,5 +107,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 06-01-PLAN.md
-Resume file: .planning/phases/06-chat-panel-ux/06-01-SUMMARY.md
+Stopped at: Completed 06-02-PLAN.md (Phase 6 complete)
+Resume file: .planning/phases/06-chat-panel-ux/06-02-SUMMARY.md

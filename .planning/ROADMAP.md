@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Chat Endpoint** - SSE streaming endpoint with auth, rate limiting, error handling, and timeout protection (completed 2026-02-24)
 - [x] **Phase 4.1: Chat Endpoint Hardening** - INSERTED: Wire scenario context, enforce chat auth, set explicit provider defaults (gap closure)
 - [ ] **Phase 5: Chat Panel Core** - Side panel with streaming Markdown display and multi-turn conversation threading
-- [ ] **Phase 6: Chat Panel UX** - Loading states, error handling, conversation reset, and starter prompts
+- [x] **Phase 6: Chat Panel UX** - Loading states, error handling, conversation reset, and starter prompts (completed 2026-03-03)
 - [ ] **Phase 7: Graceful Degradation** - CF-only operation, data gap messaging, and adaptive starter prompts
 - [ ] **Phase 8: Polish** - Copy to clipboard, response feedback, and procurement-oriented system prompt tuning
 
@@ -151,7 +151,7 @@ Plans:
 Plans:
 
 - [x] 06-01-PLAN.md -- Error classification, conversation reset, and retry logic in transport/hook layers (TDD)
-- [ ] 06-02-PLAN.md -- Loading dots, inline errors, reset button, starter prompts in UI components, visual verification
+- [x] 06-02-PLAN.md -- Loading dots, inline errors, reset button, starter prompts in UI components, visual verification
 
 ### Phase 7: Graceful Degradation
 
@@ -198,6 +198,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 4.1 -> 5 -> 6 -> 7 -> 8
 | 4. Chat Endpoint            | 0/0            | Complete    | 2026-02-24 |
 | 4.1 Chat Endpoint Hardening | 1/1            | Complete    | 2026-02-24 |
 | 5. Chat Panel Core          | 0/0            | Not started | -          |
-| 6. Chat Panel UX            | 0/0            | Not started | -          |
+| 6. Chat Panel UX            | 2/2            | Complete    | 2026-03-03 |
 | 7. Graceful Degradation     | 0/0            | Not started | -          |
 | 8. Polish                   | 0/0            | Not started | -          |
