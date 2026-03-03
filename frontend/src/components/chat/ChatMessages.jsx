@@ -89,7 +89,10 @@ export const DataSourceBanner = ({ dataSources }) => {
   if (missing.length === 0) return null;
 
   return (
-    <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs flex items-center gap-2 flex-shrink-0">
+    <div
+      role="status"
+      className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs flex items-center gap-2 flex-shrink-0"
+    >
       <Info className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
       <span>{missing.join(" and ")} data unavailable</span>
     </div>

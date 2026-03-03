@@ -29,6 +29,9 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 
 	logCacheAvailable := h.isLogCacheAvailable()
 
+	// data_sources reflects configuration state (whether each integration is
+	// initialized), not live connectivity. The frontend uses these booleans to
+	// filter starter prompts and show degradation banners.
 	resp["data_sources"] = map[string]bool{
 		"bosh":      h.boshClient != nil,
 		"vsphere":   h.cfg != nil && h.cfg.VSphereConfigured(),

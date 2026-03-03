@@ -210,7 +210,7 @@ describe("ChatToggle", () => {
   });
 
   it("renders nothing when health returns ai_configured: false", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ai_configured: false }),
     });
@@ -228,7 +228,7 @@ describe("ChatToggle", () => {
   });
 
   it("renders toggle button when health returns ai_configured: true", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ai_configured: true }),
     });
@@ -243,7 +243,7 @@ describe("ChatToggle", () => {
   });
 
   it("renders nothing when health fetch fails", async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error("network"));
+    vi.spyOn(global, "fetch").mockRejectedValue(new Error("network"));
 
     const { container } = render(
       <ChatToggle isOpen={false} onToggle={vi.fn()} />,
@@ -257,7 +257,7 @@ describe("ChatToggle", () => {
   });
 
   it("renders nothing when health returns non-OK HTTP status", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: false,
       status: 503,
     });
@@ -274,7 +274,7 @@ describe("ChatToggle", () => {
   });
 
   it("applies active styling when isOpen is true", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ai_configured: true }),
     });
@@ -289,7 +289,7 @@ describe("ChatToggle", () => {
   });
 
   it("calls onToggle when clicked", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ai_configured: true }),
     });
@@ -800,7 +800,7 @@ describe("ChatPanel - Data source fetch", () => {
   });
 
   it("fetches /api/v1/health when isOpen transitions to true and passes data_sources to ChatMessages", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
@@ -825,7 +825,7 @@ describe("ChatPanel - Data source fetch", () => {
   });
 
   it("re-fetches /api/v1/health on subsequent isOpen=true transitions", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
@@ -852,7 +852,7 @@ describe("ChatPanel - Data source fetch", () => {
   });
 
   it("renders DataSourceBanner between header and ChatMessages", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
@@ -871,7 +871,7 @@ describe("ChatPanel - Data source fetch", () => {
   });
 
   it("assumes degraded when health fetch fails and shows banner", async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error("network error"));
+    vi.spyOn(global, "fetch").mockRejectedValue(new Error("network error"));
 
     render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
 
@@ -883,7 +883,7 @@ describe("ChatPanel - Data source fetch", () => {
   });
 
   it("assumes degraded when health endpoint returns non-OK status", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: false,
       status: 500,
     });
@@ -898,7 +898,7 @@ describe("ChatPanel - Data source fetch", () => {
   });
 
   it("treats missing data_sources in health response as null fallback", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ai_configured: true }),
     });
@@ -918,7 +918,7 @@ describe("ChatPanel - Data source fetch", () => {
 
   it("does not apply stale fetch when panel closes before response", async () => {
     let resolveHealth;
-    global.fetch = vi.fn().mockImplementation(
+    vi.spyOn(global, "fetch").mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveHealth = resolve;
