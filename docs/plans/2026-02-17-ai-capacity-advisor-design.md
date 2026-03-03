@@ -31,6 +31,22 @@ An AI-powered conversational advisor embedded in the capacity planning UI. The a
 | 2 (future)      | Chat + scenario execution    | Run scenario comparisons, calculate planning, analyze bottlenecks     |
 | 3 (future)      | Full tool use + live UI sync | Drive wizard inputs, update main UI, persist conversations            |
 
+### Milestone Mapping
+
+Phases map to GSD milestones as independently shippable releases:
+
+| GSD Milestone | Design Phase | Scope                 | Key Requirements                                       |
+| ------------- | ------------ | --------------------- | ------------------------------------------------------ |
+| v1.0          | Phase 1      | Chat + Read-Only      | PROV-_, CTX-_, DOM-_, CHAT-_, UI-_, DEG-_, POL-\*      |
+| v1.1          | Phase 2a     | Scenario Execution    | TOOL-01 through TOOL-04                                |
+| v1.2          | Phase 2b     | Multi-Provider + BYOK | MULTI-01/02, BYOK-01/02                                |
+| v2.0          | Phase 3      | Full Integration      | Conversation persistence, live UI sync, wizard control |
+
+Phase 2 from the original design is split into two milestones: v1.1 ships tool use
+(the high-value feature) without blocking on multi-provider support (v1.2). v2.0
+represents a fundamentally different interaction model with bidirectional state
+management and storage requirements.
+
 ---
 
 ## Backend Architecture
