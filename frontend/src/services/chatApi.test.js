@@ -2,7 +2,7 @@
 // ABOUTME: Verifies chunk buffering, event type parsing, error handling, and abort support
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { parseSSEEvent, streamChat } from "./chatApi";
+import { parseSSEEvent, streamChat, ChatError } from "./chatApi";
 
 describe("parseSSEEvent", () => {
   it("parses a token event", () => {
@@ -130,7 +130,39 @@ describe("streamChat", () => {
     ]);
   });
 
-  it("throws on non-OK response with error message from body", async () => {
+  it("throws ChatError with type 'rate_limit' on HTTP 429", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      json: () => Promise.resolve({ error: "Rate limit exceeded" }),
+    });
+
+    const gen = streamChat([{ role: "user", content: "hi" }]);
+    try {
+      await gen.next();
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ChatError);
+      expect(err.type).toBe("rate_limit");
+      expect(err.message).toBe("Rate limit exceeded");
+    }
+  });
+
+  it("throws ChatError with type 'network' when fetch throws TypeError", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const gen = streamChat([{ role: "user", content: "hi" }]);
+    try {
+      await gen.next();
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ChatError);
+      expect(err.type).toBe("network");
+      expect(err.message).toBe("Connection lost");
+    }
+  });
+
+  it("throws ChatError with type 'server' for non-429 HTTP errors", async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 503,
@@ -138,10 +170,17 @@ describe("streamChat", () => {
     });
 
     const gen = streamChat([{ role: "user", content: "hi" }]);
-    await expect(gen.next()).rejects.toThrow("AI provider unavailable");
+    try {
+      await gen.next();
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ChatError);
+      expect(err.type).toBe("server");
+      expect(err.message).toBe("AI provider unavailable");
+    }
   });
 
-  it("throws on non-OK response with status when body has no error", async () => {
+  it("throws ChatError with fallback message for non-429 when body has no error", async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
@@ -149,14 +188,54 @@ describe("streamChat", () => {
     });
 
     const gen = streamChat([{ role: "user", content: "hi" }]);
-    await expect(gen.next()).rejects.toThrow("Chat request failed: 500");
+    try {
+      await gen.next();
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ChatError);
+      expect(err.type).toBe("server");
+      expect(err.message).toBe("Chat request failed: 500");
+    }
   });
 
-  it("throws on network error", async () => {
-    global.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+  it("yields SSE error event with code for mid-stream error classification", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: mockReadableStream([
+        'event: token\ndata: {"text":"partial"}\n\nevent: error\ndata: {"code":"timeout","message":"Response timed out"}\n\n',
+      ]),
+    });
 
-    const gen = streamChat([{ role: "user", content: "hi" }]);
-    await expect(gen.next()).rejects.toThrow(TypeError);
+    const events = [];
+    for await (const event of streamChat([{ role: "user", content: "hi" }])) {
+      events.push(event);
+    }
+
+    expect(events).toHaveLength(2);
+    expect(events[1]).toEqual({
+      type: "error",
+      data: { code: "timeout", message: "Response timed out" },
+    });
+  });
+
+  it("yields SSE error event with provider_error code", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: mockReadableStream([
+        'event: error\ndata: {"code":"provider_error","message":"Model overloaded"}\n\n',
+      ]),
+    });
+
+    const events = [];
+    for await (const event of streamChat([{ role: "user", content: "hi" }])) {
+      events.push(event);
+    }
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toEqual({
+      type: "error",
+      data: { code: "provider_error", message: "Model overloaded" },
+    });
   });
 
   it("discards trailing buffer without terminator", async () => {
@@ -187,6 +266,19 @@ describe("streamChat", () => {
     await expect(gen.next()).rejects.toThrow(
       "Response body is not readable (streaming not supported)",
     );
+  });
+
+  it("ChatError has message and type properties", () => {
+    const err = new ChatError("test message", "rate_limit");
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toBe("test message");
+    expect(err.type).toBe("rate_limit");
+    expect(err.name).toBe("ChatError");
+  });
+
+  it("ChatError defaults to 'server' type", () => {
+    const err = new ChatError("generic error");
+    expect(err.type).toBe("server");
   });
 
   it("includes CSRF header and credentials in request", async () => {
