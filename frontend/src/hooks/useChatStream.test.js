@@ -343,6 +343,52 @@ describe("useChatStream", () => {
     });
   });
 
+  it("aborts existing stream when sendMessage is called again", async () => {
+    let resolve;
+    const gate = new Promise((r) => {
+      resolve = r;
+    });
+
+    let capturedSignal;
+    streamChat.mockImplementationOnce(async function* (_messages, signal) {
+      capturedSignal = signal;
+      yield { type: "token", data: { text: "tok" } };
+      await gate;
+      yield { type: "done", data: {} };
+    });
+
+    streamChat.mockImplementationOnce(async function* () {
+      yield { type: "done", data: {} };
+    });
+
+    const { result } = renderHook(() => useChatStream());
+
+    let firstPromise;
+    act(() => {
+      firstPromise = result.current.sendMessage("first");
+    });
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(capturedSignal.aborted).toBe(false);
+
+    // Send another message while first is still streaming
+    await act(async () => {
+      await result.current.sendMessage("second");
+    });
+
+    // The first stream's signal should have been aborted
+    expect(capturedSignal.aborted).toBe(true);
+
+    // Clean up
+    resolve();
+    await act(async () => {
+      await firstPromise.catch(() => {});
+    });
+  });
+
   describe("clearConversation", () => {
     it("resets messages to empty array", async () => {
       streamChat.mockImplementation(async function* () {
@@ -559,6 +605,86 @@ describe("useChatStream", () => {
         .filter((m) => m.role === "user")
         .pop();
       expect(lastUserMessage.content).toBe("What is capacity?");
+    });
+
+    it("removes both the last user and assistant messages on retry", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // First call succeeds
+      streamChat.mockImplementationOnce(async function* () {
+        yield { type: "token", data: { text: "First response" } };
+        yield { type: "done", data: {} };
+      });
+
+      // Second call errors
+      // eslint-disable-next-line require-yield
+      streamChat.mockImplementationOnce(async function* () {
+        throw new ChatError("fail", "server");
+      });
+
+      // Third call (retry) succeeds
+      streamChat.mockImplementationOnce(async function* () {
+        yield { type: "token", data: { text: "Retry response" } };
+        yield { type: "done", data: {} };
+      });
+
+      const { result } = renderHook(() => useChatStream());
+
+      // Build a multi-turn conversation
+      await act(async () => {
+        await result.current.sendMessage("First question");
+      });
+      await act(async () => {
+        await result.current.sendMessage("Second question");
+      });
+
+      // Should have 4 messages: user, assistant, user, failed-assistant
+      expect(result.current.messages).toHaveLength(4);
+
+      await act(async () => {
+        await result.current.retryLastMessage();
+      });
+
+      // After retry: should have original pair + new assistant response
+      // NOT original pair + duplicate user + new pair
+      const roles = result.current.messages.map((m) => m.role);
+      expect(roles).toEqual(["user", "assistant", "user", "assistant"]);
+      expect(result.current.messages[0].content).toBe("First question");
+      expect(result.current.messages[1].content).toBe("First response");
+      expect(result.current.messages[2].content).toBe("Second question");
+    });
+
+    it("does not include stale messages in conversation sent to backend on retry", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // First call errors
+      // eslint-disable-next-line require-yield
+      streamChat.mockImplementationOnce(async function* () {
+        throw new ChatError("fail", "server");
+      });
+
+      // Second call (retry) succeeds
+      streamChat.mockImplementationOnce(async function* () {
+        yield { type: "done", data: {} };
+      });
+
+      const { result } = renderHook(() => useChatStream());
+
+      await act(async () => {
+        await result.current.sendMessage("Hello");
+      });
+
+      await act(async () => {
+        await result.current.retryLastMessage();
+      });
+
+      // The conversation sent to the backend should NOT contain the failed assistant message
+      const retryCall = streamChat.mock.calls[1];
+      const conversation = retryCall[0];
+      const assistantMessages = conversation.filter(
+        (m) => m.role === "assistant",
+      );
+      expect(assistantMessages).toHaveLength(0);
     });
 
     it("is a no-op when messages is empty", async () => {

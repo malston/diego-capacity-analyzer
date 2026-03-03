@@ -256,16 +256,60 @@ describe("streamChat", () => {
     expect(events).toEqual([{ type: "token", data: { text: "ok" } }]);
   });
 
-  it("throws when response.body is null", async () => {
+  it("throws ChatError when response.body is null", async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       body: null,
     });
 
     const gen = streamChat([{ role: "user", content: "hi" }]);
-    await expect(gen.next()).rejects.toThrow(
-      "Response body is not readable (streaming not supported)",
-    );
+    try {
+      await gen.next();
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ChatError);
+      expect(err.type).toBe("server");
+    }
+  });
+
+  it("throws ChatError with type 'network' when reader.read() throws TypeError mid-stream", async () => {
+    let readCount = 0;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: {
+        getReader() {
+          return {
+            read() {
+              readCount++;
+              if (readCount === 1) {
+                const value = new TextEncoder().encode(
+                  'event: token\ndata: {"text":"partial"}\n\n',
+                );
+                return Promise.resolve({ done: false, value });
+              }
+              // Simulate mid-stream network drop
+              return Promise.reject(new TypeError("network error"));
+            },
+            releaseLock() {},
+          };
+        },
+      },
+    });
+
+    const events = [];
+    try {
+      for await (const event of streamChat([{ role: "user", content: "hi" }])) {
+        events.push(event);
+      }
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ChatError);
+      expect(err.type).toBe("network");
+      expect(err.message).toBe("Connection lost");
+    }
+
+    // Should have yielded the first token before the error
+    expect(events).toHaveLength(1);
   });
 
   it("ChatError has message and type properties", () => {
