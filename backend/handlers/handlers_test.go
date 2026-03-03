@@ -376,6 +376,264 @@ func TestHealthHandler_AIConfiguredTrue(t *testing.T) {
 	}
 }
 
+func TestHealthHandler_DataSources(t *testing.T) {
+	tests := []struct {
+		name             string
+		setupHandler     func() *Handler
+		expectedBOSH     bool
+		expectedVSphere  bool
+		expectedLogCache bool
+	}{
+		{
+			name: "no data sources configured",
+			setupHandler: func() *Handler {
+				cfg := &config.Config{
+					CFAPIUrl:   "https://api.test.com",
+					CFUsername: "admin",
+					CFPassword: "secret",
+				}
+				c := cache.New(5 * time.Minute)
+				return NewHandler(cfg, c)
+			},
+			expectedBOSH:     false,
+			expectedVSphere:  false,
+			expectedLogCache: false,
+		},
+		{
+			name: "BOSH client configured",
+			setupHandler: func() *Handler {
+				boshServer := setupMockBOSHServer(false)
+				cfg := &config.Config{
+					CFAPIUrl:   "https://api.test.com",
+					CFUsername: "admin",
+					CFPassword: "secret",
+				}
+				c := cache.New(5 * time.Minute)
+				h := NewHandler(cfg, c)
+				h.boshClient, _ = services.NewBOSHClient(
+					boshServer.URL,
+					"ops_manager",
+					"secret",
+					"",
+					"cf-test",
+					true,
+				)
+				h.boshClient.SetHTTPClient(&http.Client{
+					Transport: &http.Transport{
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+					},
+				})
+				t.Cleanup(boshServer.Close)
+				return h
+			},
+			expectedBOSH:     true,
+			expectedVSphere:  false,
+			expectedLogCache: false,
+		},
+		{
+			name: "vSphere configured",
+			setupHandler: func() *Handler {
+				cfg := &config.Config{
+					CFAPIUrl:          "https://api.test.com",
+					CFUsername:        "admin",
+					CFPassword:        "secret",
+					VSphereHost:       "vcenter.example.com",
+					VSphereUsername:   "administrator@vsphere.local",
+					VSpherePassword:   "secret",
+					VSphereDatacenter: "DC-01",
+				}
+				c := cache.New(5 * time.Minute)
+				return NewHandler(cfg, c)
+			},
+			expectedBOSH:     false,
+			expectedVSphere:  true,
+			expectedLogCache: false,
+		},
+		{
+			name: "vSphere partially configured",
+			setupHandler: func() *Handler {
+				cfg := &config.Config{
+					CFAPIUrl:    "https://api.test.com",
+					CFUsername:  "admin",
+					CFPassword:  "secret",
+					VSphereHost: "vcenter.example.com",
+					// Missing username, password, datacenter
+				}
+				c := cache.New(5 * time.Minute)
+				return NewHandler(cfg, c)
+			},
+			expectedBOSH:     false,
+			expectedVSphere:  false,
+			expectedLogCache: false,
+		},
+		{
+			name: "log cache available with app data",
+			setupHandler: func() *Handler {
+				cfg := &config.Config{
+					CFAPIUrl:   "https://api.test.com",
+					CFUsername: "admin",
+					CFPassword: "secret",
+				}
+				c := cache.New(5 * time.Minute)
+				c.SetWithTTL("dashboard:all", models.DashboardResponse{
+					Apps: []models.App{{Name: "test-app", ActualMB: 512}},
+				}, 5*time.Minute)
+				return NewHandler(cfg, c)
+			},
+			expectedBOSH:     false,
+			expectedVSphere:  false,
+			expectedLogCache: true,
+		},
+		{
+			name: "log cache unavailable when all apps have zero ActualMB",
+			setupHandler: func() *Handler {
+				cfg := &config.Config{
+					CFAPIUrl:   "https://api.test.com",
+					CFUsername: "admin",
+					CFPassword: "secret",
+				}
+				c := cache.New(5 * time.Minute)
+				c.SetWithTTL("dashboard:all", models.DashboardResponse{
+					Apps: []models.App{
+						{Name: "app-1", ActualMB: 0},
+						{Name: "app-2", ActualMB: 0},
+					},
+				}, 5*time.Minute)
+				return NewHandler(cfg, c)
+			},
+			expectedBOSH:     false,
+			expectedVSphere:  false,
+			expectedLogCache: false,
+		},
+		{
+			name: "log cache unavailable when cache empty",
+			setupHandler: func() *Handler {
+				cfg := &config.Config{
+					CFAPIUrl:   "https://api.test.com",
+					CFUsername: "admin",
+					CFPassword: "secret",
+				}
+				c := cache.New(5 * time.Minute)
+				return NewHandler(cfg, c)
+			},
+			expectedBOSH:     false,
+			expectedVSphere:  false,
+			expectedLogCache: false,
+		},
+		{
+			name: "nil config guards against panic",
+			setupHandler: func() *Handler {
+				c := cache.New(5 * time.Minute)
+				return &Handler{cache: c, userScenarios: make(map[string]*models.ScenarioComparison)}
+			},
+			expectedBOSH:     false,
+			expectedVSphere:  false,
+			expectedLogCache: false,
+		},
+		{
+			name: "all data sources configured",
+			setupHandler: func() *Handler {
+				boshServer := setupMockBOSHServer(false)
+				cfg := &config.Config{
+					CFAPIUrl:          "https://api.test.com",
+					CFUsername:        "admin",
+					CFPassword:        "secret",
+					VSphereHost:       "vcenter.example.com",
+					VSphereUsername:   "administrator@vsphere.local",
+					VSpherePassword:   "secret",
+					VSphereDatacenter: "DC-01",
+				}
+				c := cache.New(5 * time.Minute)
+				c.SetWithTTL("dashboard:all", models.DashboardResponse{
+					Apps: []models.App{{Name: "test-app", ActualMB: 256}},
+				}, 5*time.Minute)
+				h := NewHandler(cfg, c)
+				h.boshClient, _ = services.NewBOSHClient(
+					boshServer.URL,
+					"ops_manager",
+					"secret",
+					"",
+					"cf-test",
+					true,
+				)
+				h.boshClient.SetHTTPClient(&http.Client{
+					Transport: &http.Transport{
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+					},
+				})
+				t.Cleanup(boshServer.Close)
+				return h
+			},
+			expectedBOSH:     true,
+			expectedVSphere:  true,
+			expectedLogCache: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := tt.setupHandler()
+
+			req := httptest.NewRequest("GET", "/api/health", nil)
+			w := httptest.NewRecorder()
+
+			h.Health(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("Expected status 200, got %d", w.Code)
+			}
+
+			var resp map[string]interface{}
+			if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+				t.Fatalf("Failed to decode response: %v", err)
+			}
+
+			// Verify data_sources object exists
+			dsRaw, ok := resp["data_sources"]
+			if !ok {
+				t.Fatal("Expected data_sources field in health response")
+			}
+			ds, ok := dsRaw.(map[string]interface{})
+			if !ok {
+				t.Fatalf("Expected data_sources to be an object, got %T", dsRaw)
+			}
+
+			// Verify boolean fields
+			if bosh, ok := ds["bosh"].(bool); !ok {
+				t.Fatal("Expected data_sources.bosh to be a boolean")
+			} else if bosh != tt.expectedBOSH {
+				t.Errorf("data_sources.bosh: got %v, want %v", bosh, tt.expectedBOSH)
+			}
+
+			if vsphere, ok := ds["vsphere"].(bool); !ok {
+				t.Fatal("Expected data_sources.vsphere to be a boolean")
+			} else if vsphere != tt.expectedVSphere {
+				t.Errorf("data_sources.vsphere: got %v, want %v", vsphere, tt.expectedVSphere)
+			}
+
+			if logCache, ok := ds["log_cache"].(bool); !ok {
+				t.Fatal("Expected data_sources.log_cache to be a boolean")
+			} else if logCache != tt.expectedLogCache {
+				t.Errorf("data_sources.log_cache: got %v, want %v", logCache, tt.expectedLogCache)
+			}
+
+			// Verify existing fields are still present
+			if _, ok := resp["cf_api"]; !ok {
+				t.Error("Expected cf_api field in health response")
+			}
+			if _, ok := resp["bosh_api"]; !ok {
+				t.Error("Expected bosh_api field in health response")
+			}
+			if _, ok := resp["ai_configured"]; !ok {
+				t.Error("Expected ai_configured field in health response")
+			}
+			if _, ok := resp["cache_status"]; !ok {
+				t.Error("Expected cache_status field in health response")
+			}
+		})
+	}
+}
+
 func TestDashboardHandler_NoBOSH(t *testing.T) {
 	cfServer, uaaServer := setupMockCFServer()
 	defer cfServer.Close()
