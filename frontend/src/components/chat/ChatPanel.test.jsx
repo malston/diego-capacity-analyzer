@@ -1,10 +1,17 @@
 // ABOUTME: Tests for chat panel components (ChatPanel, ChatToggle, ChatInput, ChatMessages, DataSourceBanner)
 // ABOUTME: Verifies panel lifecycle, conditional toggle, input behavior, message rendering,
 // ABOUTME: loading dots, inline errors with retry, reset button, starter prompts,
-// ABOUTME: adaptive prompt filtering by data source, and data source availability banner
+// ABOUTME: adaptive prompt filtering by data source, data source availability banner,
+// ABOUTME: action bar visibility, copy-to-clipboard, and feedback toggle interactions
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ChatPanel from "./ChatPanel";
 import ChatToggle from "./ChatToggle";
@@ -25,6 +32,13 @@ vi.mock("../../hooks/useChatStream", () => ({
 }));
 
 import { useChatStream } from "../../hooks/useChatStream";
+
+// Mock sendFeedback from chatApi
+vi.mock("../../services/chatApi", () => ({
+  sendFeedback: vi.fn(),
+}));
+
+import { sendFeedback } from "../../services/chatApi";
 
 // Mock Streamdown to avoid heavy Markdown rendering in unit tests
 vi.mock("streamdown", () => ({
@@ -949,5 +963,396 @@ describe("ChatPanel - Data source fetch", () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(2);
     });
+  });
+});
+
+describe("ChatMessage - Action bar", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renders action bar on completed assistant message", () => {
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Hello there",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+      />,
+    );
+
+    expect(screen.getByLabelText("Copy to clipboard")).toBeInTheDocument();
+    expect(screen.getByLabelText("Good response")).toBeInTheDocument();
+    expect(screen.getByLabelText("Poor response")).toBeInTheDocument();
+  });
+
+  it("does NOT render action bar on user messages", () => {
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+      />,
+    );
+
+    expect(
+      screen.queryByLabelText("Copy to clipboard"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does NOT render action bar on streaming assistant message with empty content", () => {
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "",
+          timestamp: Date.now(),
+        }}
+        isStreaming={true}
+        tick={0}
+      />,
+    );
+
+    expect(
+      screen.queryByLabelText("Copy to clipboard"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does NOT render action bar on streaming assistant message with content", () => {
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Partial response...",
+          timestamp: Date.now(),
+        }}
+        isStreaming={true}
+        tick={0}
+      />,
+    );
+
+    expect(
+      screen.queryByLabelText("Copy to clipboard"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("has hover-reveal classes on action bar for desktop", () => {
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Hello",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+      />,
+    );
+
+    const copyButton = screen.getByLabelText("Copy to clipboard");
+    const actionBar = copyButton.closest("[data-testid='action-bar']");
+    expect(actionBar).toBeInTheDocument();
+    expect(actionBar.className).toContain("md:opacity-0");
+    expect(actionBar.className).toContain("md:group-hover:opacity-100");
+  });
+
+  it("copies stripped markdown to clipboard on copy button click", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: { writeText },
+    });
+
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "**Bold** and *italic*",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Copy to clipboard"));
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("Bold and italic");
+    });
+  });
+
+  it("shows checkmark icon after successful copy", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: { writeText },
+    });
+
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Hello",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Copy to clipboard"));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Copied")).toBeInTheDocument();
+    });
+  });
+
+  it("renders thumbs up and thumbs down buttons", () => {
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Hello",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+      />,
+    );
+
+    expect(screen.getByLabelText("Good response")).toBeInTheDocument();
+    expect(screen.getByLabelText("Poor response")).toBeInTheDocument();
+  });
+
+  it("shows active state on thumbs up when feedbackRating is 'up'", () => {
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Hello",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+        feedbackRating="up"
+      />,
+    );
+
+    const thumbsUp = screen.getByLabelText("Remove positive feedback");
+    expect(thumbsUp).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("shows active state on thumbs down when feedbackRating is 'down'", () => {
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Hello",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+        feedbackRating="down"
+      />,
+    );
+
+    const thumbsDown = screen.getByLabelText("Remove negative feedback");
+    expect(thumbsDown).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("calls onFeedback when thumbs up is clicked", () => {
+    const onFeedback = vi.fn();
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Hello",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+        onFeedback={onFeedback}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Good response"));
+    expect(onFeedback).toHaveBeenCalledWith("up");
+  });
+
+  it("calls onFeedback when thumbs down is clicked", () => {
+    const onFeedback = vi.fn();
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Hello",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+        onFeedback={onFeedback}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Poor response"));
+    expect(onFeedback).toHaveBeenCalledWith("down");
+  });
+});
+
+describe("ChatMessages - Feedback integration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calls sendFeedback when feedback button is clicked on an assistant message", () => {
+    const messages = [
+      {
+        id: "msg-1",
+        role: "user",
+        content: "What is the capacity?",
+        timestamp: Date.now(),
+      },
+      {
+        id: "msg-2",
+        role: "assistant",
+        content: "You have plenty of capacity.",
+        timestamp: Date.now(),
+      },
+    ];
+
+    render(
+      <ChatMessages
+        messages={messages}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Good response"));
+
+    expect(sendFeedback).toHaveBeenCalledWith({
+      messageIndex: 1,
+      rating: "up",
+      truncatedQuestion: "What is the capacity?",
+    });
+  });
+
+  it("toggles feedback: clicking same thumb deselects and sends 'none'", () => {
+    const messages = [
+      { id: "msg-1", role: "user", content: "Hello", timestamp: Date.now() },
+      { id: "msg-2", role: "assistant", content: "Hi!", timestamp: Date.now() },
+    ];
+
+    render(
+      <ChatMessages
+        messages={messages}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+      />,
+    );
+
+    // Click thumbs up
+    fireEvent.click(screen.getByLabelText("Good response"));
+    expect(sendFeedback).toHaveBeenLastCalledWith(
+      expect.objectContaining({ rating: "up" }),
+    );
+
+    // Click thumbs up again to deselect
+    fireEvent.click(screen.getByLabelText("Remove positive feedback"));
+    expect(sendFeedback).toHaveBeenLastCalledWith(
+      expect.objectContaining({ rating: "none" }),
+    );
+  });
+
+  it("toggles feedback: clicking opposite thumb switches rating", () => {
+    const messages = [
+      { id: "msg-1", role: "user", content: "Hello", timestamp: Date.now() },
+      { id: "msg-2", role: "assistant", content: "Hi!", timestamp: Date.now() },
+    ];
+
+    render(
+      <ChatMessages
+        messages={messages}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+      />,
+    );
+
+    // Click thumbs up
+    fireEvent.click(screen.getByLabelText("Good response"));
+
+    // Click thumbs down (should switch)
+    fireEvent.click(screen.getByLabelText("Poor response"));
+    expect(sendFeedback).toHaveBeenLastCalledWith(
+      expect.objectContaining({ rating: "down" }),
+    );
+  });
+
+  it("truncates the preceding user question to 100 chars", () => {
+    const longQuestion = "A".repeat(150);
+    const messages = [
+      {
+        id: "msg-1",
+        role: "user",
+        content: longQuestion,
+        timestamp: Date.now(),
+      },
+      {
+        id: "msg-2",
+        role: "assistant",
+        content: "Response",
+        timestamp: Date.now(),
+      },
+    ];
+
+    render(
+      <ChatMessages
+        messages={messages}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Good response"));
+
+    expect(sendFeedback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        truncatedQuestion: "A".repeat(100),
+      }),
+    );
   });
 });
