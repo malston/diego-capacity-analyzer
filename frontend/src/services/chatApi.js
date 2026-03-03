@@ -6,6 +6,18 @@ import { withCSRFToken } from "../utils/csrf.js";
 const API_URL = import.meta.env.VITE_API_URL || "";
 
 /**
+ * Typed error for chat transport failures.
+ * The `type` field enables differentiated error messages in the UI.
+ */
+export class ChatError extends Error {
+  constructor(message, type = "server") {
+    super(message);
+    this.name = "ChatError";
+    this.type = type;
+  }
+}
+
+/**
  * Parse a single SSE event text block into { type, data }.
  *
  * @param {string} raw - Raw SSE event text (lines between double newlines)
@@ -52,13 +64,21 @@ export async function* streamChat(messages, signal) {
     "Content-Type": "application/json",
   });
 
-  const response = await fetch(`${API_URL}/api/v1/chat`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify({ messages }),
-    signal,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_URL}/api/v1/chat`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: JSON.stringify({ messages }),
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new ChatError("Connection lost", "network");
+    }
+    throw err;
+  }
 
   if (!response.ok) {
     let message;
@@ -68,7 +88,11 @@ export async function* streamChat(messages, signal) {
     } catch {
       // Response body is not JSON
     }
-    throw new Error(message || `Chat request failed: ${response.status}`);
+    const type = response.status === 429 ? "rate_limit" : "server";
+    throw new ChatError(
+      message || `Chat request failed: ${response.status}`,
+      type,
+    );
   }
 
   if (!response.body) {
