@@ -1,10 +1,11 @@
 // ABOUTME: Overlay chat panel with slide-in animation, backdrop, and responsive layout
 // ABOUTME: Manages panel lifecycle, body scroll lock, escape-to-close, and conversation reset
+// ABOUTME: Fetches health endpoint on panel open to determine data source availability
 
-import { useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { X, MessageSquarePlus } from "lucide-react";
 import { useChatStream } from "../../hooks/useChatStream";
-import ChatMessages from "./ChatMessages";
+import ChatMessages, { DataSourceBanner } from "./ChatMessages";
 import ChatInput from "./ChatInput";
 
 const ChatPanel = ({ isOpen, onClose }) => {
@@ -16,6 +17,28 @@ const ChatPanel = ({ isOpen, onClose }) => {
     clearConversation,
     retryLastMessage,
   } = useChatStream();
+
+  const [dataSources, setDataSources] = useState(null);
+
+  // Fetch data source availability on each panel open
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchDataSources = async () => {
+      try {
+        const apiURL = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${apiURL}/api/v1/health`, {
+          credentials: "include",
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDataSources(data.data_sources || null);
+        }
+      } catch {
+        setDataSources({ bosh: false, vsphere: false, log_cache: false });
+      }
+    };
+    fetchDataSources();
+  }, [isOpen]);
 
   // Body scroll lock when panel is open
   useEffect(() => {
@@ -91,6 +114,8 @@ const ChatPanel = ({ isOpen, onClose }) => {
           </div>
         </div>
 
+        <DataSourceBanner dataSources={dataSources} />
+
         {/* Messages */}
         <ChatMessages
           messages={messages}
@@ -98,6 +123,7 @@ const ChatPanel = ({ isOpen, onClose }) => {
           error={error}
           onRetry={retryLastMessage}
           onPromptClick={sendMessage}
+          dataSources={dataSources}
         />
 
         {/* Input */}
