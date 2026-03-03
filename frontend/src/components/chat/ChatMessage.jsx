@@ -1,5 +1,6 @@
 // ABOUTME: Renders a single chat message with icon, content, and relative timestamp
 // ABOUTME: Uses Streamdown for streaming Markdown in assistant messages; memoized to prevent re-render storms
+// ABOUTME: Shows pulsing dots indicator when assistant message is streaming with empty content
 
 import React, { useMemo } from "react";
 import { User, Bot } from "lucide-react";
@@ -108,6 +109,44 @@ const markdownComponents = {
   hr: () => <hr className="border-slate-700 my-3" />,
 };
 
+const LoadingDots = () => (
+  <div className="flex items-center gap-1 py-1" aria-label="AI is thinking">
+    {[0, 1, 2].map((i) => (
+      <div
+        key={i}
+        className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"
+        style={{ animationDelay: `${i * 200}ms` }}
+      />
+    ))}
+  </div>
+);
+
+function MessageContent({ message, isStreaming, plugins }) {
+  if (message.role !== "assistant") {
+    return (
+      <p className="text-sm text-slate-200 whitespace-pre-wrap">
+        {message.content}
+      </p>
+    );
+  }
+
+  if (message.content === "" && isStreaming) {
+    return <LoadingDots />;
+  }
+
+  return (
+    <div className="streamdown-content">
+      <Streamdown
+        plugins={plugins}
+        components={markdownComponents}
+        isAnimating={isStreaming}
+      >
+        {message.content}
+      </Streamdown>
+    </div>
+  );
+}
+
 const ChatMessage = React.memo(({ message, isStreaming, tick: _tick }) => {
   const isAssistant = message.role === "assistant";
   const plugins = useMemo(() => ({ code }), []);
@@ -128,21 +167,11 @@ const ChatMessage = React.memo(({ message, isStreaming, tick: _tick }) => {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        {isAssistant ? (
-          <div className="streamdown-content">
-            <Streamdown
-              plugins={plugins}
-              components={markdownComponents}
-              isAnimating={isStreaming}
-            >
-              {message.content}
-            </Streamdown>
-          </div>
-        ) : (
-          <p className="text-sm text-slate-200 whitespace-pre-wrap">
-            {message.content}
-          </p>
-        )}
+        <MessageContent
+          message={message}
+          isStreaming={isStreaming}
+          plugins={plugins}
+        />
         <span className="text-xs text-slate-500 mt-1 block">
           {formatRelativeTime(message.timestamp)}
         </span>

@@ -1,14 +1,21 @@
 // ABOUTME: Overlay chat panel with slide-in animation, backdrop, and responsive layout
-// ABOUTME: Manages panel lifecycle, body scroll lock, and escape-to-close
+// ABOUTME: Manages panel lifecycle, body scroll lock, escape-to-close, and conversation reset
 
 import { useEffect, useCallback } from "react";
-import { X } from "lucide-react";
+import { X, MessageSquarePlus } from "lucide-react";
 import { useChatStream } from "../../hooks/useChatStream";
 import ChatMessages from "./ChatMessages";
 import ChatInput from "./ChatInput";
 
 const ChatPanel = ({ isOpen, onClose }) => {
-  const { messages, isStreaming, error, sendMessage } = useChatStream();
+  const {
+    messages,
+    isStreaming,
+    error,
+    sendMessage,
+    clearConversation,
+    retryLastMessage,
+  } = useChatStream();
 
   // Body scroll lock when panel is open
   useEffect(() => {
@@ -66,24 +73,32 @@ const ChatPanel = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 flex-shrink-0">
           <h2 className="text-sm font-semibold text-white">AI Advisor</h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-md text-slate-400 hover:text-slate-300 hover:bg-slate-800 transition-colors"
-            aria-label="Close AI Advisor"
-          >
-            <X className="w-4 h-4" aria-hidden="true" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={clearConversation}
+              className="p-1.5 rounded-md text-slate-400 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+              aria-label="New conversation"
+            >
+              <MessageSquarePlus className="w-4 h-4" aria-hidden="true" />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-md text-slate-400 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+              aria-label="Close AI Advisor"
+            >
+              <X className="w-4 h-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
-        {/* Error banner */}
-        {error && (
-          <div className="px-4 py-2 bg-red-500/10 border-b border-red-500/30 text-red-400 text-xs flex-shrink-0">
-            {error}
-          </div>
-        )}
-
         {/* Messages */}
-        <ChatMessages messages={messages} isStreaming={isStreaming} />
+        <ChatMessages
+          messages={messages}
+          isStreaming={isStreaming}
+          error={error}
+          onRetry={retryLastMessage}
+          onPromptClick={sendMessage}
+        />
 
         {/* Input */}
         <ChatInput onSend={sendMessage} disabled={isStreaming} />

@@ -1,9 +1,21 @@
 // ABOUTME: Low-level SSE transport for the chat endpoint
-// ABOUTME: Handles POST-based SSE with CSRF, chunk buffering, and abort support
+// ABOUTME: Handles POST-based SSE with CSRF, chunk buffering, abort support, and typed error classification
 
 import { withCSRFToken } from "../utils/csrf.js";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
+
+/**
+ * Typed error for chat transport failures.
+ * The `type` field enables differentiated error messages in the UI.
+ */
+export class ChatError extends Error {
+  constructor(message, type = "server") {
+    super(message);
+    this.name = "ChatError";
+    this.type = type;
+  }
+}
 
 /**
  * Parse a single SSE event text block into { type, data }.
@@ -52,27 +64,42 @@ export async function* streamChat(messages, signal) {
     "Content-Type": "application/json",
   });
 
-  const response = await fetch(`${API_URL}/api/v1/chat`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify({ messages }),
-    signal,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_URL}/api/v1/chat`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: JSON.stringify({ messages }),
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new ChatError("Connection lost", "network");
+    }
+    throw err;
+  }
 
   if (!response.ok) {
     let message;
     try {
       const body = await response.json();
-      message = body.error;
-    } catch {
-      // Response body is not JSON
+      message = typeof body?.error === "string" ? body.error : undefined;
+    } catch (parseErr) {
+      console.warn("Could not parse error response body:", parseErr.message);
     }
-    throw new Error(message || `Chat request failed: ${response.status}`);
+    const type = response.status === 429 ? "rate_limit" : "server";
+    throw new ChatError(
+      message || `Chat request failed: ${response.status}`,
+      type,
+    );
   }
 
   if (!response.body) {
-    throw new Error("Response body is not readable (streaming not supported)");
+    throw new ChatError(
+      "Response body is not readable (streaming not supported)",
+      "server",
+    );
   }
 
   const reader = response.body.getReader();
@@ -81,7 +108,16 @@ export async function* streamChat(messages, signal) {
 
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      let result;
+      try {
+        result = await reader.read();
+      } catch (err) {
+        if (err instanceof TypeError) {
+          throw new ChatError("Connection lost", "network");
+        }
+        throw err;
+      }
+      const { done, value } = result;
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
