@@ -1,5 +1,6 @@
 // ABOUTME: Tests for chat panel components (ChatPanel, ChatToggle, ChatInput, ChatMessages)
-// ABOUTME: Verifies panel lifecycle, conditional toggle, input behavior, and message rendering
+// ABOUTME: Verifies panel lifecycle, conditional toggle, input behavior, message rendering,
+// ABOUTME: loading dots, inline errors with retry, reset button, and starter prompts
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -8,6 +9,7 @@ import ChatPanel from "./ChatPanel";
 import ChatToggle from "./ChatToggle";
 import ChatInput from "./ChatInput";
 import ChatMessages from "./ChatMessages";
+import ChatMessage from "./ChatMessage";
 
 // Mock useChatStream hook
 vi.mock("../../hooks/useChatStream", () => ({
@@ -16,6 +18,8 @@ vi.mock("../../hooks/useChatStream", () => ({
     isStreaming: false,
     error: null,
     sendMessage: vi.fn(),
+    clearConversation: vi.fn(),
+    retryLastMessage: vi.fn(),
   })),
 }));
 
@@ -110,6 +114,8 @@ describe("ChatPanel", () => {
       isStreaming: false,
       error: null,
       sendMessage: vi.fn(),
+      clearConversation: vi.fn(),
+      retryLastMessage: vi.fn(),
     });
 
     render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
@@ -118,31 +124,57 @@ describe("ChatPanel", () => {
     expect(screen.getByText("Hi there!")).toBeInTheDocument();
   });
 
-  it("renders error banner when error is set", () => {
+  it("does not render error banner (errors are inline)", () => {
     useChatStream.mockReturnValue({
-      messages: [],
+      messages: [
+        { id: "msg-1", role: "user", content: "Hello", timestamp: Date.now() },
+      ],
       isStreaming: false,
-      error: "Connection lost",
+      error: { message: "Connection lost", type: "network" },
       sendMessage: vi.fn(),
+      clearConversation: vi.fn(),
+      retryLastMessage: vi.fn(),
     });
 
     render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
 
-    expect(screen.getByText("Connection lost")).toBeInTheDocument();
+    // The old red bg-red-500/10 error banner should not exist
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.querySelector(".bg-red-500\\/10")).not.toBeInTheDocument();
   });
 
-  it("does not render error banner when error is null", () => {
+  it("renders reset button in header", () => {
     useChatStream.mockReturnValue({
       messages: [],
       isStreaming: false,
       error: null,
       sendMessage: vi.fn(),
+      clearConversation: vi.fn(),
+      retryLastMessage: vi.fn(),
     });
 
     render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
 
-    // No red error banner present
-    expect(screen.queryByText("Connection lost")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Reset conversation")).toBeInTheDocument();
+  });
+
+  it("calls clearConversation when reset button is clicked", () => {
+    const clearConversation = vi.fn();
+    useChatStream.mockReturnValue({
+      messages: [
+        { id: "msg-1", role: "user", content: "Hello", timestamp: Date.now() },
+      ],
+      isStreaming: false,
+      error: null,
+      sendMessage: vi.fn(),
+      clearConversation,
+      retryLastMessage: vi.fn(),
+    });
+
+    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText("Reset conversation"));
+    expect(clearConversation).toHaveBeenCalledTimes(1);
   });
 
   it("calls sendMessage when user types and presses Enter", async () => {
@@ -152,6 +184,8 @@ describe("ChatPanel", () => {
       isStreaming: false,
       error: null,
       sendMessage,
+      clearConversation: vi.fn(),
+      retryLastMessage: vi.fn(),
     });
 
     render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
@@ -326,8 +360,16 @@ describe("ChatInput", () => {
 });
 
 describe("ChatMessages", () => {
-  it("shows empty state when no messages", () => {
-    render(<ChatMessages messages={[]} isStreaming={false} />);
+  it("shows empty state with starter prompts when no messages", () => {
+    render(
+      <ChatMessages
+        messages={[]}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+      />,
+    );
 
     expect(
       screen.getByText("Ask the AI advisor about your capacity data"),
@@ -345,9 +387,220 @@ describe("ChatMessages", () => {
       },
     ];
 
-    render(<ChatMessages messages={messages} isStreaming={false} />);
+    render(
+      <ChatMessages
+        messages={messages}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText("Hello")).toBeInTheDocument();
     expect(screen.getByText("World")).toBeInTheDocument();
+  });
+
+  it("renders starter prompt chips when messages is empty", () => {
+    render(
+      <ChatMessages
+        messages={[]}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Assess current capacity")).toBeInTheDocument();
+    expect(screen.getByText("Plan for growth")).toBeInTheDocument();
+    expect(screen.getByText("Review cell sizing")).toBeInTheDocument();
+    expect(screen.getByText("Check HA readiness")).toBeInTheDocument();
+  });
+
+  it("calls onPromptClick with full question when starter prompt is clicked", () => {
+    const onPromptClick = vi.fn();
+    render(
+      <ChatMessages
+        messages={[]}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={onPromptClick}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Assess current capacity"));
+
+    expect(onPromptClick).toHaveBeenCalledTimes(1);
+    expect(onPromptClick).toHaveBeenCalledWith(
+      expect.stringContaining("Diego cell metrics"),
+    );
+  });
+
+  it("does not show starter prompts when messages is non-empty", () => {
+    render(
+      <ChatMessages
+        messages={[
+          {
+            id: "msg-1",
+            role: "user",
+            content: "Hello",
+            timestamp: Date.now(),
+          },
+        ]}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByText("Assess current capacity"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders inline error with rate_limit message", () => {
+    render(
+      <ChatMessages
+        messages={[
+          {
+            id: "msg-1",
+            role: "user",
+            content: "Hello",
+            timestamp: Date.now(),
+          },
+        ]}
+        isStreaming={false}
+        error={{ message: "rate limited", type: "rate_limit" }}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("Too many requests -- wait a moment and try again"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders inline error with network message", () => {
+    render(
+      <ChatMessages
+        messages={[
+          {
+            id: "msg-1",
+            role: "user",
+            content: "Hello",
+            timestamp: Date.now(),
+          },
+        ]}
+        isStreaming={false}
+        error={{ message: "fetch failed", type: "network" }}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("Connection lost -- check your network and try again"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders Try again button in inline error", () => {
+    render(
+      <ChatMessages
+        messages={[
+          {
+            id: "msg-1",
+            role: "user",
+            content: "Hello",
+            timestamp: Date.now(),
+          },
+        ]}
+        isStreaming={false}
+        error={{ message: "error", type: "server" }}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Try again")).toBeInTheDocument();
+  });
+
+  it("calls onRetry when Try again button is clicked", () => {
+    const onRetry = vi.fn();
+    render(
+      <ChatMessages
+        messages={[
+          {
+            id: "msg-1",
+            role: "user",
+            content: "Hello",
+            timestamp: Date.now(),
+          },
+        ]}
+        isStreaming={false}
+        error={{ message: "error", type: "server" }}
+        onRetry={onRetry}
+        onPromptClick={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Try again"));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ChatMessage - Loading dots", () => {
+  it("renders loading dots when assistant message has empty content and isStreaming", () => {
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "",
+          timestamp: Date.now(),
+        }}
+        isStreaming={true}
+        tick={0}
+      />,
+    );
+
+    expect(screen.getByLabelText("AI is thinking")).toBeInTheDocument();
+  });
+
+  it("does not render loading dots when assistant message has content", () => {
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Hello there",
+          timestamp: Date.now(),
+        }}
+        isStreaming={true}
+        tick={0}
+      />,
+    );
+
+    expect(screen.queryByLabelText("AI is thinking")).not.toBeInTheDocument();
+  });
+
+  it("does not render loading dots when isStreaming is false", () => {
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+      />,
+    );
+
+    expect(screen.queryByLabelText("AI is thinking")).not.toBeInTheDocument();
   });
 });
