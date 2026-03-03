@@ -150,7 +150,7 @@ Plans:
 
 Plans:
 
-- [ ] 06-01-PLAN.md -- Error classification, conversation reset, and retry logic in transport/hook layers (TDD)
+- [x] 06-01-PLAN.md -- Error classification, conversation reset, and retry logic in transport/hook layers (TDD)
 - [ ] 06-02-PLAN.md -- Loading dots, inline errors, reset button, starter prompts in UI components, visual verification
 
 ### Phase 7: Graceful Degradation
