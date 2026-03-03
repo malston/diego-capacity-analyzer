@@ -1,11 +1,12 @@
 // ABOUTME: Scrollable chat message list with sticky-bottom auto-scroll, data source banner
-// ABOUTME: Manages scroll position during streaming and periodic timestamp updates
+// ABOUTME: Manages scroll position during streaming, periodic timestamp updates, and per-message feedback state
 // ABOUTME: Renders adaptive starter prompts in empty state based on available data sources
 // ABOUTME: Exports DataSourceBanner for amber info banner when BOSH/vSphere unavailable
 
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { Bot, AlertTriangle, Info } from "lucide-react";
 import ChatMessage from "./ChatMessage";
+import { sendFeedback } from "../../services/chatApi";
 
 const ERROR_MESSAGES = {
   rate_limit: "Too many requests -- wait a moment and try again",
@@ -125,6 +126,43 @@ const ChatMessages = React.memo(
     const messagesEndRef = useRef(null);
     const shouldAutoScroll = useRef(true);
     const [tick, setTick] = useState(0);
+    const [feedbackState, setFeedbackState] = useState({});
+
+    // Reset feedback state when messages become empty (conversation cleared)
+    useEffect(() => {
+      if (messages.length === 0) {
+        setFeedbackState({});
+      }
+    }, [messages.length]);
+
+    const handleFeedback = useCallback(
+      (messageIndex, rating) => {
+        const current = feedbackState[messageIndex];
+        const newRating = current === rating ? "none" : rating;
+
+        setFeedbackState((prev) => {
+          const next = { ...prev };
+          if (newRating === "none") {
+            delete next[messageIndex];
+          } else {
+            next[messageIndex] = newRating;
+          }
+          return next;
+        });
+
+        // Derive truncated question from preceding user message
+        let truncatedQuestion = "";
+        for (let i = messageIndex - 1; i >= 0; i--) {
+          if (messages[i].role === "user") {
+            truncatedQuestion = messages[i].content.slice(0, 100);
+            break;
+          }
+        }
+
+        sendFeedback({ messageIndex, rating: newRating, truncatedQuestion });
+      },
+      [feedbackState, messages],
+    );
 
     // Periodic timestamp refresh every 30 seconds
     useEffect(() => {
@@ -188,6 +226,8 @@ const ChatMessages = React.memo(
               message.role === "assistant"
             }
             tick={tick}
+            feedbackRating={feedbackState[index]}
+            onFeedback={(rating) => handleFeedback(index, rating)}
           />
         ))}
         {error && <InlineError error={error} onRetry={onRetry} />}
