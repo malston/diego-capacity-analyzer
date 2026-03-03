@@ -130,29 +130,40 @@ const LoadingDots = () => (
 );
 
 function CopyButton({ content }) {
-  const [copied, setCopied] = useState(false);
+  const [status, setStatus] = useState("idle"); // idle | copied | failed
   const timerRef = useRef(null);
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const handleCopy = useCallback(async () => {
+    clearTimeout(timerRef.current);
     try {
       await navigator.clipboard.writeText(stripMarkdown(content));
-      setCopied(true);
-      timerRef.current = setTimeout(() => setCopied(false), 2000);
+      setStatus("copied");
     } catch (err) {
       console.warn("Clipboard write failed:", err);
+      setStatus("failed");
     }
+    timerRef.current = setTimeout(() => setStatus("idle"), 2000);
   }, [content]);
+
+  const label =
+    status === "copied"
+      ? "Copied"
+      : status === "failed"
+        ? "Copy failed"
+        : "Copy to clipboard";
 
   return (
     <button
       onClick={handleCopy}
       className="p-1 rounded text-slate-400 hover:text-slate-200 transition-colors"
-      aria-label={copied ? "Copied" : "Copy to clipboard"}
+      aria-label={label}
     >
-      {copied ? (
+      {status === "copied" ? (
         <Check className="w-3.5 h-3.5 text-green-400" />
+      ) : status === "failed" ? (
+        <Copy className="w-3.5 h-3.5 text-red-400" />
       ) : (
         <Copy className="w-3.5 h-3.5" />
       )}

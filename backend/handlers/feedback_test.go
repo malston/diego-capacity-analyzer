@@ -1,5 +1,5 @@
 // ABOUTME: Tests for chat feedback endpoint
-// ABOUTME: Covers auth, validation, slog logging, and rate limiting
+// ABOUTME: Covers auth, validation, slog logging, and server-side truncation
 
 package handlers
 
@@ -16,22 +16,8 @@ import (
 	"github.com/markalston/diego-capacity-analyzer/backend/models"
 )
 
-// feedbackTestClaims returns standard user claims for feedback tests.
-// Defined locally since testClaims in chat_test.go is package-level but
-// we want explicit test claims per file for clarity.
-var feedbackTestClaims = &middleware.UserClaims{
-	Username: "testuser",
-	UserID:   "test-user-id",
-	Role:     "viewer",
-}
-
-// withFeedbackTestAuth wraps a handler to inject test user claims.
-func withFeedbackTestAuth(handler http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		r = middleware.WithUserClaims(r, feedbackTestClaims)
-		handler(w, r)
-	}
-}
+// feedbackTestClaims reuses the shared test claims from chat_test.go.
+var feedbackTestClaims = testClaims
 
 // captureLogHandler is a slog.Handler that records log records for test assertions.
 type captureLogHandler struct {

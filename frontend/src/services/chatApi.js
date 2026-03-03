@@ -43,8 +43,8 @@ export function parseSSEEvent(raw) {
 
   try {
     return { type, data: JSON.parse(dataLine) };
-  } catch {
-    console.warn("Skipping malformed SSE data:", dataLine);
+  } catch (err) {
+    console.warn("Skipping malformed SSE data:", dataLine, err.message);
     return null;
   }
 }

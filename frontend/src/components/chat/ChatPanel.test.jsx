@@ -1092,6 +1092,71 @@ describe("ChatMessage - Action bar", () => {
     });
   });
 
+  it("shows error indicator when clipboard write fails", async () => {
+    const writeText = vi
+      .fn()
+      .mockRejectedValue(new DOMException("Not allowed"));
+    Object.assign(navigator, {
+      clipboard: { writeText },
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Hello",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Copy to clipboard"));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Copy failed")).toBeInTheDocument();
+    });
+
+    warnSpy.mockRestore();
+  });
+
+  it("clears previous timeout on rapid successive copy clicks", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: { writeText },
+    });
+
+    render(
+      <ChatMessage
+        message={{
+          id: "msg-1",
+          role: "assistant",
+          content: "Hello",
+          timestamp: Date.now(),
+        }}
+        isStreaming={false}
+        tick={0}
+      />,
+    );
+
+    // Click copy twice rapidly
+    fireEvent.click(screen.getByLabelText("Copy to clipboard"));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Copied")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText("Copied"));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Copied")).toBeInTheDocument();
+    });
+
+    // Verify clipboard was called twice (clearTimeout prevents premature reset)
+    expect(writeText).toHaveBeenCalledTimes(2);
+  });
+
   it("shows checkmark icon after successful copy", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {

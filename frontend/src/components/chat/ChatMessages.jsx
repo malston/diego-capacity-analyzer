@@ -128,19 +128,33 @@ const ChatMessages = React.memo(
     const [tick, setTick] = useState(0);
     const [feedbackState, setFeedbackState] = useState({});
 
-    // Reset feedback state when messages become empty (conversation cleared)
-    useEffect(() => {
+    // Reset feedback state when conversation is cleared (React docs pattern:
+    // adjust state during render instead of useEffect to avoid cascading renders)
+    const [prevMessageCount, setPrevMessageCount] = useState(messages.length);
+    if (messages.length !== prevMessageCount) {
+      setPrevMessageCount(messages.length);
       if (messages.length === 0) {
         setFeedbackState({});
       }
-    }, [messages.length]);
+    }
 
     const handleFeedback = useCallback(
       (messageIndex, rating) => {
-        const current = feedbackState[messageIndex];
-        const newRating = current === rating ? "none" : rating;
-
         setFeedbackState((prev) => {
+          const current = prev[messageIndex];
+          const newRating = current === rating ? "none" : rating;
+
+          // Derive truncated question from preceding user message
+          let truncatedQuestion = "";
+          for (let i = messageIndex - 1; i >= 0; i--) {
+            if (messages[i].role === "user") {
+              truncatedQuestion = messages[i].content.slice(0, 100);
+              break;
+            }
+          }
+
+          sendFeedback({ messageIndex, rating: newRating, truncatedQuestion });
+
           const next = { ...prev };
           if (newRating === "none") {
             delete next[messageIndex];
@@ -149,19 +163,8 @@ const ChatMessages = React.memo(
           }
           return next;
         });
-
-        // Derive truncated question from preceding user message
-        let truncatedQuestion = "";
-        for (let i = messageIndex - 1; i >= 0; i--) {
-          if (messages[i].role === "user") {
-            truncatedQuestion = messages[i].content.slice(0, 100);
-            break;
-          }
-        }
-
-        sendFeedback({ messageIndex, rating: newRating, truncatedQuestion });
       },
-      [feedbackState, messages],
+      [messages],
     );
 
     // Periodic timestamp refresh every 30 seconds
