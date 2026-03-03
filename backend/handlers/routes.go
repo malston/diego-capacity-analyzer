@@ -46,6 +46,7 @@ func (h *Handler) Routes() []Route {
 
 		// AI Advisor
 		{Method: http.MethodPost, Path: "/api/v1/chat", Handler: h.Chat, RateLimit: "chat"},
+		{Method: http.MethodPost, Path: "/api/v1/chat/feedback", Handler: h.ChatFeedback, RateLimit: "write"},
 
 		// Analysis
 		{Method: http.MethodGet, Path: "/api/v1/bottleneck", Handler: h.AnalyzeBottleneck},
