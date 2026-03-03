@@ -1,5 +1,5 @@
-// ABOUTME: Unit tests for SSE transport and event parsing
-// ABOUTME: Verifies chunk buffering, event type parsing, error handling, and abort support
+// ABOUTME: Unit tests for SSE transport, event parsing, and error classification
+// ABOUTME: Verifies chunk buffering, event type parsing, ChatError types, and abort support
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { parseSSEEvent, streamChat, ChatError } from "./chatApi";

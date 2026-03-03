@@ -1,5 +1,5 @@
 // ABOUTME: Low-level SSE transport for the chat endpoint
-// ABOUTME: Handles POST-based SSE with CSRF, chunk buffering, and abort support
+// ABOUTME: Handles POST-based SSE with CSRF, chunk buffering, abort support, and typed error classification
 
 import { withCSRFToken } from "../utils/csrf.js";
 

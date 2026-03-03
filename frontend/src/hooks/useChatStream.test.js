@@ -1,5 +1,5 @@
 // ABOUTME: Unit tests for the chat stream React hook
-// ABOUTME: Verifies message state management, streaming lifecycle, and abort handling
+// ABOUTME: Verifies message state, streaming lifecycle, error classification, reset, and retry
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";

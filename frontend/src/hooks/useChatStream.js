@@ -1,5 +1,5 @@
 // ABOUTME: React hook managing chat conversation state and SSE streaming lifecycle
-// ABOUTME: Handles message accumulation, token appending, abort on unmount, and multi-turn history
+// ABOUTME: Handles message accumulation, token appending, abort, error classification, reset, and retry
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { streamChat, ChatError } from "../services/chatApi.js";
