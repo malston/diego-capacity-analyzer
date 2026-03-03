@@ -3,7 +3,13 @@
 // ABOUTME: Shows pulsing dots indicator when assistant message is streaming with empty content
 // ABOUTME: Displays floating action bar with copy-to-clipboard and feedback buttons on completed assistant messages
 
-import React, { useMemo, useState, useCallback } from "react";
+import React, {
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
 import { User, Bot, Copy, Check, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
@@ -125,12 +131,15 @@ const LoadingDots = () => (
 
 function CopyButton({ content }) {
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(stripMarkdown(content));
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.warn("Clipboard write failed:", err);
     }

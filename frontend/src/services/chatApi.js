@@ -156,7 +156,7 @@ export async function sendFeedback({
   const headers = withCSRFToken({ "Content-Type": "application/json" });
 
   try {
-    await fetch(`${API_URL}/api/v1/chat/feedback`, {
+    const res = await fetch(`${API_URL}/api/v1/chat/feedback`, {
       method: "POST",
       headers,
       credentials: "include",
@@ -166,6 +166,9 @@ export async function sendFeedback({
         truncated_question: truncatedQuestion,
       }),
     });
+    if (!res.ok) {
+      console.warn(`Feedback submission returned ${res.status}`);
+    }
   } catch (err) {
     console.warn("Feedback submission failed:", err);
   }

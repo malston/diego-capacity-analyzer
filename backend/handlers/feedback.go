@@ -54,8 +54,8 @@ func (h *Handler) ChatFeedback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	question := req.TruncatedQuestion
-	if len(question) > maxQuestionLength {
-		question = question[:maxQuestionLength]
+	if runes := []rune(question); len(runes) > maxQuestionLength {
+		question = string(runes[:maxQuestionLength])
 	}
 
 	slog.Info("chat feedback",

@@ -121,7 +121,7 @@ func TestSystemPromptContainsUrgencyTiers(t *testing.T) {
 
 func TestSystemPromptContainsBudgetJustification(t *testing.T) {
 	lower := strings.ToLower(systemPrompt)
-	// At least one of these business-impact terms must be present
+	// All of these business-impact terms must be present
 	businessTerms := []string{
 		"deployment failure",
 		"sla",

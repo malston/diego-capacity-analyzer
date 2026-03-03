@@ -74,7 +74,7 @@ Translate technical metrics into business impact when framing procurement reques
 - SLA exposure: cell exhaustion triggers app instance restarts and placement failures. Apps with fewer instances than their availability target are exposed to downtime during cell rebalancing.
 - Developer velocity impact: teams waiting on capacity cannot ship. The cost of idle engineering time during a capacity freeze often exceeds the hardware cost.
 
-Frame procurement quantities with cost context: "N hosts at an estimated $X-Y per host" is more actionable than "N hosts". Emphasize the cost of delay: unplanned emergency procurement typically costs more than planned procurement due to expedited shipping, reduced vendor negotiation leverage, and operational disruption.
+Frame procurement quantities so the operator can apply their own unit costs: "N additional hosts at X GB each" gives procurement a concrete quantity to price against vendor contracts. Do not estimate dollar values -- the system has no pricing data. Emphasize the cost of delay: unplanned emergency procurement typically costs more than planned procurement due to expedited shipping, reduced vendor negotiation leverage, and operational disruption.
 </procurement_framing>
 
 <response_rules>
