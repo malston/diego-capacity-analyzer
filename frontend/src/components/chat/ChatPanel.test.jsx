@@ -155,7 +155,7 @@ describe("ChatPanel", () => {
 
     render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
 
-    expect(screen.getByLabelText("Reset conversation")).toBeInTheDocument();
+    expect(screen.getByLabelText("New conversation")).toBeInTheDocument();
   });
 
   it("calls clearConversation when reset button is clicked", () => {
@@ -173,7 +173,7 @@ describe("ChatPanel", () => {
 
     render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByLabelText("Reset conversation"));
+    fireEvent.click(screen.getByLabelText("New conversation"));
     expect(clearConversation).toHaveBeenCalledTimes(1);
   });
 

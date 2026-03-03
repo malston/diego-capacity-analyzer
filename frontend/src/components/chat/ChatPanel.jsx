@@ -2,7 +2,7 @@
 // ABOUTME: Manages panel lifecycle, body scroll lock, escape-to-close, and conversation reset
 
 import { useEffect, useCallback } from "react";
-import { X, RotateCcw } from "lucide-react";
+import { X, MessageSquarePlus } from "lucide-react";
 import { useChatStream } from "../../hooks/useChatStream";
 import ChatMessages from "./ChatMessages";
 import ChatInput from "./ChatInput";
@@ -77,9 +77,9 @@ const ChatPanel = ({ isOpen, onClose }) => {
             <button
               onClick={clearConversation}
               className="p-1.5 rounded-md text-slate-400 hover:text-slate-300 hover:bg-slate-800 transition-colors"
-              aria-label="Reset conversation"
+              aria-label="New conversation"
             >
-              <RotateCcw className="w-4 h-4" aria-hidden="true" />
+              <MessageSquarePlus className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               onClick={onClose}
