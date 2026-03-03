@@ -57,7 +57,7 @@ Requirements for Phase 1 release. Each maps to roadmap phases.
 
 ### Polish
 
-- [ ] **POL-01**: User can copy any assistant response to clipboard with a single click
+- [x] **POL-01**: User can copy any assistant response to clipboard with a single click
 - [x] **POL-02**: User can provide thumbs up/down feedback on any assistant response (logged to backend via `slog`)
 - [x] **POL-03**: System prompt includes procurement-oriented framing so the advisor interprets capacity data in terms of hardware procurement decisions
 
@@ -124,7 +124,7 @@ Deferred to Phase 2 (Scenario Execution via Chat).
 | DEG-01      | Phase 7 | Complete |
 | DEG-02      | Phase 7 | Complete |
 | DEG-03      | Phase 7 | Complete |
-| POL-01      | Phase 8 | Pending |
+| POL-01      | Phase 8 | Complete |
 | POL-02      | Phase 8 | Complete |
 | POL-03      | Phase 8 | Complete |
 

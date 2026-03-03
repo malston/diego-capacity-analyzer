@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5: Chat Panel Core** - Side panel with streaming Markdown display and multi-turn conversation threading
 - [x] **Phase 6: Chat Panel UX** - Loading states, error handling, conversation reset, and starter prompts (completed 2026-03-03)
 - [x] **Phase 7: Graceful Degradation** - CF-only operation, data gap messaging, and adaptive starter prompts (completed 2026-03-03)
-- [ ] **Phase 8: Polish** - Copy to clipboard, response feedback, and procurement-oriented system prompt tuning
+- [x] **Phase 8: Polish** - Copy to clipboard, response feedback, and procurement-oriented system prompt tuning (completed 2026-03-03)
 
 ## Phase Details
 
@@ -184,8 +184,8 @@ Plans:
 
 Plans:
 
-- [ ] 08-01-PLAN.md -- Feedback endpoint and procurement-oriented prompt tuning (TDD)
-- [ ] 08-02-PLAN.md -- Action bar with copy-to-clipboard and feedback buttons, visual verification
+- [x] 08-01-PLAN.md -- Feedback endpoint and procurement-oriented prompt tuning (TDD)
+- [x] 08-02-PLAN.md -- Action bar with copy-to-clipboard and feedback buttons, visual verification
 
 ## Progress
 
@@ -202,4 +202,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 4.1 -> 5 -> 6 -> 7 -> 8
 | 5. Chat Panel Core          | 0/0            | Not started | -          |
 | 6. Chat Panel UX            | 2/2            | Complete    | 2026-03-03 |
 | 7. Graceful Degradation     | 2/2            | Complete    | 2026-03-03 |
-| 8. Polish                   | 0/2            | Not started | -          |
+| 8. Polish                   | 2/2 | Complete   | 2026-03-03 |
