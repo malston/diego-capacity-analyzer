@@ -29,12 +29,14 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 
 	// Derive data source availability for frontend degradation logic
 	logCacheAvailable := false
-	if cached, found := h.cache.Get("dashboard:all"); found {
-		if dashboard, ok := cached.(models.DashboardResponse); ok {
-			for _, app := range dashboard.Apps {
-				if app.ActualMB > 0 {
-					logCacheAvailable = true
-					break
+	if h.cache != nil {
+		if cached, found := h.cache.Get("dashboard:all"); found {
+			if dashboard, ok := cached.(models.DashboardResponse); ok {
+				for _, app := range dashboard.Apps {
+					if app.ActualMB > 0 {
+						logCacheAvailable = true
+						break
+					}
 				}
 			}
 		}
