@@ -95,7 +95,7 @@ const ChatMessages = React.memo(
             Ask the AI advisor about your capacity data
           </p>
           <div className="flex flex-wrap justify-center gap-2 max-w-sm">
-            {STARTER_PROMPTS.map((prompt, i) => (
+            {STARTER_PROMPTS.map((prompt) => (
               <button
                 key={prompt.label}
                 onClick={() => onPromptClick(prompt.question)}
