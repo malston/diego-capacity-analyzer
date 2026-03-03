@@ -79,15 +79,9 @@ func (h *Handler) buildChatSystemPrompt(username string) string {
 	if cached, found := h.cache.Get("dashboard:all"); found {
 		if dashboard, ok := cached.(models.DashboardResponse); ok {
 			input.Dashboard = &dashboard
-			// Derive Log Cache availability: true if any app has actual memory data
-			for _, app := range dashboard.Apps {
-				if app.ActualMB > 0 {
-					input.LogCacheAvailable = true
-					break
-				}
-			}
 		}
 	}
+	input.LogCacheAvailable = h.isLogCacheAvailable()
 
 	h.infraMutex.RLock()
 	input.Infra = h.infrastructureState

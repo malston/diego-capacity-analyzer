@@ -1,6 +1,7 @@
-// ABOUTME: Tests for chat panel components (ChatPanel, ChatToggle, ChatInput, ChatMessages)
+// ABOUTME: Tests for chat panel components (ChatPanel, ChatToggle, ChatInput, ChatMessages, DataSourceBanner)
 // ABOUTME: Verifies panel lifecycle, conditional toggle, input behavior, message rendering,
-// ABOUTME: loading dots, inline errors with retry, reset button, and starter prompts
+// ABOUTME: loading dots, inline errors with retry, reset button, starter prompts,
+// ABOUTME: adaptive prompt filtering by data source, and data source availability banner
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -8,7 +9,7 @@ import userEvent from "@testing-library/user-event";
 import ChatPanel from "./ChatPanel";
 import ChatToggle from "./ChatToggle";
 import ChatInput from "./ChatInput";
-import ChatMessages from "./ChatMessages";
+import ChatMessages, { DataSourceBanner } from "./ChatMessages";
 import ChatMessage from "./ChatMessage";
 
 // Mock useChatStream hook
@@ -209,7 +210,7 @@ describe("ChatToggle", () => {
   });
 
   it("renders nothing when health returns ai_configured: false", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ai_configured: false }),
     });
@@ -227,7 +228,7 @@ describe("ChatToggle", () => {
   });
 
   it("renders toggle button when health returns ai_configured: true", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ai_configured: true }),
     });
@@ -242,7 +243,7 @@ describe("ChatToggle", () => {
   });
 
   it("renders nothing when health fetch fails", async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error("network"));
+    vi.spyOn(global, "fetch").mockRejectedValue(new Error("network"));
 
     const { container } = render(
       <ChatToggle isOpen={false} onToggle={vi.fn()} />,
@@ -256,7 +257,7 @@ describe("ChatToggle", () => {
   });
 
   it("renders nothing when health returns non-OK HTTP status", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: false,
       status: 503,
     });
@@ -273,7 +274,7 @@ describe("ChatToggle", () => {
   });
 
   it("applies active styling when isOpen is true", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ai_configured: true }),
     });
@@ -288,7 +289,7 @@ describe("ChatToggle", () => {
   });
 
   it("calls onToggle when clicked", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ai_configured: true }),
     });
@@ -602,5 +603,351 @@ describe("ChatMessage - Loading dots", () => {
     );
 
     expect(screen.queryByLabelText("AI is thinking")).not.toBeInTheDocument();
+  });
+});
+
+describe("ChatMessages - Adaptive starter prompts", () => {
+  it("renders only CF-appropriate prompts when bosh and vsphere are unavailable", () => {
+    render(
+      <ChatMessages
+        messages={[]}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+        dataSources={{ bosh: false, vsphere: false, log_cache: false }}
+      />,
+    );
+
+    // CF-only prompts should appear
+    expect(screen.getByText("Review app distribution")).toBeInTheDocument();
+    expect(screen.getByText("Analyze memory allocation")).toBeInTheDocument();
+
+    // BOSH-dependent prompts should not appear
+    expect(
+      screen.queryByText("Assess current capacity"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Plan for growth")).not.toBeInTheDocument();
+    expect(screen.queryByText("Review cell sizing")).not.toBeInTheDocument();
+    expect(screen.queryByText("Check HA readiness")).not.toBeInTheDocument();
+  });
+
+  it("renders BOSH-dependent prompts when bosh is available", () => {
+    render(
+      <ChatMessages
+        messages={[]}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+        dataSources={{ bosh: true, vsphere: false, log_cache: false }}
+      />,
+    );
+
+    expect(screen.getByText("Assess current capacity")).toBeInTheDocument();
+    expect(screen.getByText("Plan for growth")).toBeInTheDocument();
+  });
+
+  it("renders first 4 matching prompts when all sources available (maxPrompts cap)", () => {
+    render(
+      <ChatMessages
+        messages={[]}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+        dataSources={{ bosh: true, vsphere: true, log_cache: true }}
+      />,
+    );
+
+    expect(screen.getByText("Assess current capacity")).toBeInTheDocument();
+    expect(screen.getByText("Plan for growth")).toBeInTheDocument();
+    expect(screen.getByText("Review cell sizing")).toBeInTheDocument();
+    expect(screen.getByText("Check HA readiness")).toBeInTheDocument();
+
+    // Verify maxPrompts=4 cap: 5th+ prompts should not render
+    const buttons = screen.getAllByRole("button");
+    expect(buttons).toHaveLength(4);
+    expect(screen.queryByText("Assess app density")).not.toBeInTheDocument();
+  });
+
+  it("always renders at least 3 starter prompt chips regardless of dataSources", () => {
+    render(
+      <ChatMessages
+        messages={[]}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+        dataSources={{ bosh: false, vsphere: false, log_cache: false }}
+      />,
+    );
+
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("does not render BOSH-dependent prompt when bosh is false", () => {
+    render(
+      <ChatMessages
+        messages={[]}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+        dataSources={{ bosh: false, vsphere: true, log_cache: true }}
+      />,
+    );
+
+    expect(
+      screen.queryByText("Assess current capacity"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not render vsphere-dependent prompt when vsphere is false", () => {
+    render(
+      <ChatMessages
+        messages={[]}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+        dataSources={{ bosh: true, vsphere: false, log_cache: false }}
+      />,
+    );
+
+    expect(screen.queryByText("Check HA readiness")).not.toBeInTheDocument();
+  });
+
+  it("renders full original set of prompts when dataSources is null (fallback)", () => {
+    render(
+      <ChatMessages
+        messages={[]}
+        isStreaming={false}
+        error={null}
+        onRetry={vi.fn()}
+        onPromptClick={vi.fn()}
+        dataSources={null}
+      />,
+    );
+
+    expect(screen.getByText("Assess current capacity")).toBeInTheDocument();
+    expect(screen.getByText("Plan for growth")).toBeInTheDocument();
+    expect(screen.getByText("Review cell sizing")).toBeInTheDocument();
+    expect(screen.getByText("Check HA readiness")).toBeInTheDocument();
+  });
+});
+
+describe("DataSourceBanner", () => {
+  it("renders BOSH data unavailable when only BOSH is missing", () => {
+    render(
+      <DataSourceBanner
+        dataSources={{ bosh: false, vsphere: true, log_cache: true }}
+      />,
+    );
+
+    expect(screen.getByText("BOSH data unavailable")).toBeInTheDocument();
+  });
+
+  it("renders BOSH and vSphere data unavailable when both are missing", () => {
+    render(
+      <DataSourceBanner
+        dataSources={{ bosh: false, vsphere: false, log_cache: false }}
+      />,
+    );
+
+    expect(
+      screen.getByText("BOSH and vSphere data unavailable"),
+    ).toBeInTheDocument();
+  });
+
+  it("does not render when all sources are available", () => {
+    const { container } = render(
+      <DataSourceBanner
+        dataSources={{ bosh: true, vsphere: true, log_cache: true }}
+      />,
+    );
+
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("does not render when dataSources is null", () => {
+    const { container } = render(<DataSourceBanner dataSources={null} />);
+
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("does not include Log Cache in banner text", () => {
+    render(
+      <DataSourceBanner
+        dataSources={{ bosh: true, vsphere: true, log_cache: false }}
+      />,
+    );
+
+    expect(screen.queryByText(/Log Cache/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("ChatPanel - Data source fetch", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    document.body.style.overflow = "";
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.body.style.overflow = "";
+  });
+
+  it("fetches /api/v1/health when isOpen transitions to true and passes data_sources to ChatMessages", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          ai_configured: true,
+          data_sources: { bosh: true, vsphere: false, log_cache: false },
+        }),
+    });
+
+    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v1/health"),
+        expect.objectContaining({ credentials: "include" }),
+      );
+    });
+
+    // With bosh available but vsphere unavailable, the banner should show vSphere missing
+    await waitFor(() => {
+      expect(screen.getByText("vSphere data unavailable")).toBeInTheDocument();
+    });
+  });
+
+  it("re-fetches /api/v1/health on subsequent isOpen=true transitions", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          ai_configured: true,
+          data_sources: { bosh: false, vsphere: false, log_cache: false },
+        }),
+    });
+
+    const { rerender } = render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    // Close the panel
+    rerender(<ChatPanel isOpen={false} onClose={vi.fn()} />);
+
+    // Re-open the panel
+    rerender(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("renders DataSourceBanner between header and ChatMessages", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          ai_configured: true,
+          data_sources: { bosh: false, vsphere: false, log_cache: false },
+        }),
+    });
+
+    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("BOSH and vSphere data unavailable"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("assumes degraded when health fetch fails and shows banner", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValue(new Error("network error"));
+
+    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("BOSH and vSphere data unavailable"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("assumes degraded when health endpoint returns non-OK status", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      status: 500,
+    });
+
+    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("BOSH and vSphere data unavailable"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("treats missing data_sources in health response as null fallback", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ai_configured: true }),
+    });
+
+    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    // With null dataSources fallback, banner should not appear
+    expect(screen.queryByText(/data unavailable/)).not.toBeInTheDocument();
+
+    // Default prompts should show (null fallback shows original set)
+    expect(screen.getByText("Assess current capacity")).toBeInTheDocument();
+  });
+
+  it("does not apply stale fetch when panel closes before response", async () => {
+    let resolveHealth;
+    vi.spyOn(global, "fetch").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveHealth = resolve;
+        }),
+    );
+
+    const { rerender } = render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    // Close panel before fetch resolves
+    rerender(<ChatPanel isOpen={false} onClose={vi.fn()} />);
+
+    // Resolve the fetch after panel is closed
+    resolveHealth({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data_sources: { bosh: false, vsphere: false, log_cache: false },
+        }),
+    });
+
+    // Give time for any state updates to process
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Re-open the panel -- should start fresh, not use stale data
+    rerender(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+
+    // The second fetch should have been made
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
   });
 });

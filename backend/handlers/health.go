@@ -27,7 +27,37 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		resp["bosh_api"] = "ok"
 	}
 
+	logCacheAvailable := h.isLogCacheAvailable()
+
+	// data_sources reflects configuration state (whether each integration is
+	// initialized), not live connectivity. The frontend uses these booleans to
+	// filter starter prompts and show degradation banners.
+	resp["data_sources"] = map[string]bool{
+		"bosh":      h.boshClient != nil,
+		"vsphere":   h.cfg != nil && h.cfg.VSphereConfigured(),
+		"log_cache": logCacheAvailable,
+	}
+
 	h.writeJSON(w, http.StatusOK, resp)
+}
+
+// isLogCacheAvailable checks cached dashboard data for any app with actual
+// memory metrics. ActualMB > 0 indicates Log Cache was reachable when the
+// dashboard was built, since that field is populated from Log Cache envelope data.
+func (h *Handler) isLogCacheAvailable() bool {
+	if h.cache == nil {
+		return false
+	}
+	if cached, found := h.cache.Get("dashboard:all"); found {
+		if dashboard, ok := cached.(models.DashboardResponse); ok {
+			for _, app := range dashboard.Apps {
+				if app.ActualMB > 0 {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // Dashboard returns live dashboard data including cells, apps, and segments.

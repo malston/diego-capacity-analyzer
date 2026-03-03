@@ -1,9 +1,10 @@
-// ABOUTME: Scrollable chat message list with sticky-bottom auto-scroll
+// ABOUTME: Scrollable chat message list with sticky-bottom auto-scroll, data source banner
 // ABOUTME: Manages scroll position during streaming and periodic timestamp updates
-// ABOUTME: Renders starter prompt chips in empty state and inline errors after messages
+// ABOUTME: Renders adaptive starter prompts in empty state based on available data sources
+// ABOUTME: Exports DataSourceBanner for amber info banner when BOSH/vSphere unavailable
 
 import React, { useRef, useEffect, useState, useCallback } from "react";
-import { Bot, AlertTriangle } from "lucide-react";
+import { Bot, AlertTriangle, Info } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 
 const ERROR_MESSAGES = {
@@ -13,28 +14,90 @@ const ERROR_MESSAGES = {
   server: "Something went wrong -- try again",
 };
 
-const STARTER_PROMPTS = [
+const ALL_PROMPTS = [
   {
     label: "Assess current capacity",
     question:
       "Based on the current Diego cell metrics, how much headroom do we have before we need to add more capacity? Consider both memory and CPU utilization.",
+    requires: ["bosh"],
   },
   {
     label: "Plan for growth",
     question:
       "If our application workloads grow by 25% over the next quarter, how many additional Diego cells would we need and what hardware should we procure?",
+    requires: ["bosh"],
   },
   {
     label: "Review cell sizing",
     question:
       "Are our Diego cells sized optimally? Analyze the current VM specs against the workload distribution and recommend any sizing changes.",
+    requires: ["bosh"],
   },
   {
     label: "Check HA readiness",
     question:
       "Evaluate our N-1 redundancy posture. If we lose the largest host in each cluster, do we have enough capacity to absorb the displaced Diego cells?",
+    requires: ["bosh", "vsphere"],
+  },
+  {
+    label: "Review app distribution",
+    question:
+      "Analyze how applications are distributed across isolation segments. Are there any segments that are over or under-utilized?",
+    requires: ["cf"],
+  },
+  {
+    label: "Analyze memory allocation",
+    question:
+      "Review the memory allocation patterns across our applications. Are there apps that are over-provisioned or under-provisioned relative to their actual usage?",
+    requires: ["cf"],
+  },
+  {
+    label: "Check isolation segments",
+    question:
+      "How are our isolation segments configured and which applications run in each? Are there any segmentation improvements we should consider?",
+    requires: ["cf"],
+  },
+  {
+    label: "Assess app density",
+    question:
+      "What is the current application density? Are there any apps consuming significantly more resources than others?",
+    requires: ["cf"],
   },
 ];
+
+function getAvailablePrompts(dataSources, maxPrompts = 4) {
+  if (dataSources === null || dataSources === undefined) {
+    return ALL_PROMPTS.slice(0, maxPrompts);
+  }
+
+  const available = new Set(["cf"]);
+  if (dataSources.bosh) available.add("bosh");
+  if (dataSources.vsphere) available.add("vsphere");
+
+  return ALL_PROMPTS.filter((p) =>
+    p.requires.every((req) => available.has(req)),
+  ).slice(0, maxPrompts);
+}
+
+export const DataSourceBanner = ({ dataSources }) => {
+  if (!dataSources) return null;
+
+  const missing = [];
+  if (!dataSources.bosh) missing.push("BOSH");
+  if (!dataSources.vsphere) missing.push("vSphere");
+
+  if (missing.length === 0) return null;
+
+  return (
+    <div
+      role="status"
+      className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs flex items-center gap-2 flex-shrink-0"
+    >
+      <Info className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+      <span>{missing.join(" and ")} data unavailable</span>
+    </div>
+  );
+};
 
 const InlineError = ({ error, onRetry }) => (
   <div role="alert" className="flex items-start gap-2 px-4 py-3 text-sm">
@@ -57,7 +120,7 @@ const InlineError = ({ error, onRetry }) => (
 );
 
 const ChatMessages = React.memo(
-  ({ messages, isStreaming, error, onRetry, onPromptClick }) => {
+  ({ messages, isStreaming, error, onRetry, onPromptClick, dataSources }) => {
     const containerRef = useRef(null);
     const messagesEndRef = useRef(null);
     const shouldAutoScroll = useRef(true);
@@ -95,7 +158,7 @@ const ChatMessages = React.memo(
             Ask the AI advisor about your capacity data
           </p>
           <div className="flex flex-wrap justify-center gap-2 max-w-sm">
-            {STARTER_PROMPTS.map((prompt) => (
+            {getAvailablePrompts(dataSources).map((prompt) => (
               <button
                 key={prompt.label}
                 onClick={() => onPromptClick(prompt.question)}
