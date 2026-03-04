@@ -128,7 +128,9 @@ const ChatMessages = React.memo(
     const [tick, setTick] = useState(0);
     const [feedbackState, setFeedbackState] = useState({});
     const feedbackStateRef = useRef(feedbackState);
-    feedbackStateRef.current = feedbackState;
+    useEffect(() => {
+      feedbackStateRef.current = feedbackState;
+    }, [feedbackState]);
 
     // Reset feedback state when conversation is cleared (React docs pattern:
     // adjust state during render instead of useEffect to avoid cascading renders)
