@@ -127,10 +127,6 @@ const ChatMessages = React.memo(
     const shouldAutoScroll = useRef(true);
     const [tick, setTick] = useState(0);
     const [feedbackState, setFeedbackState] = useState({});
-    const feedbackStateRef = useRef(feedbackState);
-    useEffect(() => {
-      feedbackStateRef.current = feedbackState;
-    }, [feedbackState]);
 
     // Reset feedback state when conversation is cleared (React docs pattern:
     // adjust state during render instead of useEffect to avoid cascading renders)
@@ -144,7 +140,7 @@ const ChatMessages = React.memo(
 
     const handleFeedback = useCallback(
       (messageIndex, rating) => {
-        const current = feedbackStateRef.current[messageIndex];
+        const current = feedbackState[messageIndex];
         const newRating = current === rating ? "none" : rating;
 
         // Derive truncated question from preceding user message
@@ -168,7 +164,7 @@ const ChatMessages = React.memo(
           return next;
         });
       },
-      [messages],
+      [feedbackState, messages],
     );
 
     // Periodic timestamp refresh every 30 seconds
