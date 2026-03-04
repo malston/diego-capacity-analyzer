@@ -43,7 +43,7 @@ export function stripMarkdown(text) {
     .replace(/__(.+?)__/g, "$1")
     // Italic (single asterisks)
     .replace(/\*(.+?)\*/g, "$1")
-    // Italic (single underscores) — only at word boundaries to preserve snake_case
+    // Italic (single underscores) -- only at word boundaries to preserve snake_case
     .replace(/(^|\s)_([^_]+?)_(?=\s|[.,;:!?]|$)/gm, "$1$2")
     // Strikethrough
     .replace(/~~(.+?)~~/g, "$1")
