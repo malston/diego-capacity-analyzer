@@ -1,4 +1,4 @@
-// ABOUTME: Low-level SSE transport for the chat endpoint
+// ABOUTME: Low-level SSE transport for the chat endpoint, plus fire-and-forget feedback submission
 // ABOUTME: Handles POST-based SSE with CSRF, chunk buffering, abort support, and typed error classification
 
 import { withCSRFToken } from "../utils/csrf.js";
@@ -43,8 +43,8 @@ export function parseSSEEvent(raw) {
 
   try {
     return { type, data: JSON.parse(dataLine) };
-  } catch {
-    console.warn("Skipping malformed SSE data:", dataLine);
+  } catch (err) {
+    console.warn("Skipping malformed SSE data:", dataLine, err.message);
     return null;
   }
 }
@@ -139,5 +139,37 @@ export async function* streamChat(messages, signal) {
     buffer += decoder.decode();
   } finally {
     reader.releaseLock();
+  }
+}
+
+/**
+ * Submit feedback for a chat message. Fire-and-forget: failures are logged
+ * but do not throw, since feedback is non-critical.
+ *
+ * @param {{ messageIndex: number, rating: string, truncatedQuestion: string }} feedback
+ */
+export async function sendFeedback({
+  messageIndex,
+  rating,
+  truncatedQuestion,
+}) {
+  const headers = withCSRFToken({ "Content-Type": "application/json" });
+
+  try {
+    const res = await fetch(`${API_URL}/api/v1/chat/feedback`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: JSON.stringify({
+        message_index: messageIndex,
+        rating,
+        truncated_question: truncatedQuestion,
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`Feedback submission returned ${res.status}`);
+    }
+  } catch (err) {
+    console.warn("Feedback submission failed:", err);
   }
 }

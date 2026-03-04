@@ -1,13 +1,21 @@
 // ABOUTME: Renders a single chat message with icon, content, and relative timestamp
 // ABOUTME: Uses Streamdown for streaming Markdown in assistant messages; memoized to prevent re-render storms
 // ABOUTME: Shows pulsing dots indicator when assistant message is streaming with empty content
+// ABOUTME: Displays floating action bar with copy-to-clipboard and feedback buttons on completed assistant messages
 
-import React, { useMemo } from "react";
-import { User, Bot } from "lucide-react";
+import React, {
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
+import { User, Bot, Copy, Check, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
 import "streamdown/styles.css";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
+import { stripMarkdown } from "../../utils/stripMarkdown";
 
 const markdownComponents = {
   h1: ({ children, ...props }) => (
@@ -121,6 +129,83 @@ const LoadingDots = () => (
   </div>
 );
 
+function CopyButton({ content }) {
+  const [status, setStatus] = useState("idle"); // idle | copied | failed
+  const timerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const handleCopy = useCallback(async () => {
+    clearTimeout(timerRef.current);
+    try {
+      await navigator.clipboard.writeText(stripMarkdown(content));
+      setStatus("copied");
+    } catch (err) {
+      console.warn("Clipboard write failed:", err);
+      setStatus("failed");
+    }
+    timerRef.current = setTimeout(() => setStatus("idle"), 2000);
+  }, [content]);
+
+  const label =
+    status === "copied"
+      ? "Copied"
+      : status === "failed"
+        ? "Copy failed"
+        : "Copy to clipboard";
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1 rounded text-slate-400 hover:text-slate-200 transition-colors"
+      aria-label={label}
+    >
+      {status === "copied" ? (
+        <Check className="w-3.5 h-3.5 text-green-400" />
+      ) : status === "failed" ? (
+        <Copy className="w-3.5 h-3.5 text-red-400" />
+      ) : (
+        <Copy className="w-3.5 h-3.5" />
+      )}
+    </button>
+  );
+}
+
+function FeedbackButtons({ rating, onRate }) {
+  return (
+    <>
+      <button
+        onClick={() => onRate("up")}
+        className={`p-1 rounded transition-colors ${
+          rating === "up"
+            ? "text-green-400"
+            : "text-slate-400 hover:text-slate-200"
+        }`}
+        aria-label={
+          rating === "up" ? "Remove positive feedback" : "Good response"
+        }
+        aria-pressed={rating === "up"}
+      >
+        <ThumbsUp className="w-3.5 h-3.5" />
+      </button>
+      <button
+        onClick={() => onRate("down")}
+        className={`p-1 rounded transition-colors ${
+          rating === "down"
+            ? "text-red-400"
+            : "text-slate-400 hover:text-slate-200"
+        }`}
+        aria-label={
+          rating === "down" ? "Remove negative feedback" : "Poor response"
+        }
+        aria-pressed={rating === "down"}
+      >
+        <ThumbsDown className="w-3.5 h-3.5" />
+      </button>
+    </>
+  );
+}
+
 function MessageContent({ message, isStreaming, plugins }) {
   if (message.role !== "assistant") {
     return (
@@ -147,38 +232,53 @@ function MessageContent({ message, isStreaming, plugins }) {
   );
 }
 
-const ChatMessage = React.memo(({ message, isStreaming, tick: _tick }) => {
-  const isAssistant = message.role === "assistant";
-  const plugins = useMemo(() => ({ code }), []);
+const ChatMessage = React.memo(
+  ({ message, isStreaming, tick: _tick, feedbackRating, onFeedback }) => {
+    const isAssistant = message.role === "assistant";
+    const plugins = useMemo(() => ({ code }), []);
+    const showActionBar = isAssistant && message.content && !isStreaming;
 
-  return (
-    <div
-      className={`flex gap-3 px-4 py-3 ${isAssistant ? "bg-slate-800/30" : ""}`}
-    >
-      <div className="flex-shrink-0 mt-0.5">
-        {isAssistant ? (
-          <div className="w-7 h-7 rounded-md bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
-            <Bot className="w-4 h-4 text-blue-400" aria-hidden="true" />
-          </div>
-        ) : (
-          <div className="w-7 h-7 rounded-md bg-slate-700/50 border border-slate-600 flex items-center justify-center">
-            <User className="w-4 h-4 text-slate-400" aria-hidden="true" />
+    return (
+      <div
+        className={`group relative flex gap-3 px-4 py-3 ${isAssistant ? "bg-slate-800/30" : ""}`}
+      >
+        <div className="flex-shrink-0 mt-0.5">
+          {isAssistant ? (
+            <div className="w-7 h-7 rounded-md bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-blue-400" aria-hidden="true" />
+            </div>
+          ) : (
+            <div className="w-7 h-7 rounded-md bg-slate-700/50 border border-slate-600 flex items-center justify-center">
+              <User className="w-4 h-4 text-slate-400" aria-hidden="true" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <MessageContent
+            message={message}
+            isStreaming={isStreaming}
+            plugins={plugins}
+          />
+          <span className="text-xs text-slate-500 mt-1 block">
+            {formatRelativeTime(message.timestamp)}
+          </span>
+        </div>
+        {showActionBar && (
+          <div
+            data-testid="action-bar"
+            className="absolute top-2 right-2 md:opacity-0 md:pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto md:group-focus-within:opacity-100 md:group-focus-within:pointer-events-auto transition-opacity flex items-center gap-0.5 bg-slate-800 border border-slate-600 rounded-md px-1 py-0.5"
+          >
+            <CopyButton content={message.content} />
+            <FeedbackButtons
+              rating={feedbackRating}
+              onRate={(rating) => onFeedback?.(rating)}
+            />
           </div>
         )}
       </div>
-      <div className="flex-1 min-w-0">
-        <MessageContent
-          message={message}
-          isStreaming={isStreaming}
-          plugins={plugins}
-        />
-        <span className="text-xs text-slate-500 mt-1 block">
-          {formatRelativeTime(message.timestamp)}
-        </span>
-      </div>
-    </div>
-  );
-});
+    );
+  },
+);
 
 ChatMessage.displayName = "ChatMessage";
 

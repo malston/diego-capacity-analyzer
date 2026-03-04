@@ -2,7 +2,7 @@
 // ABOUTME: Verifies chunk buffering, event type parsing, ChatError types, and abort support
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { parseSSEEvent, streamChat, ChatError } from "./chatApi";
+import { parseSSEEvent, streamChat, ChatError, sendFeedback } from "./chatApi";
 
 describe("parseSSEEvent", () => {
   it("parses a token event", () => {
@@ -47,6 +47,7 @@ describe("parseSSEEvent", () => {
     expect(warnSpy).toHaveBeenCalledWith(
       "Skipping malformed SSE data:",
       "{not valid json}",
+      expect.any(String),
     );
 
     warnSpy.mockRestore();
@@ -354,5 +355,76 @@ describe("streamChat", () => {
         }),
       }),
     );
+  });
+});
+
+describe("sendFeedback", () => {
+  let originalFetch;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+    Object.defineProperty(document, "cookie", {
+      value: "DIEGO_CSRF=feedback-csrf-token",
+      writable: true,
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it("sends POST with CSRF header, credentials, and mapped field names", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+
+    await sendFeedback({
+      messageIndex: 2,
+      rating: "up",
+      truncatedQuestion: "What is capacity?",
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/chat/feedback"),
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "X-CSRF-Token": "feedback-csrf-token",
+        }),
+        body: JSON.stringify({
+          message_index: 2,
+          rating: "up",
+          truncated_question: "What is capacity?",
+        }),
+      }),
+    );
+  });
+
+  it("does not throw on non-OK response (fire-and-forget)", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(
+      sendFeedback({ messageIndex: 0, rating: "down", truncatedQuestion: "" }),
+    ).resolves.toBeUndefined();
+
+    expect(warnSpy).toHaveBeenCalledWith("Feedback submission returned 500");
+    warnSpy.mockRestore();
+  });
+
+  it("does not throw on network error (fire-and-forget)", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(
+      sendFeedback({ messageIndex: 0, rating: "up", truncatedQuestion: "" }),
+    ).resolves.toBeUndefined();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Feedback submission failed:",
+      expect.any(TypeError),
+    );
+    warnSpy.mockRestore();
   });
 });
